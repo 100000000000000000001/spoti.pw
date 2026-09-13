@@ -13,9 +13,14 @@
 
 @interface SPTPlayerState : NSObject
 @property (nonatomic, readonly) SPTPlayerTrack *track;
+@property (nonatomic, readonly) BOOL isPaused;
+// Seconds. position runs on from positionAsOfTimestamp by the time elapsed since the state was made.
+@property (nonatomic, readonly) double position;
+@property (nonatomic, readonly) double positionAsOfTimestamp;
 @end
 
 @protocol SPTPlayer <NSObject>
 @property (nonatomic, readonly) SPTPlayerState *state;
 - (void)skipToNextTrack;
+- (void)seekTo:(double)seconds;
 @end

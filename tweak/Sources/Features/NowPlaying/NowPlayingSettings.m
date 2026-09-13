@@ -4,9 +4,13 @@
 #import "Features/Flags/Flags.h"
 #import "Features/Gestures/Gestures.h"
 #import "Features/ArtistBlock/ArtistBlock.h"
+#import "Features/Karaoke/Karaoke.h"
 
 static UIViewController *lyricsPage(void) {
     return [[SGModPage alloc] initWithTitle:@"Lyrics" intro:SGRestartNote sections:@[
+        SGSection(nil, @[
+            SGOptionRow(@"Apple Music style", @"Word by word on the full screen page; timing inside a line is estimated", SGKeyKaraokeLyrics),
+        ]),
         SGSection(@"Spotify's flags", @[
             SGFlagRow(@"Translations in the player", @"ios-feature-lyrics.enable_lyrics_multilanguage_npv"),
             SGFlagRow(@"Translations full screen", @"ios-feature-lyrics.enable_lyrics_multilanguage_fullscreen"),
