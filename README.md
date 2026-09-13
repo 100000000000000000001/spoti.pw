@@ -98,6 +98,15 @@ lock screen player working.
 The first build spends a minute reading Spotify's flags out of your IPA, so the flag list matches the
 Spotify you built from. `make flags` regenerates it.
 
+## Star history
+
+<a href="https://star-history.com/#skopevoj/spoti.pw&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=skopevoj/spoti.pw&type=Date&theme=dark">
+    <img src="https://api.star-history.com/svg?repos=skopevoj/spoti.pw&type=Date" alt="Star history chart">
+  </picture>
+</a>
+
 ## Credits
 
 [cyan](https://github.com/asdfzxcvbn/pyzule-rw) injects, [Theos](https://theos.dev) builds, and
