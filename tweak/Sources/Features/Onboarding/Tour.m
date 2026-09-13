@@ -337,7 +337,7 @@ static SGTourRow *actionRow(NSString *symbol, NSString *title, NSString *subtitl
 
 - (NSArray<SGTourPage *> *)buildPages {
     __weak typeof(self) weakSelf = self;
-    SGTourRow *glass = switchRow(@"drop.fill", @"Liquid Glass UI", @"Spotify's own glass bars and sheets, the search field, now playing bar, artwork background and lyrics", SGKeySpotifyGlass, NO);
+    SGTourRow *glass = switchRow(@"drop.fill", @"Liquid Glass UI", @"Spotify's own glass bars and sheets, the tab bar, search field, now playing bar, artwork background and lyrics", SGKeySpotifyGlass, NO);
     glass.changed = ^(BOOL on) { SGSetLiquidGlassUI(on); };
     SGTourRow *premium = switchRow(@"crown.fill", @"Spoof Premium", @"Free accounts only", SGKeyFakePremium, NO);
     premium.warning = SGFakePremiumWarning;

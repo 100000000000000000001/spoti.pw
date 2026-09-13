@@ -6,23 +6,20 @@
 #import "Features/NowPlaying/NowPlaying.h"
 
 void SGSetLiquidGlassUI(BOOL on) {
-    for (NSString *key in @[SGKeySpotifyGlass, SGKeySearchField, SGKeyNowPlayingBar, SGKeyPlayer, SGKeyPlayerBackdrop, SGKeyLyricsCard]) {
+    for (NSString *key in @[SGKeySpotifyGlass, SGKeyTabBar, SGKeySearchField, SGKeyNowPlayingBar, SGKeyPlayer, SGKeyPlayerBackdrop, SGKeyLyricsCard]) {
         SGSetEnabled(key, on);
     }
 }
 
 UIViewController *SGAppearanceSettingsPage(void) {
-    SGModRow *tabBar = SGUnstableRow(@"Tab bar", @"[WIP] Unstable", SGKeyTabBar,
-                        @"The glass capsule does not render the way iOS draws its own, and there is no selection indicator behind the active tab. Switching this on will look wrong.\n\nIf you want to take it further, pull requests are very welcome.");
-    tabBar.defaultOn = NO;
-    SGModRow *glass = SGOptionRow(@"Liquid Glass UI", @"Spotify's own glass navigation bar, slider and sheets, and with it the search field, now playing bar, artwork background and lyrics", SGKeySpotifyGlass);
+    SGModRow *glass = SGOptionRow(@"Liquid Glass UI", @"Spotify's own glass navigation bar, slider and sheets, and with it the tab bar, search field, now playing bar, artwork background and lyrics", SGKeySpotifyGlass);
     glass.changed = ^(BOOL on) { SGSetLiquidGlassUI(on); };
     return [[SGModPage alloc] initWithTitle:@"Appearance" intro:SGRestartNote sections:@[
         SGSection(nil, @[
             SGPageRow(@"Navbar", ^UIViewController *{ return SGNavbarSettingsPage(); }),
         ]),
         SGSection(@"Liquid Glass", @[
-            tabBar,
+            SGOptionRow(@"Tab bar", @"The system glass tab bar in place of Spotify's", SGKeyTabBar),
             SGOptionRow(@"Search field", @"Glass capsule instead of the white field", SGKeySearchField),
             glass,
         ]),
