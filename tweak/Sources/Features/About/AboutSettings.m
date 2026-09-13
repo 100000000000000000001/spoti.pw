@@ -47,7 +47,7 @@ UIViewController *SGAboutPage(void) {
             }, ^{ SGCheckForUpdate(YES); }),
         ]),
         SGSection(nil, @[
-            withSymbol(SGLinkRow(@"Website", @"Downloads, and the source to add to AltStore or SideStore", SGSiteURL), @"safari"),
+            withSymbol(SGLinkRow(@"Website", @"Features, and how to build it yourself", SGSiteURL), @"safari"),
             withSymbol(SGLinkRow(@"GitHub", @"Source, releases and issues", SGRepoURL), @"chevron.left.forwardslash.chevron.right"),
             withSymbol(SGActionRow(@"Welcome tour", @"The pages from the first launch, again", ^{ SGShowOnboarding(); }), @"map"),
         ]),

@@ -12,7 +12,7 @@
     tweak/Sources/Features/     one directory per feature, see below
     tweak/Sources/Diagnostics/  screen dumps and the tree server of FLEX builds
     scripts/                    pipeline.sh (build + inject), install.sh (sign + install), record-trees.py,
-                                dump-log.sh, extract-flags.py, publish.sh (release: build, catbox, site manifest)
+                                dump-log.sh, extract-flags.py, publish.sh (release: version bump, site release.json)
     trees/                      recorded view trees, one per screen; the input for every new hook
     plist/                      Info.plist overrides merged into the app (turns UIDesignRequiresCompatibility off)
     vendor/                     AutoFLEX deb

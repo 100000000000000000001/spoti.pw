@@ -8,7 +8,7 @@ FLEX ?= 0
 FLEX_ARG := $(if $(filter 0,$(FLEX)),--no-flex,)
 
 # A local install is renamed and re-iconed so it is told apart from the released app on the home
-# screen. It writes its own file, so publish's SKIP_BUILD=1 (newest *-glass.ipa) never picks it up.
+# screen.
 DEV_NAME ?= spoti.dev
 DEV_ICON ?= docs/icon.png
 
@@ -19,9 +19,9 @@ release:  ## glass only, no FLEX
 	./scripts/pipeline.sh $(IPA) --no-flex
 install:  ## build, sign with your certificate, push to the phone on USB (FLEX=1 to take FLEX too)
 	./scripts/pipeline.sh $(IPA) --install $(FLEX_ARG) --name "$(DEV_NAME)" --icon "$(DEV_ICON)" -o out/spoti.dev.ipa
-publish:  ## VERSION=0.15.0 NOTES="..." : build, upload to catbox, write the site's release.json, print the link
+publish:  ## VERSION=0.15.0 NOTES="..." : bump control, write the site's release.json
 	./scripts/publish.sh stage "$(IPA)" "$(VERSION)" "$(NOTES)"
-push:     ## commit and push the staged release in both repos (after testing the link)
+push:     ## commit and push the staged release in both repos
 	./scripts/publish.sh push
 trees:    ## record per-screen view trees into trees/ (needs a FLEX build on the phone)
 	./scripts/record-trees.py

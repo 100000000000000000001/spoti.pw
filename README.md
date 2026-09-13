@@ -54,9 +54,9 @@ What is in, and what is next.
 
 ## Get it
 
-No IPA is distributed here. [spoti.pw](https://spoti.pw) carries the current build and doubles as a
-source for SideStore, AltStore and Feather: add `https://spoti.pw` and later builds arrive on their
-own.
+No IPA is distributed, here or on [spoti.pw](https://spoti.pw). Fork the repo and
+[build it yourself](#build-it-yourself) from your own decrypted Spotify IPA; the GitHub workflow
+needs no Mac. The Mod page tells you when a newer version is out.
 
 The app keeps Spotify's bundle id, so it installs over the real Spotify. Sign it under a mismatched
 App ID and it still installs, but the lock screen card opens nothing.
