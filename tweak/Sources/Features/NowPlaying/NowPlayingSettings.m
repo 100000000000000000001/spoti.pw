@@ -3,6 +3,7 @@
 #import "Features/Declutter/Declutter.h"
 #import "Features/Flags/Flags.h"
 #import "Features/Gestures/Gestures.h"
+#import "Features/ArtistBlock/ArtistBlock.h"
 
 static UIViewController *lyricsPage(void) {
     return [[SGModPage alloc] initWithTitle:@"Lyrics" intro:SGRestartNote sections:@[
@@ -23,6 +24,7 @@ UIViewController *SGNowPlayingSettingsPage(void) {
         SGSection(nil, @[
             SGPageRow(@"Gestures", ^UIViewController *{ return SGGesturesSettingsPage(); }),
             SGPageRow(@"Lyrics", ^UIViewController *{ return lyricsPage(); }),
+            SGPageRow(@"Blocked artists", ^UIViewController *{ return SGArtistBlockSettingsPage(); }),
         ]),
         SGSection(@"Liquid Glass", @[
             SGOptionRow(@"Now playing bar", @"Glass card with round artwork", SGKeyNowPlayingBar),
