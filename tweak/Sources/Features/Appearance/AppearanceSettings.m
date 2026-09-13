@@ -6,7 +6,7 @@
 #import "Features/NowPlaying/NowPlaying.h"
 
 void SGSetLiquidGlassUI(BOOL on) {
-    for (NSString *key in @[SGKeySpotifyGlass, SGKeySearchField, SGKeyNowPlayingBar, SGKeyPlayerBackdrop, SGKeyLyricsCard]) {
+    for (NSString *key in @[SGKeySpotifyGlass, SGKeySearchField, SGKeyNowPlayingBar, SGKeyPlayer, SGKeyPlayerBackdrop, SGKeyLyricsCard]) {
         SGSetEnabled(key, on);
     }
 }

@@ -40,7 +40,7 @@ static BOOL backdropOn(void) {
 // The playlist name is 110 wide against 48 tall, so it keeps no pane, and neither do the children
 // Declutter/Declutter.x made invisible.
 static void glassBehindRoundButtons(UIViewController *unit) {
-    if (!SGEnabled(SGKeyPlayer)) return;
+    if (!SGFlag(SGKeyPlayer, NO)) return;
     UIView *host = unit.viewIfLoaded;
     UIStackView *row = SGRowIn(host);
     if (!row) return;
