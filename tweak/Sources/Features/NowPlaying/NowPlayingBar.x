@@ -85,6 +85,26 @@ static void restyleCardContent(UIView *card) {
     });
 }
 
+static BOOL insideClass(UIView *view, NSString *marker) {
+    for (UIView *v = view; v; v = v.superview) if ([NSStringFromClass(v.class) containsString:marker]) return YES;
+    return NO;
+}
+
+// trees/test6.txt: the button row is a UIStackView holding Connect_EntryPointsImpl.ConnectStateView
+// (the connected device) and .ConnectButtonView, each wrapped; hiding the wrapper closes the gap.
+// The ConnectStateView under the title ("playing on ...") sits in InformationContainer and stays.
+static void hideConnectButton(UIView *bar) {
+    if (!SGHidden(SGHideBarConnect)) return;
+    SGForEachView(bar, ^(UIView *v) {
+        NSString *name = NSStringFromClass(v.class);
+        if (![name containsString:@"ConnectButtonView"] && ![name containsString:@"ConnectStateView"]) return;
+        if (insideClass(v, @"InformationContainer")) return;
+        UIView *item = v;
+        while (item.superview && ![item.superview isKindOfClass:UIStackView.class]) item = item.superview;
+        if (item.superview && !item.hidden) item.hidden = YES;
+    });
+}
+
 static void styleNowPlayingBar(UIViewController *container) {
     if (!SGFlag(SGKeyNowPlayingBar, NO)) return;
     UIViewController *barVC = container.childViewControllers.firstObject;
@@ -168,6 +188,7 @@ static void playerTransition(id<UIViewControllerAnimatedTransitioning> animator,
 %hook _TtC18NowPlaying_BarImpl27NowPlayingBarViewController
 - (void)viewDidLayoutSubviews {
     %orig;
+    hideConnectButton(((UIViewController *)self).view);
     UIViewController *parent = ((UIViewController *)self).parentViewController;
     if ([NSStringFromClass(parent.class) containsString:@"NowPlayingBarContainer"]) styleNowPlayingBar(parent);
 }

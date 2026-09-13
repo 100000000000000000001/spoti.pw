@@ -52,6 +52,7 @@ UIViewController *SGNowPlayingSettingsPage(void) {
             SGHideRow(@"Repeat", @"Right of the playback controls", SGHideRepeat),
             SGHideRow(@"Connect to a device", @"The speaker and device name in the bottom row", SGHideConnect),
             SGHideRow(@"Share", @"The share button in the bottom row", SGHideShare),
+            SGHideRow(@"Device button in the bar", @"The speaker icon in the now playing bar", SGHideBarConnect),
             SGHideRow(@"Queue", @"The queue button in the bottom row", SGHideQueue),
             SGHideRow(@"Add to playlist", @"The plus next to the track title", SGHideAddTo),
         ]),

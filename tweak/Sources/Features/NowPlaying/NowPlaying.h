@@ -7,5 +7,6 @@
 #define SGKeyPlayer @"spotifyglass.player"
 #define SGKeyPlayerBackdrop @"spotifyglass.playerBackdrop"
 #define SGKeyLyricsCard @"spotifyglass.lyricsCard"
+#define SGHideBarConnect @"spotifyglass.hide.barConnect"   // the device button in the now playing bar
 
 UIViewController *SGNowPlayingSettingsPage(void);   // the Player page
