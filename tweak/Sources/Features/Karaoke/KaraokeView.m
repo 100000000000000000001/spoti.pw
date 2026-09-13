@@ -6,6 +6,7 @@ static const CGFloat kDimAlpha = 0.3, kFillEdge = 18, kLift = 2.5;
 static const CGFloat kAnchor = 0.28;   // where the sung line rests, as a share of the height
 static const CGFloat kEdgeFade = 0.1;  // the lines fade out over this share at the top and bottom
 static const CGFloat kBlurPerLine = 1.4, kMaxBlur = 6;
+static const NSTimeInterval kBrowseHold = 3;   // after scrolling by hand, how long until it follows the song again
 
 @interface CAFilter : NSObject
 + (instancetype)filterWithType:(NSString *)type;
@@ -153,7 +154,12 @@ static UILabel *wordLabel(NSString *text, UIFont *font, UIColor *color, CGRect f
 
 #pragma mark - the page
 
+@interface SGKaraokeView () <UIScrollViewDelegate>
+@end
+
 @implementation SGKaraokeView {
+    UIScrollView *_scroll;
+    BOOL _browsing;
     CADisplayLink *_link;
     NSString *_track;
     NSArray<SGKaraokeLine *> *_lines;
@@ -174,24 +180,65 @@ static UILabel *wordLabel(NSString *text, UIFont *font, UIColor *color, CGRect f
                      (id)UIColor.whiteColor.CGColor, (id)UIColor.clearColor.CGColor];
     _fade.locations = @[@0, @(kEdgeFade), @(1 - kEdgeFade), @1];
     self.layer.mask = _fade;
+    _scroll = [[UIScrollView alloc] initWithFrame:self.bounds];
+    _scroll.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+    _scroll.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
+    _scroll.showsVerticalScrollIndicator = NO;
+    _scroll.alwaysBounceVertical = YES;
+    _scroll.scrollsToTop = NO;
+    _scroll.delegate = self;
+    [self addSubview:_scroll];
     [self addGestureRecognizer:[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(tapped:)]];
     return self;
 }
 
 - (void)tapped:(UITapGestureRecognizer *)tap {
-    CGPoint point = [tap locationInView:self];
+    CGPoint point = [tap locationInView:_scroll];
     for (SGKaraokeLineView *view in _lineViews) {
         if (!CGRectContainsPoint(CGRectInset(view.frame, -kMargin, -kLineGap / 2), point)) continue;
         SGKaraokeSeek(view.line.start);
+        [self followSong];
         return;
     }
+}
+
+#pragma mark - scrolling by hand
+
+// Lines are placed for a content offset of 0, so following the song means scrolling back to 0.
+// While the user browses, placement stands still and every line is sharp.
+- (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView {
+    [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(followSong) object:nil];
+    _browsing = YES;
+    for (SGKaraokeLineView *view in _lineViews) view.blur = 0;
+}
+
+- (void)scrollViewDidEndDragging:(UIScrollView *)scrollView willDecelerate:(BOOL)decelerate {
+    if (!decelerate) [self performSelector:@selector(followSong) withObject:nil afterDelay:kBrowseHold];
+}
+
+- (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView {
+    [self performSelector:@selector(followSong) withObject:nil afterDelay:kBrowseHold];
+}
+
+- (void)followSong {
+    [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(followSong) object:nil];
+    if (!_browsing) return;
+    _browsing = NO;
+    [UIView animateWithDuration:0.7 delay:0 usingSpringWithDamping:0.9 initialSpringVelocity:0
+                        options:UIViewAnimationOptionAllowUserInteraction
+                     animations:^{ self->_scroll.contentOffset = CGPointZero; } completion:nil];
+    [self placeLinesAnimated:YES];
 }
 
 - (void)didMoveToWindow {
     [super didMoveToWindow];
     [_link invalidate];
     _link = nil;
-    if (!self.window) return;
+    if (!self.window) {
+        [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(followSong) object:nil];
+        _browsing = NO;
+        return;
+    }
     _link = [CADisplayLink displayLinkWithTarget:self selector:@selector(tick)];
     [_link addToRunLoop:NSRunLoop.mainRunLoop forMode:NSRunLoopCommonModes];
 }
@@ -202,6 +249,7 @@ static UILabel *wordLabel(NSString *text, UIFont *font, UIColor *color, CGRect f
     [CATransaction setDisableActions:YES];
     _fade.frame = self.bounds;
     [CATransaction commit];
+    _scroll.contentSize = self.bounds.size;
     if (_lines && self.bounds.size.width != _builtWidth) [self rebuild];
 }
 
@@ -209,6 +257,8 @@ static UILabel *wordLabel(NSString *text, UIFont *font, UIColor *color, CGRect f
     for (UIView *view in _lineViews) [view removeFromSuperview];
     _lineViews = nil;
     _active = -1;
+    _browsing = NO;
+    _scroll.contentOffset = CGPointZero;
     _builtWidth = self.bounds.size.width;
     CGFloat width = _builtWidth - 2 * kMargin;
     if (width <= 0) return;
@@ -216,7 +266,7 @@ static UILabel *wordLabel(NSString *text, UIFont *font, UIColor *color, CGRect f
     NSMutableArray<SGKaraokeLineView *> *views = [NSMutableArray array];
     for (SGKaraokeLine *line in _lines) {
         SGKaraokeLineView *view = [[SGKaraokeLineView alloc] initWithLine:line width:width font:font];
-        [self addSubview:view];
+        [_scroll addSubview:view];
         [views addObject:view];
     }
     _lineViews = views;
@@ -226,6 +276,7 @@ static UILabel *wordLabel(NSString *text, UIFont *font, UIColor *color, CGRect f
 // The sung line rests at the anchor and the rest stack around it; lines below it follow a beat
 // later, the further down the later, as Apple Music's do.
 - (void)placeLinesAnimated:(BOOL)animated {
+    if (_browsing) return;
     NSInteger focus = MAX(_active, 0);
     CGFloat height = self.bounds.size.height, top = 0, focusTop = 0;
     NSMutableArray<NSNumber *> *tops = [NSMutableArray array];
@@ -251,6 +302,9 @@ static UILabel *wordLabel(NSString *text, UIFont *font, UIColor *color, CGRect f
                             options:UIViewAnimationOptionBeginFromCurrentState | UIViewAnimationOptionAllowUserInteraction
                          animations:^{ view.frame = frame; } completion:nil];
     }
+    // Room to scroll until the first line or the last one reaches the anchor.
+    CGFloat lastTop = tops.lastObject.doubleValue;
+    _scroll.contentInset = UIEdgeInsetsMake(focusTop, 0, MAX(0, lastTop - focusTop), 0);
 }
 
 - (void)syncSiblings {
