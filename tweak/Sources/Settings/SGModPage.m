@@ -325,9 +325,12 @@ static BOOL flagRowLocked(SGModRow *row) {
         BOOL locked = flagRowLocked(row);
         toggle.on = row.flag ? (locked && !SGFlagOverride(row.key) ? YES : flagRowOn(row)) : SGFlag(row.key, row.defaultOn);
         toggle.enabled = !locked;
+        // A disabled switch would swallow the tap; letting it through is what gets the row asked.
+        toggle.userInteractionEnabled = !locked;
         toggle.tag = path.section * 1000 + path.row;
         [toggle addTarget:self action:@selector(toggled:) forControlEvents:UIControlEventValueChanged];
         cell.accessoryView = toggle;
+        cell.selectionStyle = locked ? UITableViewCellSelectionStyleDefault : UITableViewCellSelectionStyleNone;
     } else if (row.page) {
         cell.accessoryView = row.value ? valueAndChevron(row.value()) : SGSymbolView(@"chevron.right", 13, UIImageSymbolWeightSemibold, 16);
         cell.selectionStyle = UITableViewCellSelectionStyleDefault;
@@ -347,6 +350,11 @@ static BOOL flagRowLocked(SGModRow *row) {
 
 - (void)tableView:(UITableView *)table didSelectRowAtIndexPath:(NSIndexPath *)path {
     SGModRow *row = [self rowAt:path];
+    if (flagRowLocked(row)) {
+        [table deselectRowAtIndexPath:path animated:YES];
+        [self explainLock];
+        return;
+    }
     if (row.page) [self.navigationController pushViewController:row.page() animated:YES];
     if (!row.action) return;
     row.action();
@@ -363,6 +371,16 @@ static BOOL flagRowLocked(SGModRow *row) {
         [self.tableView reloadData];
     }
     if (toggle.on && row.warning) [self warn:row];
+}
+
+// A locked row will not move, and nothing on it says why.
+- (void)explainLock {
+    UIAlertController *alert = [UIAlertController
+        alertControllerWithTitle:@"Overridden by another setting"
+                         message:@"Another switch is forcing this flag, so the row shows what it forces instead of taking a value of its own."
+                  preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+    [self presentViewController:alert animated:YES completion:nil];
 }
 
 - (void)warn:(SGModRow *)row {
