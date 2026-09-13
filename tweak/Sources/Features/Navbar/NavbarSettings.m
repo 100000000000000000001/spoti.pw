@@ -2,6 +2,7 @@
 #import "Settings/SGPage.h"
 #import "Settings/SGPageStyle.h"
 #import "Navbar.h"
+#import "Features/Appearance/Appearance.h"
 
 // What "Add a tab" offers: URIs Spotify's own router resolves to a page of its own, each with the
 // name of the SPTEncoreIcon class method that draws its glyph.
@@ -152,19 +153,39 @@ static void appendTab(NSDictionary *tab) {
 
 @end
 
+typedef NS_ENUM(NSInteger, SGNavbarSection) {
+    SGNavbarSectionGlass,
+    SGNavbarSectionSwitch,
+    SGNavbarSectionTabs,
+    SGNavbarSectionAdd,
+    SGNavbarSectionReset,
+    SGNavbarSectionCount,
+};
+
+static NSArray<NSArray<NSString *> *> *glassRows(void) {
+    return @[
+        @[@"Glass tab bar", @"The system glass tab bar in place of Spotify's", SGKeyTabBar],
+        @[@"Glass search field", @"A glass capsule instead of the white field on Search", SGKeySearchField],
+    ];
+}
+
 // The tabs, in the order the bar shows them: drag to reorder, tap to show or hide, swipe a tab of
-// your own away. Spotify's own tabs can only be hidden, never removed.
+// your own away. Spotify's own tabs can only be hidden, never removed. In Mod Settings the glass
+// switches of the bar sit above them; the welcome tour embeds the editor without.
 @interface SGNavbarPage : SGPage
+- (instancetype)initWithGlass:(BOOL)glass;
 @end
 
 @implementation SGNavbarPage {
     NSMutableArray<NSMutableDictionary *> *_entries;
     UIView *_intro;
+    BOOL _glass;
 }
 
-- (instancetype)init {
+- (instancetype)initWithGlass:(BOOL)glass {
     if (!(self = [super initWithStyle:UITableViewStyleInsetGrouped])) return nil;
     self.title = @"Navbar";
+    _glass = glass;
     return self;
 }
 
@@ -172,7 +193,8 @@ static void appendTab(NSDictionary *tab) {
     [super viewDidLoad];
     self.tableView.allowsSelectionDuringEditing = YES;
     self.tableView.editing = YES;
-    _intro = SGNote(@"Drag a tab by the handle to move it, tap it to show or hide it. The bar follows straight away.");
+    _intro = SGNote(_glass ? @"Drag a tab by the handle to move it, tap it to show or hide it. The bar follows straight away; the glass switches apply after you restart Spotify."
+                           : @"Drag a tab by the handle to move it, tap it to show or hide it. The bar follows straight away.");
     self.tableView.tableHeaderView = _intro;
     _entries = navbarEntries();
 }
@@ -200,19 +222,29 @@ static void appendTab(NSDictionary *tab) {
 }
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)table {
-    return 4;
+    return SGNavbarSectionCount;
 }
 
 - (NSInteger)tableView:(UITableView *)table numberOfRowsInSection:(NSInteger)section {
-    return section == 1 ? (NSInteger)_entries.count : 1;
+    if (section == SGNavbarSectionGlass) return _glass ? (NSInteger)glassRows().count : 0;
+    return section == SGNavbarSectionTabs ? (NSInteger)_entries.count : 1;
+}
+
+- (NSString *)headerFor:(NSInteger)section {
+    if (section == SGNavbarSectionGlass && _glass) return @"Liquid Glass";
+    if (section == SGNavbarSectionSwitch && _glass) return @"Tabs";
+    if (section == SGNavbarSectionTabs && !_glass) return @"Tabs";
+    return nil;
 }
 
 - (UIView *)tableView:(UITableView *)table viewForHeaderInSection:(NSInteger)section {
-    return section == 1 ? SGSectionHeader(table, @"Tabs") : nil;
+    NSString *title = [self headerFor:section];
+    return title ? SGSectionHeader(table, title) : nil;
 }
 
 - (CGFloat)tableView:(UITableView *)table heightForHeaderInSection:(NSInteger)section {
-    return section == 1 ? SGSectionHeaderHeight : CGFLOAT_MIN;
+    if ([self headerFor:section]) return SGSectionHeaderHeight;
+    return [self tableView:table numberOfRowsInSection:section] ? SGSectionGap : CGFLOAT_MIN;
 }
 
 - (CGFloat)tableView:(UITableView *)table heightForFooterInSection:(NSInteger)section {
@@ -222,7 +254,18 @@ static void appendTab(NSDictionary *tab) {
 - (UITableViewCell *)tableView:(UITableView *)table cellForRowAtIndexPath:(NSIndexPath *)path {
     UITableViewCell *cell = SGDequeueCell(table, @"navbar");
     switch (path.section) {
-        case 0: {
+        case SGNavbarSectionGlass: {
+            NSArray<NSString *> *row = glassRows()[(NSUInteger)path.row];
+            SGFillCell(cell, row[0], row[1], nil, nil);
+            UISwitch *toggle = [UISwitch new];
+            toggle.onTintColor = SGGreen();
+            toggle.on = SGFlag(row[2], NO);
+            toggle.tag = path.row;
+            [toggle addTarget:self action:@selector(glassToggled:) forControlEvents:UIControlEventValueChanged];
+            cell.accessoryView = toggle;
+            break;
+        }
+        case SGNavbarSectionSwitch: {
             SGFillCell(cell, @"Custom navbar", @"Off leaves the bar exactly as Spotify built it", nil, nil);
             UISwitch *toggle = [UISwitch new];
             toggle.onTintColor = SGGreen();
@@ -231,7 +274,7 @@ static void appendTab(NSDictionary *tab) {
             cell.accessoryView = toggle;
             break;
         }
-        case 1: {
+        case SGNavbarSectionTabs: {
             NSDictionary *entry = _entries[(NSUInteger)path.row];
             BOOL hidden = [entry[SGNavbarHidden] boolValue];
             NSString *uri = entry[SGNavbarURI];
@@ -239,7 +282,7 @@ static void appendTab(NSDictionary *tab) {
                      hidden ? SGGrey() : nil, hidden ? @"eye.slash" : @"eye");
             break;
         }
-        case 2:
+        case SGNavbarSectionAdd:
             SGFillCell(cell, @"Add a tab…", @"A page of Spotify's, or any link", nil, @"plus");
             cell.selectionStyle = UITableViewCellSelectionStyleDefault;
             break;
@@ -252,21 +295,21 @@ static void appendTab(NSDictionary *tab) {
 }
 
 - (BOOL)tableView:(UITableView *)table canMoveRowAtIndexPath:(NSIndexPath *)path {
-    return path.section == 1;
+    return path.section == SGNavbarSectionTabs;
 }
 
 - (BOOL)tableView:(UITableView *)table canEditRowAtIndexPath:(NSIndexPath *)path {
-    return path.section == 1;
+    return path.section == SGNavbarSectionTabs;
 }
 
 // Spotify's own tabs stay on the list to be switched back on; only the mod's own can go.
 - (UITableViewCellEditingStyle)tableView:(UITableView *)table editingStyleForRowAtIndexPath:(NSIndexPath *)path {
-    if (path.section != 1) return UITableViewCellEditingStyleNone;
+    if (path.section != SGNavbarSectionTabs) return UITableViewCellEditingStyleNone;
     return _entries[(NSUInteger)path.row][SGNavbarURI] ? UITableViewCellEditingStyleDelete : UITableViewCellEditingStyleNone;
 }
 
 - (NSIndexPath *)tableView:(UITableView *)table targetIndexPathForMoveFromRowAtIndexPath:(NSIndexPath *)from toProposedIndexPath:(NSIndexPath *)to {
-    return to.section == 1 ? to : from;
+    return to.section == SGNavbarSectionTabs ? to : from;
 }
 
 - (void)tableView:(UITableView *)table moveRowAtIndexPath:(NSIndexPath *)from toIndexPath:(NSIndexPath *)to {
@@ -285,14 +328,14 @@ static void appendTab(NSDictionary *tab) {
 
 - (void)tableView:(UITableView *)table didSelectRowAtIndexPath:(NSIndexPath *)path {
     [table deselectRowAtIndexPath:path animated:YES];
-    if (path.section == 1) {
+    if (path.section == SGNavbarSectionTabs) {
         NSMutableDictionary *entry = _entries[(NSUInteger)path.row];
         entry[SGNavbarHidden] = [entry[SGNavbarHidden] boolValue] ? nil : @YES;
         [self save];
         [table reloadRowsAtIndexPaths:@[path] withRowAnimation:UITableViewRowAnimationNone];
-    } else if (path.section == 2) {
+    } else if (path.section == SGNavbarSectionAdd) {
         [self.navigationController pushViewController:[SGTabPickerPage new] animated:YES];
-    } else if (path.section == 3) {
+    } else if (path.section == SGNavbarSectionReset) {
         [self reset];
     }
 }
@@ -300,6 +343,10 @@ static void appendTab(NSDictionary *tab) {
 - (void)toggled:(UISwitch *)toggle {
     SGSetEnabled(SGKeyNavbar, toggle.on);
     SGRefreshTabBar();
+}
+
+- (void)glassToggled:(UISwitch *)toggle {
+    SGSetEnabled(glassRows()[(NSUInteger)toggle.tag][2], toggle.on);
 }
 
 - (void)reset {
@@ -319,5 +366,9 @@ static void appendTab(NSDictionary *tab) {
 @end
 
 UIViewController *SGNavbarSettingsPage(void) {
-    return [SGNavbarPage new];
+    return [[SGNavbarPage alloc] initWithGlass:YES];
+}
+
+UIViewController *SGNavbarEditorPage(void) {
+    return [[SGNavbarPage alloc] initWithGlass:NO];
 }

@@ -321,11 +321,11 @@ static SGTourRow *actionRow(NSString *symbol, NSString *title, NSString *subtitl
     return page;
 }
 
-// The Navbar page as it is in Mod Settings, over the scrim instead of its own black, in a
-// navigation controller of its own so Add a tab has somewhere to push.
+// The tab editor of the Navbar page, over the scrim instead of its own black, in a navigation
+// controller of its own so Add a tab has somewhere to push.
 - (SGTourPage *)navbarPage {
     SGTourPage *page = [self pageWithSymbol:@"dock.rectangle" heading:@"Your tabs." body:@"Drag to reorder, tap to hide, add any Spotify link as a tab of its own. The bar follows straight away." rows:@[]];
-    UIViewController *editor = SGNavbarSettingsPage();
+    UIViewController *editor = SGNavbarEditorPage();
     editor.view.backgroundColor = UIColor.clearColor;
     UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:editor];
     nav.navigationBarHidden = YES;

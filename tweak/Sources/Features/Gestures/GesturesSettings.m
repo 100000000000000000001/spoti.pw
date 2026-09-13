@@ -180,7 +180,7 @@ static NSString *cellLabel(SGGestureAction action) {
 }
 
 - (CGFloat)tableView:(UITableView *)table heightForHeaderInSection:(NSInteger)section {
-    return section == 1 || section == 2 ? SGSectionHeaderHeight : CGFLOAT_MIN;
+    return section == 1 || section == 2 ? SGSectionHeaderHeight : SGSectionGap;
 }
 
 - (CGFloat)tableView:(UITableView *)table heightForFooterInSection:(NSInteger)section {

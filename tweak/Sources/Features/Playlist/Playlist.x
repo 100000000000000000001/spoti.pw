@@ -1,4 +1,4 @@
-// Playlist: hides parts of a playlist page, one switch each in Mod Settings > Playlist. Album and
+// Playlist: hides parts of a playlist page, one switch each in Mod Settings > Home & Library. Album and
 // artist pages are built by another framework and are left alone.
 //
 // The header parts are hidden from the layout pass that places them, not from the view

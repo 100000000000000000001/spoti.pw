@@ -88,6 +88,7 @@ UIImage *SGTileImage(NSString *symbol) {
 }
 
 const CGFloat SGSectionHeaderHeight = 38;
+const CGFloat SGSectionGap = 20;
 
 // Every page below draws Spotify's own list row: a 13pt white title over an 11pt grey subtitle,
 // with an optional symbol in the leading slot.
@@ -122,6 +123,33 @@ UIView *SGSectionHeader(UITableView *table, NSString *title) {
     UIView *header = [[UIView alloc] initWithFrame:CGRectMake(0, 0, table.bounds.size.width, SGSectionHeaderHeight)];
     [header addSubview:label];
     return header;
+}
+
+static const CGFloat kFooterTop = 8, kFooterBottom = 4;
+
+static CGFloat footerTextHeight(UITableView *table, NSString *text) {
+    CGFloat width = MAX(table.bounds.size.width - 32, 100);
+    return ceil([text boundingRectWithSize:CGSizeMake(width, CGFLOAT_MAX)
+                                   options:NSStringDrawingUsesLineFragmentOrigin
+                                attributes:@{NSFontAttributeName: SGSubtitleFont()}
+                                   context:nil].size.height);
+}
+
+UIView *SGSectionFooter(UITableView *table, NSString *text) {
+    UILabel *label = [UILabel new];
+    label.text = text;
+    label.font = SGSubtitleFont();
+    label.textColor = SGGrey();
+    label.numberOfLines = 0;
+    label.frame = CGRectMake(16, kFooterTop, table.bounds.size.width - 32, footerTextHeight(table, text));
+    label.autoresizingMask = UIViewAutoresizingFlexibleWidth;
+    UIView *footer = [[UIView alloc] initWithFrame:CGRectMake(0, 0, table.bounds.size.width, SGSectionFooterHeight(table, text))];
+    [footer addSubview:label];
+    return footer;
+}
+
+CGFloat SGSectionFooterHeight(UITableView *table, NSString *text) {
+    return kFooterTop + footerTextHeight(table, text) + kFooterBottom;
 }
 
 UITableViewCell *SGDequeueCell(UITableView *table, NSString *identifier) {

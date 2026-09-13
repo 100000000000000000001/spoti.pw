@@ -11,4 +11,6 @@ NSUInteger SGBlockedCount(NSString *label);
 void SGResetBlocked(void);
 
 @class SGModSection;
-NSArray<SGModSection *> *SGPrivacySections(void);   // the telemetry rows of the Premium & ads page
+// The telemetry switch and what it has stopped, on the Premium, ads & privacy page.
+SGModSection *SGPrivacySection(void);
+SGModSection *SGPrivacyCountersSection(void);

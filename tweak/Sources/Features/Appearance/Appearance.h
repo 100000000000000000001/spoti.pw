@@ -14,7 +14,8 @@ void SGPickAccent(void);        // the system colour picker over the top of the 
 
 // Liquid Glass UI, the one switch of Appearance that sets others: Spotify's own glass and, with
 // it, the tab bar, the search field, the now playing bar, the artwork background and the lyrics card. Each
-// stays a switch of its own afterwards.
+// stays a switch of its own afterwards, on the page of the part it styles.
 void SGSetLiquidGlassUI(BOOL on);
 
-UIViewController *SGAppearanceSettingsPage(void);
+@class SGModSection;
+SGModSection *SGAppearanceSection(void);   // the Appearance card at the top of Mod Settings

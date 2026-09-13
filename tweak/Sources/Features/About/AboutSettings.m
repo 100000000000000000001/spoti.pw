@@ -40,11 +40,11 @@ UIViewController *SGAboutPage(void) {
     NSString *spotify = [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleShortVersionString"] ?: @"unknown";
     return [[SGModPage alloc] initWithTitle:@"Mod" intro:nil sections:@[
         SGSection(nil, @[
-            SGStatRow(@"Version", ^NSString *{ return @(SG_VERSION); }),
-            SGStatRow(@"Spotify", ^NSString *{ return spotify; }),
             SGStatActionRow(@"Updates", @"Asks the site for the newest build; tap to check now", ^NSString *{
                 return SGUpdateStatus();
             }, ^{ SGCheckForUpdate(YES); }),
+            SGStatRow(@"Version", ^NSString *{ return @(SG_VERSION); }),
+            SGStatRow(@"Spotify", ^NSString *{ return spotify; }),
         ]),
         SGSection(nil, @[
             withSymbol(SGLinkRow(@"Website", @"Features, and how to build it yourself", SGSiteURL), @"safari"),

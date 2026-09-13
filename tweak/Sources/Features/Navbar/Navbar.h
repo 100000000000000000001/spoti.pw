@@ -23,4 +23,5 @@ void SGLogTabBarRow(UIView *tabBar);
 // Lays the bar out again after the Navbar page changes something, so it does not wait for a touch.
 void SGRefreshTabBar(void);
 
-UIViewController *SGNavbarSettingsPage(void);
+UIViewController *SGNavbarSettingsPage(void);   // the glass switches of the bar, then the tab editor
+UIViewController *SGNavbarEditorPage(void);     // the tab editor alone, for the welcome tour

@@ -1,7 +1,7 @@
 // Flags: Spotify's remote-config flags. Flags.x forces an override into the configuration
 // provider; SGFlagList.m is the table of every flag, generated from the IPA by
-// scripts/extract-flags.py; FlagsPage.m is the searchable All flags page and FlagPages.m the flags
-// by topic: the Premium & ads and Labs pages, and the playback and lock screen sections of Player.
+// scripts/extract-flags.py; FlagsPage.m is the searchable All flags page and FlagPages.m the Labs
+// page. Flags that change a part of the app sit on that part's own page.
 #import <UIKit/UIKit.h>
 
 // Spotify ships its newer design behind several flags at once, so this switch owns them all:
@@ -15,9 +15,5 @@ typedef struct { const char *key; SGFlagType type; long value, lower, upper; } S
 extern const SGFlagDef SGFlagTable[];
 extern const NSUInteger SGFlagCount;
 
-@class SGModSection;
 UIViewController *SGAllFlagsPage(void);
-UIViewController *SGAdsSettingsPage(void);
 UIViewController *SGLabsPage(void);
-NSArray<SGModSection *> *SGPlaybackSections(void);
-SGModSection *SGLockScreenSection(void);

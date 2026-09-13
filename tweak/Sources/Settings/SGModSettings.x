@@ -1,11 +1,11 @@
-// Settings: a Mod Settings row at the end of Spotify's settings list opens the mod's own pages:
-// Appearance (with the Navbar, the tab bar's own composition, under it), Home & Library, Playlist
-// and Player, each sections of switches (the mod's own and a few of Spotify's remote-config
-// flags), Premium & ads and Labs, All flags, a searchable list of every flag with an override per
-// flag, and Mod, the build, its updates and links. The same row leads the side drawer's list
-// (trees/test6.txt), above Your plan, so the page is a tap from Home. The tweaks read the switches
-// when they run, so a change shows after Spotify restarts; the Navbar page is the exception and
-// applies as soon as the bar lays out again.
+// Settings: a Mod Settings row at the end of Spotify's settings list opens the mod's own page: the
+// Appearance card that styles the whole app, then a page per part of Spotify, each holding that
+// part's glass, hide switches and flags (Navbar, Player, Home & Library), Premium, ads & privacy
+// and Labs, All flags, a searchable list of every flag with an override per flag, and Mod, the
+// build, its updates and links. The same row leads the side drawer's list (trees/test6.txt), above
+// Your plan, so the page is a tap from Home. The tweaks read the switches when they run, so a change
+// shows after Spotify restarts; the tab editor on the Navbar page applies as soon as the bar lays
+// out again.
 //
 // Tree (trees/settings.txt): SettingsListViewController.view > SettingsListCollectionView of
 //   Element_List cells 402x56: 24pt icon at x 12, 13pt white title and 11pt grey subtitle at
@@ -16,9 +16,10 @@
 #import "SGPageStyle.h"
 #import "SGModPage.h"
 #import "Features/Appearance/Appearance.h"
+#import "Features/Navbar/Navbar.h"
 #import "Features/Home/Home.h"
-#import "Features/Playlist/Playlist.h"
 #import "Features/NowPlaying/NowPlaying.h"
+#import "Features/AdBlock/AdBlock.h"
 #import "Features/Flags/Flags.h"
 #import "Features/About/About.h"
 
@@ -26,9 +27,7 @@ static const CGFloat kRowHeight = 56;
 static char kRowKey, kInsetKey;
 
 static SGModRow *pageRow(NSString *title, NSString *symbol, UIViewController *(^page)(void)) {
-    SGModRow *row = SGPageRow(title, page);
-    row.symbol = symbol;
-    return row;
+    return SGWithSymbol(SGPageRow(title, page), symbol);
 }
 
 static UIViewController *modSettingsPage(void) {
@@ -42,14 +41,14 @@ static UIViewController *modSettingsPage(void) {
     SGModRow *mod = pageRow(@"Mod", @"info.circle", ^UIViewController *{ return SGAboutPage(); });
     mod.value = ^NSString *{ return @(SG_VERSION); };
     [sections addObjectsFromArray:@[
+        SGAppearanceSection(),
         SGSection(nil, @[
-            pageRow(@"Appearance", @"paintbrush", ^UIViewController *{ return SGAppearanceSettingsPage(); }),
-            pageRow(@"Home & Library", @"house", ^UIViewController *{ return SGHomeSettingsPage(); }),
-            pageRow(@"Playlist", @"music.note.list", ^UIViewController *{ return SGPlaylistSettingsPage(); }),
+            pageRow(@"Navbar", @"dock.rectangle", ^UIViewController *{ return SGNavbarSettingsPage(); }),
             pageRow(@"Player", @"play.circle", ^UIViewController *{ return SGNowPlayingSettingsPage(); }),
+            pageRow(@"Home & Library", @"house", ^UIViewController *{ return SGHomeSettingsPage(); }),
         ]),
         SGSection(nil, @[
-            pageRow(@"Premium & ads", @"crown", ^UIViewController *{ return SGAdsSettingsPage(); }),
+            pageRow(@"Premium, ads & privacy", @"crown", ^UIViewController *{ return SGAdsSettingsPage(); }),
             pageRow(@"Labs", @"testtube.2", ^UIViewController *{ return SGLabsPage(); }),
         ]),
         SGSection(nil, @[

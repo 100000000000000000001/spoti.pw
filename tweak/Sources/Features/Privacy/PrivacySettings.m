@@ -1,7 +1,13 @@
 #import "Settings/SGModPage.h"
 #import "Privacy.h"
 
-NSArray<SGModSection *> *SGPrivacySections(void) {
+SGModSection *SGPrivacySection(void) {
+    return SGSection(@"Privacy", @[
+        SGWithSymbol(SGSwitchRow(@"Block telemetry", @"Answer the analytics endpoints with an empty reply instead of letting the request out", SGKeyBlockTelemetry), @"antenna.radiowaves.left.and.right.slash"),
+    ]);
+}
+
+SGModSection *SGPrivacyCountersSection(void) {
     NSMutableArray<SGModRow *> *counts = [NSMutableArray array];
     for (NSString *label in SGBlockedLabels()) {
         [counts addObject:SGStatRow(label, ^NSString *{
@@ -11,13 +17,6 @@ NSArray<SGModSection *> *SGPrivacySections(void) {
     [counts addObject:SGStatRow(@"Total", ^NSString *{
         return @(SGBlockedCount(nil)).stringValue;
     })];
-    return @[
-        SGSection(@"Telemetry", @[
-            SGSwitchRow(@"Block telemetry", @"Answer the analytics endpoints with an empty reply instead of letting the request out", SGKeyBlockTelemetry),
-        ]),
-        SGSection(@"Telemetry blocked so far", counts),
-        SGSection(nil, @[
-            SGActionRow(@"Reset the telemetry counters", @"Start counting from zero", ^{ SGResetBlocked(); }),
-        ]),
-    ];
+    [counts addObject:SGActionRow(@"Reset the telemetry counters", @"Start counting from zero", ^{ SGResetBlocked(); })];
+    return SGSection(@"Telemetry blocked so far", counts);
 }

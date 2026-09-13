@@ -22,8 +22,11 @@ void SGFitNote(UITableView *table, UIView *wrapper, CGFloat top, CGFloat bottom)
 void SGInsetForBars(UITableView *table);
 
 extern const CGFloat SGSectionHeaderHeight;
+extern const CGFloat SGSectionGap;   // above a section with no header, so its card does not touch the one before
 void SGFillCell(UITableViewCell *cell, NSString *title, NSString *subtitle, UIColor *color, NSString *symbolName);
 UIView *SGSectionHeader(UITableView *table, NSString *title);
+UIView *SGSectionFooter(UITableView *table, NSString *text);
+CGFloat SGSectionFooterHeight(UITableView *table, NSString *text);
 UITableViewCell *SGDequeueCell(UITableView *table, NSString *identifier);
 
 void SGOpenURL(NSString *url);

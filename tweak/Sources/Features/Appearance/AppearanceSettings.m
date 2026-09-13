@@ -1,5 +1,6 @@
 #import "Core/SGCore.h"
 #import "Settings/SGModPage.h"
+#import "Settings/SGPageStyle.h"
 #import "Appearance.h"
 #import "Features/Navbar/Navbar.h"
 #import "Features/Flags/Flags.h"
@@ -11,22 +12,30 @@ void SGSetLiquidGlassUI(BOOL on) {
     }
 }
 
-UIViewController *SGAppearanceSettingsPage(void) {
-    SGModRow *glass = SGOptionRow(@"Liquid Glass UI", @"Spotify's own glass navigation bar, slider and sheets, and with it the tab bar, search field, now playing bar, artwork background and lyrics", SGKeySpotifyGlass);
+// Going back to Spotify's green is offered only once a colour of the mod's is set, so a stray tap
+// cannot wipe it.
+static void chooseAccent(void) {
+    if (!SGAccentColor()) {
+        SGPickAccent();
+        return;
+    }
+    UIViewController *top = SGTopController();
+    UIAlertController *sheet = [UIAlertController alertControllerWithTitle:@"Accent colour" message:nil preferredStyle:UIAlertControllerStyleActionSheet];
+    [sheet addAction:[UIAlertAction actionWithTitle:@"Pick a colour" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) { SGPickAccent(); }]];
+    [sheet addAction:[UIAlertAction actionWithTitle:@"Spotify's green" style:UIAlertActionStyleDestructive handler:^(UIAlertAction *action) { SGSetInt(SGKeyAccent, -1); }]];
+    [sheet addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+    sheet.popoverPresentationController.sourceView = top.view;
+    sheet.popoverPresentationController.sourceRect = CGRectMake(CGRectGetMidX(top.view.bounds), CGRectGetMidY(top.view.bounds), 0, 0);
+    sheet.popoverPresentationController.permittedArrowDirections = 0;
+    [top presentViewController:sheet animated:YES completion:nil];
+}
+
+SGModSection *SGAppearanceSection(void) {
+    SGModRow *glass = SGOptionRow(@"Liquid Glass UI", @"Spotify's own glass bars, slider and sheets, and every glass switch of the mod's with it", SGKeySpotifyGlass);
     glass.changed = ^(BOOL on) { SGSetLiquidGlassUI(on); };
-    return [[SGModPage alloc] initWithTitle:@"Appearance" intro:SGRestartNote sections:@[
-        SGSection(nil, @[
-            SGPageRow(@"Navbar", ^UIViewController *{ return SGNavbarSettingsPage(); }),
-        ]),
-        SGSection(@"Liquid Glass", @[
-            SGOptionRow(@"Tab bar", @"The system glass tab bar in place of Spotify's", SGKeyTabBar),
-            SGOptionRow(@"Search field", @"Glass capsule instead of the white field", SGKeySearchField),
-            glass,
-        ]),
-        SGSection(@"Theme", @[
-            SGOptionRow(@"AMOLED background", @"Pure black instead of Spotify's dark grey", SGKeyAmoled),
-            SGStatActionRow(@"Accent colour", @"In place of Spotify's green, everywhere it is drawn; tap to pick", ^NSString *{ return SGAccentLabel(); }, ^{ SGPickAccent(); }),
-            SGActionRow(@"Spotify's green", @"Back to the colour the app came with", ^{ SGSetInt(SGKeyAccent, -1); }),
-        ]),
-    ] footer:nil];
+    return SGNotedSection(@"Appearance", @[
+        SGWithSymbol(glass, @"drop"),
+        SGWithSymbol(SGOptionRow(@"AMOLED background", @"Pure black instead of Spotify's dark grey", SGKeyAmoled), @"moon"),
+        SGWithSymbol(SGStatActionRow(@"Accent colour", @"In place of Spotify's green, everywhere it is drawn", ^NSString *{ return SGAccentLabel(); }, ^{ chooseAccent(); }), @"paintpalette"),
+    ], @"Liquid Glass UI turns every glass switch of the mod's on or off with it. Changes apply after you restart Spotify.");
 }

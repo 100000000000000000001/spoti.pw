@@ -13,4 +13,5 @@
 #define SGHidePlaylistPills @"spotifyglass.hide.playlistPills"
 #define SGHidePlaylistFind @"spotifyglass.hide.playlistFind"
 
-UIViewController *SGPlaylistSettingsPage(void);
+@class SGModSection;
+NSArray<SGModSection *> *SGPlaylistSections(void);   // the playlist sections of the Home & Library page

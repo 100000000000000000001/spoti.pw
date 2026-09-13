@@ -26,6 +26,7 @@
 @interface SGModSection : NSObject
 @property (nonatomic, copy) NSString *title;
 @property (nonatomic, copy) NSArray<SGModRow *> *rows;
+@property (nonatomic, copy) NSString *footer;
 @end
 
 @interface SGModPage : SGPage
@@ -54,3 +55,6 @@ SGModRow *SGChoiceRow(NSString *title, NSString *subtitle, NSString *key, NSArra
 SGModRow *SGLinkRow(NSString *title, NSString *subtitle, NSString *url);
 SGModRow *SGStatActionRow(NSString *title, NSString *subtitle, NSString *(^value)(void), void (^action)(void));
 SGModSection *SGSection(NSString *title, NSArray<SGModRow *> *rows);
+SGModSection *SGNotedSection(NSString *title, NSArray<SGModRow *> *rows, NSString *footer);
+// Gives a row its leading symbol, drawn on a tile unless the row has a colour of its own.
+SGModRow *SGWithSymbol(SGModRow *row, NSString *symbol);

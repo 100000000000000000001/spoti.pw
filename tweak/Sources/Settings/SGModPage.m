@@ -187,6 +187,17 @@ SGModSection *SGSection(NSString *title, NSArray<SGModRow *> *rows) {
     return s;
 }
 
+SGModSection *SGNotedSection(NSString *title, NSArray<SGModRow *> *rows, NSString *footer) {
+    SGModSection *s = SGSection(title, rows);
+    s.footer = footer;
+    return s;
+}
+
+SGModRow *SGWithSymbol(SGModRow *row, NSString *symbol) {
+    row.symbol = symbol;
+    return row;
+}
+
 // What a page row carrying a value shows on the right: the value, then the chevron, the same
 // distance apart as Spotify's own rows keep them.
 static UIView *valueAndChevron(NSString *text) {
@@ -263,7 +274,9 @@ static BOOL flagRowLocked(SGModRow *row) {
     [self.tableView reloadData];
     if (!_live) return;
     // The counters climb while the page is open; the labels are written straight into the cells so
-    // that a reload never lands under a switch being dragged.
+    // that a reload never lands under a switch being dragged. A cancelled back swipe appears the
+    // page again without it ever disappearing, so the old timer goes first.
+    [_ticker invalidate];
     _ticker = [NSTimer scheduledTimerWithTimeInterval:1 target:self selector:@selector(readValues) userInfo:nil repeats:YES];
 }
 
@@ -302,11 +315,17 @@ static BOOL flagRowLocked(SGModRow *row) {
 }
 
 - (CGFloat)tableView:(UITableView *)table heightForHeaderInSection:(NSInteger)section {
-    return _sections[(NSUInteger)section].title ? SGSectionHeaderHeight : CGFLOAT_MIN;
+    return _sections[(NSUInteger)section].title ? SGSectionHeaderHeight : SGSectionGap;
+}
+
+- (UIView *)tableView:(UITableView *)table viewForFooterInSection:(NSInteger)section {
+    NSString *footer = _sections[(NSUInteger)section].footer;
+    return footer ? SGSectionFooter(table, footer) : nil;
 }
 
 - (CGFloat)tableView:(UITableView *)table heightForFooterInSection:(NSInteger)section {
-    return CGFLOAT_MIN;
+    NSString *footer = _sections[(NSUInteger)section].footer;
+    return footer ? SGSectionFooterHeight(table, footer) : CGFLOAT_MIN;
 }
 
 - (UITableViewCell *)tableView:(UITableView *)table cellForRowAtIndexPath:(NSIndexPath *)path {
@@ -315,9 +334,10 @@ static BOOL flagRowLocked(SGModRow *row) {
     SGFillCell(cell, row.title, row.subtitle, row.color, row.symbol);
     UIListContentConfiguration *content = (UIListContentConfiguration *)cell.contentConfiguration;
     if (row.color) content.secondaryTextProperties.color = row.color;
-    if (row.page && row.symbol) content.image = SGTileImage(row.symbol);
+    BOOL tile = row.symbol && !row.color;
+    if (tile) content.image = SGTileImage(row.symbol);
     cell.contentConfiguration = content;
-    cell.separatorInset = UIEdgeInsetsMake(0, row.symbol ? (row.page ? 58 : 48) : 16, 0, 0);
+    cell.separatorInset = UIEdgeInsetsMake(0, row.symbol ? (tile ? 58 : 48) : 16, 0, 0);
 
     if (row.key) {
         UISwitch *toggle = [UISwitch new];

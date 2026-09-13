@@ -1,4 +1,4 @@
-// EeveeSpotify's layers, ported, at the top of the Premium & ads page. Three switches, each off until asked for. Hide ads
+// EeveeSpotify's layers, ported, at the top of the Premium, ads & privacy page. Three switches, each off until asked for. Hide ads
 // keeps the ad services from starting (AdServices.x), takes ad components out of Home and Search
 // before they render (AdHubs.x, Feeds.m) and answers the requests behind them empty (AdNetwork.x).
 // Hide upsells drops the Premium prompts (AdPopups.x, AdServices.x) and forces the flags that show
@@ -32,6 +32,5 @@ NSData *SGPatchBootstrap(NSData *body);
 // were none, or the bytes were not the shape expected.
 NSData *SGStripFeed(NSData *body);
 
-@class SGModSection;
-// The three switches and what they have stopped, at the top of the Premium & ads page.
-NSArray<SGModSection *> *SGAdBlockSections(void);
+// The Premium, ads & privacy page: these switches, the ad flags they lock, telemetry, the counters.
+UIViewController *SGAdsSettingsPage(void);

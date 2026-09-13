@@ -2,6 +2,7 @@
 #import "Settings/SGModPage.h"
 #import "Home.h"
 #import "Features/Declutter/Declutter.h"
+#import "Features/Playlist/Playlist.h"
 
 static SGModRow *choiceRow(NSString *title, NSString *subtitle, SGHomeChoice choice) {
     return SGChoiceRow(title, subtitle, SGHomeChoiceKey(choice), SGHomeChoiceNames(choice),
@@ -29,28 +30,37 @@ UIViewController *SGHomeSettingsPage(void) {
         return SGHomeChoiceNames(SGHomeChoiceTint)[(NSUInteger)SGHomeChoiceValue(SGHomeChoiceTint)];
     };
 
-    return [[SGModPage alloc] initWithTitle:@"Home & Library" intro:SGRestartNote sections:@[
-        SGSection(@"Background", @[gradient]),
-        SGSection(@"Hide", @[
+    SGModRow *djButton = SGKillRow(@"DJ button", @"ios-home-evopage-impl.idj_show_dj_button");
+    djButton.subtitle = @"The DJ button on Home";
+    SGModRow *djBadge = SGKillRow(@"DJ beta badge", @"ios-home-evopage-impl.dj_mdc_beta_badge_enabled");
+    djBadge.subtitle = @"The beta badge on the DJ";
+
+    NSMutableArray<SGModSection *> *sections = [NSMutableArray arrayWithArray:@[
+        SGSection(@"Home", @[
+            SGWithSymbol(gradient, @"rectangle.tophalf.inset.filled"),
+            SGFlagRow(@"Pull to refresh", @"ios-home-evopage-impl.pull_to_refresh_enabled"),
+            SGFlagRow(@"Hide items from Shortcuts", @"ios-system-home-hidefromhome.is_hide_from_shortcuts_enabled"),
+            SGFlagRow(@"Hide items from Recents", @"ios-system-home-hidefromhome.is_hide_from_recents_enabled"),
+        ]),
+        SGSection(@"Hide on Home", @[
             SGHideRow(@"Filter pills", @"Music and Podcasts next to your avatar", SGHideHomePills),
             SGHideRow(@"Shortcuts grid", @"The tiles at the top", SGHideHomeShortcuts),
             SGHideRow(@"Promo cards", @"Single cards such as the next episode of a podcast", SGHideHomePromo),
             SGHideRow(@"Preview cards", @"Album, playlist and video previews with a play button", SGHideHomePreviews),
             SGHideRow(@"DJ card", @"Your own personal DJ", SGHideHomeDJ),
+            djButton,
+            djBadge,
         ]),
-        SGSection(@"Spotify's flags", @[
-            SGFlagRow(@"Pull to refresh", @"ios-home-evopage-impl.pull_to_refresh_enabled"),
-            SGFlagRow(@"Hide items from Recents", @"ios-system-home-hidefromhome.is_hide_from_recents_enabled"),
-            SGFlagRow(@"Hide items from Shortcuts", @"ios-system-home-hidefromhome.is_hide_from_shortcuts_enabled"),
-        ]),
-        SGSection(@"Library", @[
-            SGFlagRow(@"Denser rows", @"ios-feature-yourlibaryx.denser_rows_enabled"),
-            SGFlagRow(@"Recents", @"ios-feature-yourlibaryx.recents_enabled"),
-            SGFlagRow(@"Recents sort order", @"ios-feature-yourlibaryx.recents_sort_order_enabled"),
-            SGFlagRow(@"Sort playlists by recently updated", @"ios-feature-yourlibaryx.recently_updated_playlists_sort_enabled"),
-            SGFlagRow(@"Sort artists by recently updated", @"ios-feature-yourlibaryx.recently_updated_artists_sort_enabled"),
-            SGFlagRow(@"Library settings", @"ios-feature-yourlibaryx.library_settings_enabled"),
-            SGFlagRow(@"Library Pro", @"ios-feature-yourlibaryx.your_library_pro_enabled"),
-        ]),
-    ] footer:nil];
+    ]];
+    [sections addObjectsFromArray:SGPlaylistSections()];
+    [sections addObject:SGNotedSection(@"Library", @[
+        SGFlagRow(@"Denser rows", @"ios-feature-yourlibaryx.denser_rows_enabled"),
+        SGFlagRow(@"Sort playlists by recently updated", @"ios-feature-yourlibaryx.recently_updated_playlists_sort_enabled"),
+        SGFlagRow(@"Sort artists by recently updated", @"ios-feature-yourlibaryx.recently_updated_artists_sort_enabled"),
+        SGFlagRow(@"Recents", @"ios-feature-yourlibaryx.recents_enabled"),
+        SGFlagRow(@"Recents sort order", @"ios-feature-yourlibaryx.recents_sort_order_enabled"),
+        SGFlagRow(@"Library settings", @"ios-feature-yourlibaryx.library_settings_enabled"),
+        SGFlagRow(@"Library Pro", @"ios-feature-yourlibaryx.your_library_pro_enabled"),
+    ], @"Spotify's own Library options, some of them only rolled out to some accounts.")];
+    return [[SGModPage alloc] initWithTitle:@"Home & Library" intro:@"Changes apply after you restart Spotify. The gradient's colour, strength and height apply straight away." sections:sections footer:nil];
 }

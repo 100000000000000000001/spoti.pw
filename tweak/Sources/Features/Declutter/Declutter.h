@@ -1,5 +1,5 @@
 // Declutter: cards under the player and sections of Home collapsed, player buttons hidden, one
-// switch each (Declutter.x). The rows live on the Now Playing and Home pages. An unset switch is off.
+// switch each (Declutter.x). The rows live on the Player, Lyrics and Home & Library pages. An unset switch is off.
 #import <Foundation/Foundation.h>
 
 #define SGHideShuffle @"spotifyglass.hide.shuffle"
