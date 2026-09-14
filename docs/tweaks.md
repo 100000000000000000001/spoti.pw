@@ -42,7 +42,8 @@ app:
     Privacy/      telemetry blocking and its counters
     AdBlock/      EeveeSpotify's ad blocking: the ad and upsell services silenced (AdServices.x), ad components out of the
                   Hub JSON (AdHubs.x) and the feeds (Feeds.m), Premium pop-ups dropped (AdPopups.x), and the responses
-                  rewritten on the way in (AdNetwork.x, Premium.m over the protobuf walker in Protobuf.m)
+                  rewritten on the way in (AdNetwork.x, Premium.m over the protobuf walker in Protobuf.m), with crossfade
+                  and automix switched on in the player core and crossfade's switch kept in step with its slider (Crossfade.x)
     ArtistBlock/  tracks by blocked artists skipped as they start (ArtistSkip.x), the list and the Blocked artists page under Player
     Karaoke/      Apple Music style lyrics on the full screen page: lines read from color-lyrics and the player's clock (KaraokeSource.x),
                   words timed by estimate inside Spotify's line times (KaraokeTiming.m), drawn by KaraokeView.m over the page (KaraokePage.x)
@@ -84,8 +85,9 @@ the player buttons to hide, and Queue & devices and Lock screen widget as flag p
 the Gradient page (the wash behind the top of Home in one of eight colours, at three strengths and
 four heights) and the Home flags, the parts of Home to hide including the DJ button and badge, the
 playlist header, buttons and pills to hide, and the Library flags. Then Premium, ads & privacy
-(EeveeSpotify's Hide ads and Hide upsells with an Ad and upsell flags page under them, every switch
-there forcing a flag Spotify ships on to off; Spoof Premium; Block telemetry; then what the ad
+(EeveeSpotify's Hide ads and Hide upsells, hiding the video carousel and social proof in Search, and
+an Ad and upsell flags page under them, every switch there forcing a flag Spotify ships on to off;
+Spoof Premium; Block telemetry; then what the ad
 blocking and the telemetry blocking have stopped) and Labs (features Spotify built and did not ship,
 AI Chat (Martini) first). Last, All flags, Spotify's remote-config flags with a search field and an
 Auto / Off / On control per flag (a text field for the number and text ones), and Mod: the update
