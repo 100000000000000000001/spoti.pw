@@ -75,7 +75,8 @@ if ! xcrun -sdk iphoneos --find clang >/dev/null 2>&1; then
   export TARGET_CC=clang TARGET_CXX=clang++ TARGET_LD=clang++ \
          TARGET_STRIP=strip TARGET_LIPO=lipo TARGET_CODESIGN_ALLOCATE=codesign_allocate TARGET_LIBTOOL=libtool
 fi
-gmake -C "$ROOT/tweak" clean package >/dev/null
+# Theos builds its Swift support tools only at MAKELEVEL 0, and `make release` hands this script MAKELEVEL 1.
+env -u MAKELEVEL gmake -C "$ROOT/tweak" clean package >/dev/null
 TWEAK_DEB="$(ls -t "$ROOT"/tweak/packages/*.deb | head -1)"
 echo "    $TWEAK_DEB"
 
