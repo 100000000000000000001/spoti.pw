@@ -4,7 +4,7 @@
 // every frame: the player is caught the first time the app asks it, and its position runs on by itself.
 #import "Core/SGCore.h"
 #import "Karaoke.h"
-#import "Features/LiveActivity/LiveActivity.h"
+#import "Features/LockScreenLyrics/LockScreenLyrics.h"
 #import "Headers/SPTPlayer.h"
 
 static const NSUInteger kKeptTracks = 40;
@@ -153,7 +153,7 @@ void SGKaraokeSeek(NSInteger ms) {
 %end
 
 %ctor {
-    if (!SGFlag(SGKeyKaraokeLyrics, NO) && !SGFlag(SGKeyLiveActivity, NO)) return;
+    if (!SGFlag(SGKeyKaraokeLyrics, NO) && !SGFlag(SGKeyLockScreenLyrics, NO)) return;
     sg_lyrics = [NSMutableDictionary dictionary];
     sg_requested = [NSMutableSet set];
     %init;

@@ -5,7 +5,7 @@
 #import "Features/Gestures/Gestures.h"
 #import "Features/ArtistBlock/ArtistBlock.h"
 #import "Features/Karaoke/Karaoke.h"
-#import "Features/LiveActivity/LiveActivity.h"
+#import "Features/LockScreenLyrics/LockScreenLyrics.h"
 
 static UIViewController *nowPlayingBarPage(void) {
     return [[SGModPage alloc] initWithTitle:@"Now playing bar" intro:SGRestartNote sections:@[
@@ -30,7 +30,7 @@ static UIViewController *lyricsPage(void) {
         SGSection(nil, @[
             SGOptionRow(@"Apple Music style", @"Word by word on the full screen page; timing inside a line is estimated", SGKeyKaraokeLyrics),
             SGOptionRow(@"Glass lyrics", @"Glass card, and the page it expands into", SGKeyLyricsCard),
-            SGOptionRow(@"Live Activity", @"The line being sung and playback controls on the lock screen and in the Dynamic Island", SGKeyLiveActivity),
+            SGOptionRow(@"Lyrics on the lock screen", @"The line being sung in place of the artist, also in the Dynamic Island, Control Center and CarPlay", SGKeyLockScreenLyrics),
         ]),
         SGSection(@"Hide in the player", @[
             SGHideRow(@"Lyrics card", @"The lyrics card below the player", SGHideLyricsCard),

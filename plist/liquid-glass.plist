@@ -4,7 +4,5 @@
 <dict>
 	<key>UIDesignRequiresCompatibility</key>
 	<false/>
-	<key>NSSupportsLiveActivities</key>
-	<true/>
 </dict>
 </plist>
