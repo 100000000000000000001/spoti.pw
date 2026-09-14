@@ -58,15 +58,19 @@ No IPA is distributed, here or on [spoti.pw](https://spoti.pw). Fork the repo an
 [build it yourself](#build-it-yourself) from your own decrypted Spotify IPA; the GitHub workflow
 needs no Mac. The Mod page tells you when a newer version is out.
 
-The app keeps Spotify's bundle id, so it installs over the real Spotify. Sign it under a mismatched
-App ID and it still installs, but the lock screen card opens nothing.
+The app keeps Spotify's bundle id, so it installs over the real Spotify.
 
 ### Signing it yourself
 
-In Feather, set **Identifier** to the App ID in its certificates tab and leave **PPQ protection**
-off. AltStore, SideStore and Sideloadly work this out themselves.
+The bundle id you sign with has to match the App ID of your certificate. If it doesn't, the app
+still installs and works, but tapping the player on the lock screen won't open it.
 
-A build the lock screen cannot open says so on first launch and names the bundle id to sign under.
+In Feather, copy the App ID from the certificate's tab into the **Identifier** field and leave
+**PPQ protection** off, because it adds a random suffix to the bundle id. AltStore, SideStore and
+Sideloadly get this right on their own.
+
+If the ids don't match, the app tells you on first launch and gives you the bundle id to sign with,
+ready to copy. The warning also stays in Mod Settings until you sign it again.
 
 ## Build it yourself
 
