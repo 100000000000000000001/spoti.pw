@@ -10,9 +10,9 @@ SG_VERSION := $(shell sed -n 's/^Version: //p' control)
 
 # Every source under Sources/, so a new feature needs no Makefile edit. Features/Flags/SGFlagList.m
 # is generated from the IPA by scripts/extract-flags.py.
-spotifyglass_FILES := $(shell find Sources -name '*.m' -o -name '*.x' | sort)
+spotifyglass_FILES := $(shell find Sources -name '*.m' -o -name '*.x' -o -name '*.swift' | sort)
 spotifyglass_CFLAGS := -fobjc-arc -ISources -DSG_VERSION=\"$(SG_VERSION)\"
-spotifyglass_FRAMEWORKS := UIKit QuartzCore
+spotifyglass_FRAMEWORKS := UIKit QuartzCore UniformTypeIdentifiers MediaPlayer
 # Runtime swizzling instead of Substrate so the dylib has no extra dependency inside the IPA.
 spotifyglass_LOGOS_DEFAULT_GENERATOR := internal
 
