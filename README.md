@@ -81,7 +81,7 @@ masked in the log and the result stays in your fork.
 
 ### On a Mac
 
-Theos in `~/theos` with an iPhoneOS SDK in `~/theos/sdks`, plus:
+Theos in `~/theos` and an iPhoneOS 26 or newer SDK, from Xcode (`xcode-select` it) or in `~/theos/sdks`, plus:
 
     brew install make ldid dpkg zsign ideviceinstaller libimobiledevice
     uv tool install "cyan @ git+https://github.com/asdfzxcvbn/pyzule-rw"

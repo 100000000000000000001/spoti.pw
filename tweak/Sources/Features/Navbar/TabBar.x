@@ -68,7 +68,7 @@ static BOOL hasInk(UIImage *image) {
     size_t width = CGImageGetWidth(cg), height = CGImageGetHeight(cg);
     if (!width || !height) return NO;
     NSMutableData *pixels = [NSMutableData dataWithLength:width * height];
-    CGContextRef context = CGBitmapContextCreate(pixels.mutableBytes, width, height, 8, width, NULL, kCGImageAlphaOnly);
+    CGContextRef context = CGBitmapContextCreate(pixels.mutableBytes, width, height, 8, width, NULL, (CGBitmapInfo)kCGImageAlphaOnly);
     CGContextDrawImage(context, CGRectMake(0, 0, width, height), cg);
     CGContextRelease(context);
     const uint8_t *alpha = pixels.bytes;

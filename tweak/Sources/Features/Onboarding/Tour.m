@@ -287,8 +287,7 @@ static SGTourRow *actionRow(NSString *symbol, NSString *title, NSString *subtitl
     [super viewDidAppear:animated];
     if (_shown) return;
     _shown = YES;
-    Class bounce = NSClassFromString(@"NSSymbolBounceEffect");
-    if (bounce && [_hero respondsToSelector:@selector(addSymbolEffect:)]) [_hero addSymbolEffect:[bounce effect]];
+    if (@available(iOS 17.0, *)) [_hero addSymbolEffect:[NSClassFromString(@"NSSymbolBounceEffect") effect]];
 }
 
 @end
@@ -373,10 +372,8 @@ static SGTourRow *actionRow(NSString *symbol, NSString *title, NSString *subtitl
 
 static UIButton *glassButton(NSString *title, BOOL prominent) {
     UIButtonConfiguration *config;
-    if (prominent && [UIButtonConfiguration respondsToSelector:@selector(prominentGlassButtonConfiguration)]) {
-        config = [UIButtonConfiguration prominentGlassButtonConfiguration];
-    } else if (!prominent && [UIButtonConfiguration respondsToSelector:@selector(glassButtonConfiguration)]) {
-        config = [UIButtonConfiguration glassButtonConfiguration];
+    if (@available(iOS 26.0, *)) {
+        config = prominent ? [UIButtonConfiguration prominentGlassButtonConfiguration] : [UIButtonConfiguration glassButtonConfiguration];
     } else {
         config = prominent ? [UIButtonConfiguration filledButtonConfiguration] : [UIButtonConfiguration grayButtonConfiguration];
     }

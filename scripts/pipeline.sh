@@ -7,7 +7,7 @@
 #
 # The IPA is yours to supply: drop a decrypted Spotify .ipa in ipa/ and the Makefile finds it.
 #
-# Needs: Theos in $THEOS (default ~/theos) with an iPhoneOS SDK in $THEOS/sdks,
+# Needs: Theos in $THEOS (default ~/theos), an iPhoneOS 26+ SDK from the selected Xcode or in $THEOS/sdks,
 # gmake, ldid, dpkg-deb (brew) and cyan (uv tool install "cyan @ git+https://github.com/asdfzxcvbn/pyzule-rw").
 set -euo pipefail
 
@@ -44,7 +44,9 @@ need gmake "brew install make"
 need ldid "brew install ldid"
 need dpkg-deb "brew install dpkg"
 need cyan "uv tool install 'cyan @ git+https://github.com/asdfzxcvbn/pyzule-rw'"
-ls "$THEOS"/sdks/iPhoneOS*.sdk >/dev/null 2>&1 || { echo "no iPhoneOS SDK in $THEOS/sdks" >&2; exit 1; }
+ls -d "$THEOS"/sdks/iPhoneOS*.sdk "$(xcode-select -p 2>/dev/null)"/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS*.sdk 2>/dev/null \
+  | grep -qE 'iPhoneOS(2[6-9]|[3-9][0-9])\.' \
+  || { echo "no iPhoneOS 26+ SDK: xcode-select an Xcode 26 or newer, or put the SDK in $THEOS/sdks" >&2; exit 1; }
 # cyan skips -k with only a warning when its environment has no Pillow.
 if [ -n "$ICON" ]; then
   [ -f "$ICON" ] || { echo "no such icon: $ICON" >&2; exit 1; }

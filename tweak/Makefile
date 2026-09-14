@@ -1,6 +1,4 @@
-# Pinned, not `latest`: Theos resolves `latest` across Xcode's SDKs too, and an iOS 26 SDK
-# declares the API SGRuntime.h forward-declares.
-TARGET := iphone:clang:16.5:16.0
+TARGET := iphone:clang:latest:16.0
 ARCHS := arm64
 FINALPACKAGE := 1
 
