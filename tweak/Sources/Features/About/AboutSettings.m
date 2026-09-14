@@ -51,6 +51,10 @@ UIViewController *SGAboutPage(void) {
             withSymbol(SGLinkRow(@"GitHub", @"Source, releases and issues", SGRepoURL), @"chevron.left.forwardslash.chevron.right"),
             withSymbol(SGActionRow(@"Welcome tour", @"The pages from the first launch, again", ^{ SGShowOnboarding(); }), @"map"),
         ]),
+        SGSection(nil, @[
+            withSymbol(SGActionRow(@"Export settings", @"Every switch and choice to a file to keep or share", ^{ SGExportSettings(); }), @"square.and.arrow.up"),
+            withSymbol(SGActionRow(@"Import settings", @"Replace yours with a file's, then a restart", ^{ SGImportSettings(); }), @"square.and.arrow.down"),
+        ]),
         SGSection(nil, @[reset]),
     ] footer:nil];
 }

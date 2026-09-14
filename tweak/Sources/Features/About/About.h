@@ -23,4 +23,9 @@ SGModRow *SGSigningWarningRow(void);          // nil while the signature is soun
 void SGCheckSigningOnce(void);
 void SGShowSigningFixIfPending(void);   // the sheet the tour held back, if any
 
+// Backup.m: the settings out to a JSON file through the share sheet, and back in from one, replacing
+// what is set and restarting.
+void SGExportSettings(void);
+void SGImportSettings(void);
+
 UIViewController *SGAboutPage(void);   // the Mod page
