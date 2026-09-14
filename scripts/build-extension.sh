@@ -38,7 +38,7 @@ metadata() {
   printf '%s\n' "$@" > "$dir/sources.txt"
   echo "$dir/$module.swiftconstvalues" > "$dir/constvals.txt"
   xcrun --sdk iphoneos swiftc -typecheck -wmo -parse-as-library -target "$triple" -module-name "$module" \
-    -emit-const-values-path "$dir/$module.swiftconstvalues" -const-gather-protocols-list "$WORK/protocols.json" "$@"
+    -emit-const-values-path "$dir/$module.swiftconstvalues" -Xfrontend -const-gather-protocols-file -Xfrontend "$WORK/protocols.json" "$@"
   "$PROCESSOR" --output "$bundle" --toolchain-dir "$TOOLCHAIN" --module-name "$module" --sdk-root "$SDK" \
     --xcode-version "$XCODE_BUILD" --platform-family iOS --deployment-target "$deploy" --target-triple "$triple" \
     --source-file-list "$dir/sources.txt" --swift-const-vals-list "$dir/constvals.txt" --force >/dev/null
