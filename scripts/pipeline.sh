@@ -44,7 +44,7 @@ need gmake "brew install make"
 need ldid "brew install ldid"
 need dpkg-deb "brew install dpkg"
 need cyan "uv tool install 'cyan @ git+https://github.com/asdfzxcvbn/pyzule-rw'"
-ls -d "$THEOS"/sdks/iPhoneOS*.sdk "$(xcode-select -p 2>/dev/null)"/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS*.sdk 2>/dev/null \
+{ ls -d "$THEOS"/sdks/iPhoneOS*.sdk "$(xcode-select -p 2>/dev/null)"/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS*.sdk 2>/dev/null || true; } \
   | grep -qE 'iPhoneOS(2[6-9]|[3-9][0-9])\.' \
   || { echo "no iPhoneOS 26+ SDK: xcode-select an Xcode 26 or newer, or put the SDK in $THEOS/sdks" >&2; exit 1; }
 # cyan skips -k with only a warning when its environment has no Pillow.
@@ -82,14 +82,12 @@ echo "    $TWEAK_DEB"
 FILES=("$TWEAK_DEB")
 [ "$WITH_FLEX" = 1 ] && FILES+=("$FLEX_DEB")
 
-EXT_DIR="$ROOT/out/extension"
-WITH_EXTENSION=0
-if xcrun --find appintentsmetadataprocessor >/dev/null 2>&1; then
+if xcrun --sdk iphoneos --find swiftc >/dev/null 2>&1; then
+  EXT_DIR="$ROOT/out/extension"
   unzip -p "$IN" "${APP_DIR}Info.plist" > "$ROOT/out/.info.plist"
   "$ROOT/scripts/build-extension.sh" "$ROOT/out/.info.plist" "$EXT_DIR"
   rm -f "$ROOT/out/.info.plist"
   FILES+=("$EXT_DIR/SpotifyGlassLiveActivity.appex")
-  WITH_EXTENSION=1
 else
   echo "==> no Xcode selected: building without the Live Activity extension"
 fi
@@ -97,11 +95,6 @@ fi
 echo "==> injecting"
 # -w drops the Watch app: its companion-app key would still name com.spotify.client and block the install.
 cyan -i "$IN" -o "$OUT" -f "${FILES[@]}" -l "$ROOT/plist/liquid-glass.plist" ${BUNDLE_ID:+-b "$BUNDLE_ID"} ${NAME:+-n "$NAME"} ${ICON:+-k "$ICON"} -w -s --overwrite
-
-if [ "$WITH_EXTENSION" = 1 ]; then
-  echo "==> adding the Live Activity intents to Spotify's App Intents metadata"
-  "$ROOT/scripts/merge-appintents.py" "$OUT" "$APP_DIR" "$EXT_DIR/app/Metadata.appintents"
-fi
 
 echo "==> done: $OUT"
 [ "$INSTALL" = 1 ] && exec "$ROOT/scripts/install.sh" "$OUT"
