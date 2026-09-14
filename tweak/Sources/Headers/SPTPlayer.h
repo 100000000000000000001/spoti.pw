@@ -23,4 +23,9 @@
 @property (nonatomic, readonly) SPTPlayerState *state;
 - (void)skipToNextTrack;
 - (void)seekTo:(double)seconds;
+// Each takes Spotify's options object, nil for the defaults, and returns the command's pending result.
+- (id)pause:(id)options;
+- (id)resume:(id)options;
+- (id)skipToNextTrackWithOptions:(id)options;
+- (id)skipToPreviousTrackWithOptions:(id)options;
 @end

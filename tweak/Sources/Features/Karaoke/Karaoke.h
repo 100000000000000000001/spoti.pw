@@ -22,9 +22,13 @@
 NSArray<SGKaraokeLine *> *SGKaraokeLinesFromBody(NSData *body);
 
 NSArray<SGKaraokeLine *> *SGKaraokeLinesForTrack(NSString *trackID);   // nil until the lyrics came
+// Asks spclient for a track's lyrics once, with the headers of Spotify's own requests, for when no
+// page of Spotify's has asked for them, e.g. with the app in the background.
+void SGKaraokeRequestLyrics(NSString *trackID);
 NSString *SGKaraokePlayingTrack(void);   // the base62 id, nil before the player reported
 NSInteger SGKaraokePositionMs(void);     // negative when unknown
 void SGKaraokeSeek(NSInteger ms);
+id SGKaraokePlayer(void);                // SPTEsperantoPlayer, nil before the app asked it for its state
 
 @interface SGKaraokeView : UIView
 // Hides Spotify's own lyrics next to this view while it has lyrics to show, and brings them back when not.
