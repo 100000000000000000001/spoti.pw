@@ -69,7 +69,8 @@ out again, as are the Home gradient's colour, strength and height, but not the s
 
 ## Mod Settings
 
-Mod Settings, the first row of the side drawer and the last row of Spotify's Settings, sorts every
+Mod Settings, opened by holding Home on the tab bar or from the first row of the side drawer and the
+last row of Spotify's Settings, sorts every
 setting by the part of Spotify it changes, so a part's glass, its hide switches and its flags sit on
 one page, the mod's own rows first and Spotify's flags below them or on a sub page named after what
 they change. It opens on the Appearance card, the three switches that style the whole app: Liquid
