@@ -4,6 +4,7 @@
 #import "Features/Declutter/Declutter.h"
 #import "Features/Playlist/Playlist.h"
 #import "Features/Artist/Artist.h"
+#import "Features/Album/Album.h"
 
 static SGModRow *choiceRow(NSString *title, NSString *subtitle, SGHomeChoice choice) {
     return SGChoiceRow(title, subtitle, SGHomeChoiceKey(choice), SGHomeChoiceNames(choice),
@@ -43,10 +44,6 @@ static SGModRow *bare(SGModRow *row) {
     return row;
 }
 
-static UIViewController *emptyPage(NSString *title) {
-    return [[SGModPage alloc] initWithTitle:title intro:nil sections:@[] footer:nil];
-}
-
 UIViewController *SGHomeSettingsPage(void) {
     // The row reads its own state out, so the section says which colour is set without being opened.
     SGModRow *gradient = SGPageRow(@"Gradient", ^UIViewController *{ return SGHomeGradientPage(); });
@@ -59,7 +56,7 @@ UIViewController *SGHomeSettingsPage(void) {
         SGSection(nil, @[
             SGWithSymbol(SGPageRow(@"Playlists", ^UIViewController *{ return SGPlaylistSettingsPage(); }), @"music.note.list"),
             SGWithSymbol(SGPageRow(@"Library", ^UIViewController *{ return libraryPage(); }), @"books.vertical"),
-            SGWithSymbol(SGPageRow(@"Album", ^UIViewController *{ return emptyPage(@"Album"); }), @"square.stack"),
+            SGWithSymbol(SGPageRow(@"Album", ^UIViewController *{ return SGAlbumSettingsPage(); }), @"square.stack"),
             SGWithSymbol(SGPageRow(@"Artist", ^UIViewController *{ return SGArtistSettingsPage(); }), @"music.mic"),
         ]),
         SGSection(@"Home", @[
