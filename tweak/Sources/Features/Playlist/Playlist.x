@@ -72,7 +72,7 @@ static void applyColumn(UIView *header) {
 
 // The identifier sits on the button, the stack arranges the action around it, so each switch hides
 // the action rather than the button and the row closes up behind it.
-static void applyActions(UIView *header) {
+static void applyActions(UIView *row) {
     static const struct { __unsafe_unretained NSString *ident, *key; } buttons[] = {
         {@"Components.UI.WatchFeedEntityExplorerButton", SGHidePlaylistVideo},
         {@"Components.UI.AddToButton", SGHidePlaylistAddTo},
@@ -80,7 +80,6 @@ static void applyActions(UIView *header) {
         {@"Components.UI.ShareButton", SGHidePlaylistShare},
         {@"Components.UI.ContextMenuButton", SGHidePlaylistMore},
     };
-    UIView *row = identNamed(header, @"HeaderActionsRow");
     for (UIView *action in row.subviews) {
         for (size_t i = 0; i < sizeof(buttons) / sizeof(buttons[0]); i++) {
             if (identNamed(action, buttons[i].ident)) hide(action, buttons[i].key);
@@ -146,8 +145,16 @@ static void collapseCover(UIViewController *headerVC, UIView *layout, UIView *co
     UIView *layout = (UIView *)self, *cover = identNamed(layout, @"Components.Header.UI.ArtworkImage");
     hide(cover, SGHidePlaylistArtwork);
     applyColumn(layout);
-    applyActions(layout);
     if (cover.hidden) collapseCover(headerVC, layout, cover);
+}
+%end
+
+// The buttons fill in after the header is laid out, and a row that keeps its size never makes the
+// header lay out again, so they stay up until something else does -- the cover loading, a second on.
+%hook UIStackView
+- (void)layoutSubviews {
+    %orig;
+    if ([self.accessibilityIdentifier isEqualToString:@"HeaderActionsRow"] && playlistHeaderOf(self)) applyActions(self);
 }
 %end
 
