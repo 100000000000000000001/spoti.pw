@@ -26,9 +26,6 @@
 
 static const CGFloat kButtonMin = 36, kButtonMax = 48;
 static const CGFloat kArtRadius = 12;
-// Small enough that no shape of the cover survives the scaling back up, large enough to keep the
-// colours where they were in it.
-static const CGFloat kCoverSample = 48;
 
 static BOOL backdropOn(void) {
     return SGFlag(SGKeyPlayerBackdrop, NO);
@@ -67,36 +64,16 @@ static void glassBehindRoundButtons(UIViewController *unit) {
 
 #pragma mark - the cover behind the player
 
-@interface SGScrimView : UIView
-@end
-
-@implementation SGScrimView
-+ (Class)layerClass {
-    return CAGradientLayer.class;
-}
-@end
-
 static char kBackdropKey;
 
 static UIImage *sg_cover;       // the cover the backdrop stands on, compared by pointer
 static UIImage *sg_coverSmall;
 static __weak UIImageView *sg_coverView;
 
-static UIImage *shrunk(UIImage *cover) {
-    UIGraphicsImageRendererFormat *format = [UIGraphicsImageRendererFormat preferredFormat];
-    format.scale = 1;
-    format.opaque = YES;
-    CGRect square = CGRectMake(0, 0, kCoverSample, kCoverSample);
-    UIGraphicsImageRenderer *renderer = [[UIGraphicsImageRenderer alloc] initWithSize:square.size format:format];
-    return [renderer imageWithActions:^(UIGraphicsImageRendererContext *context) {
-        [cover drawInRect:square];
-    }];
-}
-
 static void showCover(UIImage *cover) {
     if (!cover || cover == sg_cover) return;
     sg_cover = cover;
-    sg_coverSmall = shrunk(cover);
+    sg_coverSmall = SGBackdropSample(cover);
     UIImageView *view = sg_coverView;
     if (!view) return;
     [UIView transitionWithView:view duration:0.3 options:UIViewAnimationOptionTransitionCrossDissolve animations:^{
@@ -127,36 +104,10 @@ static UIView *backdropIn(UIView *plane) {
     UIView *backdrop = objc_getAssociatedObject(plane, &kBackdropKey);
     if (backdrop) return backdrop;
 
-    UIViewAutoresizing fill = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    backdrop = [[UIView alloc] initWithFrame:plane.bounds];
-    backdrop.userInteractionEnabled = NO;
-    backdrop.clipsToBounds = YES;
-    backdrop.autoresizingMask = fill;
-
-    UIImageView *cover = [[UIImageView alloc] initWithFrame:backdrop.bounds];
-    cover.contentMode = UIViewContentModeScaleAspectFill;
-    cover.autoresizingMask = fill;
+    backdrop = SGBackdropMake(plane.bounds, SGFlag(SGKeyAmoled, NO) ? 1 : 0.94);
+    UIImageView *cover = SGBackdropImageView(backdrop);
     cover.image = sg_coverSmall;
-    [backdrop addSubview:cover];
     sg_coverView = cover;
-
-    // The scaled up cover comes back with the seams of its 48 pixels in it; the blur takes those
-    // out and is the same material as everything else the mod puts on this screen.
-    UIVisualEffectView *blur = [[UIVisualEffectView alloc] initWithEffect:[UIBlurEffect effectWithStyle:UIBlurEffectStyleSystemUltraThinMaterialDark]];
-    blur.frame = backdrop.bounds;
-    blur.autoresizingMask = fill;
-    [backdrop addSubview:blur];
-
-    SGScrimView *scrim = [[SGScrimView alloc] initWithFrame:backdrop.bounds];
-    scrim.autoresizingMask = fill;
-    CAGradientLayer *fade = (CAGradientLayer *)scrim.layer;
-    fade.colors = @[
-        (id)[UIColor colorWithWhite:0 alpha:0.40].CGColor,
-        (id)[UIColor colorWithWhite:0 alpha:0.60].CGColor,
-        (id)[UIColor colorWithWhite:0 alpha:SGFlag(SGKeyAmoled, NO) ? 1 : 0.94].CGColor,
-    ];
-    fade.locations = @[@0, @0.5, @1];
-    [backdrop addSubview:scrim];
 
     objc_setAssociatedObject(plane, &kBackdropKey, backdrop, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     return backdrop;

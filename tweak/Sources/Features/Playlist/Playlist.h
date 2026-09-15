@@ -12,5 +12,6 @@
 #define SGHidePlaylistMore @"spotifyglass.hide.playlistMore"
 #define SGHidePlaylistPills @"spotifyglass.hide.playlistPills"
 #define SGHidePlaylistFind @"spotifyglass.hide.playlistFind"
+#define SGKeyPlaylistBackdrop @"spotifyglass.playlistBackdrop"
 
 UIViewController *SGPlaylistSettingsPage(void);   // opened from the Home & Library page

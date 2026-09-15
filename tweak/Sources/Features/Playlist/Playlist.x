@@ -137,6 +137,42 @@ static void collapseCover(UIViewController *headerVC, UIView *layout, UIView *co
     dispatch_once(&once, ^{ SGLog(@"playlist header: layout %.0f, header %.0f -> %.0f, guide %.0f", full, before, target, guide.constant); });
 }
 
+static char kBackdropKey, kSourceKey;
+
+// The cover blurred behind the header in place of Spotify's colour wash. The header's background
+// (trees/test6.txt) is a HeaderView under _backgroundViewContainer holding the wash, then a black
+// view that fades in as the page scrolls; the backdrop goes between them so the scroll still darkens
+// it, and its scrim ends in the black of the rows below. No cover, no backdrop: the wash stays.
+static void applyBackdrop(UIView *layout) {
+    if (!SGFlag(SGKeyPlaylistBackdrop, NO)) return;
+    UIImage *image = nil;
+    for (UIView *v in identNamed(layout, @"EditableHeaderArtworkElement.ImageView").subviews) {
+        if ([v isKindOfClass:UIImageView.class] && ((UIImageView *)v).image) image = ((UIImageView *)v).image;
+    }
+    if (!image) return;
+
+    UIView *container = nil;
+    for (UIView *v = layout.superview; v && !container; v = v.superview) {
+        for (UIView *sub in v.subviews) {
+            if ([sub.accessibilityIdentifier isEqualToString:@"_backgroundViewContainer"]) container = sub;
+        }
+    }
+    UIView *header = container.subviews.firstObject;
+    if (header.subviews.count < 2) return;
+
+    UIView *backdrop = objc_getAssociatedObject(header, &kBackdropKey);
+    if (!backdrop) {
+        backdrop = SGBackdropMake(header.bounds, 1);
+        objc_setAssociatedObject(header, &kBackdropKey, backdrop, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    if (backdrop.superview != header) [header insertSubview:backdrop atIndex:1];
+
+    UIImageView *sample = SGBackdropImageView(backdrop);
+    if (objc_getAssociatedObject(sample, &kSourceKey) == image) return;
+    objc_setAssociatedObject(sample, &kSourceKey, image, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    sample.image = SGBackdropSample(image);
+}
+
 %hook _TtC28EncoreConsumerMobile_BaseKit19HeaderContentLayout
 - (void)layoutSubviews {
     %orig;
@@ -145,7 +181,21 @@ static void collapseCover(UIViewController *headerVC, UIView *layout, UIView *co
     UIView *layout = (UIView *)self, *cover = identNamed(layout, @"Components.Header.UI.ArtworkImage");
     hide(cover, SGHidePlaylistArtwork);
     applyColumn(layout);
+    applyBackdrop(layout);
     if (cover.hidden) collapseCover(headerVC, layout, cover);
+}
+%end
+
+// The cover loads after the header is laid out, and a new image does not lay the header out again.
+%hook UIImageView
+- (void)setImage:(UIImage *)image {
+    %orig;
+    if (!image || ![self.superview.accessibilityIdentifier isEqualToString:@"EditableHeaderArtworkElement.ImageView"]) return;
+    for (UIView *v = self.superview; v; v = v.superview) {
+        if (![NSStringFromClass(v.class) containsString:@"HeaderContentLayout"]) continue;
+        if (playlistHeaderOf(v)) applyBackdrop(v);
+        return;
+    }
 }
 %end
 

@@ -3,6 +3,9 @@
 
 UIViewController *SGPlaylistSettingsPage(void) {
     return [[SGModPage alloc] initWithTitle:@"Playlists" intro:nil sections:@[
+        SGSection(@"Header", @[
+            SGOptionRow(@"Artwork background", nil, SGKeyPlaylistBackdrop),
+        ]),
         SGSection(@"Hide in the playlist header", @[
             SGHideRow(@"Cover artwork", nil, SGHidePlaylistArtwork),
             SGHideRow(@"Description", nil, SGHidePlaylistDescription),

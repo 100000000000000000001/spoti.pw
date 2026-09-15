@@ -5,3 +5,4 @@
 #import "Core/SGPrefs.h"
 #import "Core/SGViewTree.h"
 #import "Core/SGGlass.h"
+#import "Core/SGBackdrop.h"
