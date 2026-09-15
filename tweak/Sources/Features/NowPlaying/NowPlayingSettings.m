@@ -54,16 +54,22 @@ static UIViewController *lyricsPage(void) {
     ] footer:nil];
 }
 
+// Flag rows show the flag's name as their subtitle by default.
+static SGModRow *bare(SGModRow *row) {
+    row.subtitle = nil;
+    return row;
+}
+
 static UIViewController *queuePage(void) {
     return [[SGModPage alloc] initWithTitle:@"Queue & devices" intro:SGRestartNote sections:@[
         SGNotedSection(@"Bottom sheets", @[
-            SGFlagRow(@"Queue as a bottom sheet", @"ios-feature-nowplaying.bottom_sheet_queue_enabled"),
-            SGFlagRow(@"Connect as a bottom sheet", @"ios-feature-nowplaying-elements.enable_connect_bottom_sheet"),
-            SGFlagRow(@"Connect sheet from the video switcher", @"ios-playbackcontrol-audiovideoswitcher-impl.enable_connect_bottom_sheet"),
+            bare(SGFlagRow(@"Queue as a bottom sheet", @"ios-feature-nowplaying.bottom_sheet_queue_enabled")),
+            bare(SGFlagRow(@"Connect as a bottom sheet", @"ios-feature-nowplaying-elements.enable_connect_bottom_sheet")),
+            bare(SGFlagRow(@"Connect sheet from the video switcher", @"ios-playbackcontrol-audiovideoswitcher-impl.enable_connect_bottom_sheet")),
         ], @"Locked on while Liquid Glass UI is on."),
         SGSection(@"Queue", @[
-            SGFlagRow(@"Queue flip transition", @"ios-feature-nowplaying.queue_flip_transition_enabled"),
-            SGFlagRow(@"Play next in the context menu", @"ios-feature-queue.is_play_next_context_menu_enabled"),
+            bare(SGFlagRow(@"Queue flip transition", @"ios-feature-nowplaying.queue_flip_transition_enabled")),
+            bare(SGFlagRow(@"Play next in the context menu", @"ios-feature-queue.is_play_next_context_menu_enabled")),
         ]),
     ] footer:nil];
 }
@@ -71,15 +77,15 @@ static UIViewController *queuePage(void) {
 static UIViewController *lockScreenPage(void) {
     return [[SGModPage alloc] initWithTitle:@"Lock screen widget" intro:SGRestartNote sections:@[
         SGSection(@"Controls", @[
-            SGFlagRow(@"Like and dislike buttons", @"ios-feature-lockscreen.like_dislike_enabled"),
-            SGFlagRow(@"Skip button on podcasts", @"ios-feature-lockscreen.skip_button_on_podcasts"),
-            SGFlagRow(@"Chapter skip controls", @"ios-feature-lockscreen.enable_chapter_skip_controls"),
-            SGFlagRow(@"Burst skip", @"ios-feature-lockscreen.burst_skip_enabled"),
+            bare(SGFlagRow(@"Like and dislike buttons", @"ios-feature-lockscreen.like_dislike_enabled")),
+            bare(SGFlagRow(@"Skip button on podcasts", @"ios-feature-lockscreen.skip_button_on_podcasts")),
+            bare(SGFlagRow(@"Chapter skip controls", @"ios-feature-lockscreen.enable_chapter_skip_controls")),
+            bare(SGFlagRow(@"Burst skip", @"ios-feature-lockscreen.burst_skip_enabled")),
         ]),
         SGSection(@"Artwork", @[
-            SGFlagRow(@"Animated artwork", @"ios-feature-lockscreen.animated_artwork_enabled"),
-            SGFlagRow(@"Video artwork", @"ios-feature-lockscreen.vit_artwork_enabled"),
-            SGFlagRow(@"Companion content", @"ios-feature-lockscreen.companion_content_enabled"),
+            bare(SGFlagRow(@"Animated artwork", @"ios-feature-lockscreen.animated_artwork_enabled")),
+            bare(SGFlagRow(@"Video artwork", @"ios-feature-lockscreen.vit_artwork_enabled")),
+            bare(SGFlagRow(@"Companion content", @"ios-feature-lockscreen.companion_content_enabled")),
         ]),
     ] footer:nil];
 }
@@ -95,38 +101,38 @@ UIViewController *SGNowPlayingSettingsPage(void) {
             SGWithSymbol(SGPageRow(@"Gestures", ^UIViewController *{ return SGGesturesSettingsPage(); }), @"hand.tap"),
             SGWithSymbol(SGPageRow(@"Lyrics", ^UIViewController *{ return lyricsPage(); }), @"quote.bubble"),
             SGWithSymbol(blocked, @"person.crop.circle.badge.xmark"),
+        ]),
+        SGSection(nil, @[
             SGWithSymbol(SGPageRow(@"Now playing bar", ^UIViewController *{ return nowPlayingBarPage(); }), @"rectangle.bottomthird.inset.filled"),
+            SGWithSymbol(SGPageRow(@"Queue & devices", ^UIViewController *{ return queuePage(); }), @"text.line.first.and.arrowtriangle.forward"),
+            SGWithSymbol(SGPageRow(@"Lock screen widget", ^UIViewController *{ return lockScreenPage(); }), @"lock"),
         ]),
         SGNotedSection(@"Player screen", @[
             SGOptionRow(@"Artwork background", @"The cover blurred and dimmed behind the player instead of the flat album colour", SGKeyPlayerBackdrop),
-            SGOptionRow(@"Glass header buttons", @"Glass circles behind close and more, over the artwork", SGKeyPlayer),
-            SGKillRow(@"Disable Canvas", @"ios-feature-canvas.canvas_enabled"),
-            SGFlagRow(@"Sheet style player", @"ios-feature-nowplaying.sheet_style_npv"),
-            SGFlagRow(@"Redesigned header", @"ios-feature-nowplaying.new_redesign_header_with_context_menu_enabled"),
-            SGFlagRow(@"New progress slider", @"ios-feature-encoreexperiments.new_npv_slider_enabled"),
-            SGFlagRow(@"Expand the sticky header on tap", @"ios-feature-nowplaying.expand_sticky_header_on_tap"),
+            SGOptionRow(@"Glass header buttons", nil, SGKeyPlayer),
+            bare(SGKillRow(@"Disable Canvas", @"ios-feature-canvas.canvas_enabled")),
+            bare(SGFlagRow(@"Sheet style player", @"ios-feature-nowplaying.sheet_style_npv")),
+            bare(SGFlagRow(@"Redesigned header", @"ios-feature-nowplaying.new_redesign_header_with_context_menu_enabled")),
+            bare(SGFlagRow(@"New progress slider", @"ios-feature-encoreexperiments.new_npv_slider_enabled")),
+            bare(SGFlagRow(@"Expand the sticky header on tap", @"ios-feature-nowplaying.expand_sticky_header_on_tap")),
         ], @"Liquid Glass UI turns the first two on or off with it, and locks the sheet, header and slider on."),
         SGNotedSection(@"Hide cards below the player", @[
-            SGHideRow(@"About the artist", @"Photo, listeners and biography", SGHideAboutArtist),
-            SGHideRow(@"Related videos", @"The video carousel", SGHideRelatedVideos),
-            SGHideRow(@"SongDNA", @"Discover the people behind the song", SGHideSongDNA),
-            SGHideRow(@"Live events", @"Concerts and tickets", SGHideLiveEvents),
-            SGHideRow(@"Explore the artist", @"The vertical video cards", SGHideExploreArtist),
-            SGHideRow(@"Credits", @"Performers and writers", SGHideCredits),
-            SGHideRow(@"Merch", @"The artist's shop", SGHideMerch),
-            SGHideRow(@"Recommendations", @"\"Artist: what you might like\", the episode and track rows", SGHideRecommendations),
+            SGHideRow(@"About the artist", nil, SGHideAboutArtist),
+            SGHideRow(@"Related videos", nil, SGHideRelatedVideos),
+            SGHideRow(@"SongDNA", nil, SGHideSongDNA),
+            SGHideRow(@"Live events", nil, SGHideLiveEvents),
+            SGHideRow(@"Explore the artist", nil, SGHideExploreArtist),
+            SGHideRow(@"Credits", nil, SGHideCredits),
+            SGHideRow(@"Merch", nil, SGHideMerch),
+            SGHideRow(@"Recommendations", nil, SGHideRecommendations),
         ], @"The lyrics card is hidden from the Lyrics page."),
         SGSection(@"Hide player buttons", @[
-            SGHideRow(@"Shuffle", @"Left of the playback controls", SGHideShuffle),
-            SGHideRow(@"Repeat", @"Right of the playback controls", SGHideRepeat),
-            SGHideRow(@"Add to playlist", @"The plus next to the track title", SGHideAddTo),
-            SGHideRow(@"Queue", @"The queue button in the bottom row", SGHideQueue),
-            SGHideRow(@"Share", @"The share button in the bottom row", SGHideShare),
-            SGHideRow(@"Connect to a device", @"The speaker and device name in the bottom row", SGHideConnect),
+            SGHideRow(@"Shuffle", nil, SGHideShuffle),
+            SGHideRow(@"Repeat", nil, SGHideRepeat),
+            SGHideRow(@"Add to playlist", nil, SGHideAddTo),
+            SGHideRow(@"Queue", nil, SGHideQueue),
+            SGHideRow(@"Share", nil, SGHideShare),
+            SGHideRow(@"Connect to a device", nil, SGHideConnect),
         ]),
-        SGNotedSection(nil, @[
-            SGWithSymbol(SGPageRow(@"Queue & devices", ^UIViewController *{ return queuePage(); }), @"text.line.first.and.arrowtriangle.forward"),
-            SGWithSymbol(SGPageRow(@"Lock screen widget", ^UIViewController *{ return lockScreenPage(); }), @"lock"),
-        ], @"Spotify's own options, some of them only rolled out to some accounts."),
     ] footer:nil];
 }
