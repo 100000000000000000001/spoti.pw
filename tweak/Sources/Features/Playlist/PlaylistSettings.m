@@ -1,24 +1,24 @@
 #import "Settings/SGModPage.h"
 #import "Playlist.h"
 
-NSArray<SGModSection *> *SGPlaylistSections(void) {
-    return @[
+UIViewController *SGPlaylistSettingsPage(void) {
+    return [[SGModPage alloc] initWithTitle:@"Playlists" intro:nil sections:@[
         SGSection(@"Hide in the playlist header", @[
-            SGHideRow(@"Cover artwork", @"The square cover over the title", SGHidePlaylistArtwork),
-            SGHideRow(@"Description", @"The text under the title", SGHidePlaylistDescription),
-            SGHideRow(@"Creator and collaborators", @"The faces, the name and Message", SGHidePlaylistCreator),
-            SGHideRow(@"Length and saves", @"The line under the creator", SGHidePlaylistLength),
+            SGHideRow(@"Cover artwork", nil, SGHidePlaylistArtwork),
+            SGHideRow(@"Description", nil, SGHidePlaylistDescription),
+            SGHideRow(@"Creator and collaborators", nil, SGHidePlaylistCreator),
+            SGHideRow(@"Length and saves", nil, SGHidePlaylistLength),
         ]),
         SGSection(@"Hide playlist buttons", @[
-            SGHideRow(@"Video", @"The stack of clips at the start of the row", SGHidePlaylistVideo),
-            SGHideRow(@"Add to library", @"The plus", SGHidePlaylistAddTo),
-            SGHideRow(@"Download", @"The download arrow", SGHidePlaylistDownload),
-            SGHideRow(@"Share", @"The button that opens the share sheet", SGHidePlaylistShare),
-            SGHideRow(@"More", @"The three dots at the end of the row", SGHidePlaylistMore),
+            SGHideRow(@"Video", nil, SGHidePlaylistVideo),
+            SGHideRow(@"Add to library", nil, SGHidePlaylistAddTo),
+            SGHideRow(@"Download", nil, SGHidePlaylistDownload),
+            SGHideRow(@"Share", nil, SGHidePlaylistShare),
+            SGHideRow(@"More", nil, SGHidePlaylistMore),
         ]),
         SGSection(@"Hide above the tracks", @[
-            SGHideRow(@"Curation pills", @"Add, Mix, Video, Edit, Sort and the rest", SGHidePlaylistPills),
-            SGHideRow(@"Find and sort bar", @"Find on page and Sort, under the header", SGHidePlaylistFind),
+            SGHideRow(@"Curation pills", nil, SGHidePlaylistPills),
+            SGHideRow(@"Find and sort bar", nil, SGHidePlaylistFind),
         ]),
-    ];
+    ] footer:nil];
 }
