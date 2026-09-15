@@ -3,6 +3,7 @@
 #import "Home.h"
 #import "Features/Declutter/Declutter.h"
 #import "Features/Playlist/Playlist.h"
+#import "Features/Artist/Artist.h"
 
 static SGModRow *choiceRow(NSString *title, NSString *subtitle, SGHomeChoice choice) {
     return SGChoiceRow(title, subtitle, SGHomeChoiceKey(choice), SGHomeChoiceNames(choice),
@@ -59,7 +60,7 @@ UIViewController *SGHomeSettingsPage(void) {
             SGWithSymbol(SGPageRow(@"Playlists", ^UIViewController *{ return SGPlaylistSettingsPage(); }), @"music.note.list"),
             SGWithSymbol(SGPageRow(@"Library", ^UIViewController *{ return libraryPage(); }), @"books.vertical"),
             SGWithSymbol(SGPageRow(@"Album", ^UIViewController *{ return emptyPage(@"Album"); }), @"square.stack"),
-            SGWithSymbol(SGPageRow(@"Artist", ^UIViewController *{ return emptyPage(@"Artist"); }), @"music.mic"),
+            SGWithSymbol(SGPageRow(@"Artist", ^UIViewController *{ return SGArtistSettingsPage(); }), @"music.mic"),
         ]),
         SGSection(@"Home", @[
             SGWithSymbol(gradient, @"rectangle.tophalf.inset.filled"),
