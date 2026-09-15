@@ -4,6 +4,7 @@
     scripts/record-trees.py                    # interactive: pick screens, record each, save trees/<name>.txt
     scripts/record-trees.py --import LOG NAME  # file an old syslog capture as trees/NAME.txt
     scripts/record-trees.py --url URL          # fetch trees from URL instead of the phone (testing)
+    scripts/record-trees.py -C                 # continuous: every Enter saves trees/continuous/1.txt, 2.txt, ...
 
 A FLEX build of the tweak serves the visible screen's tree on the phone's loopback port 8085. This
 script opens that port over USB with iproxy and pulls the tree when you press Enter, so Spotify only
@@ -19,6 +20,7 @@ import urllib.request
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TREES = os.path.join(ROOT, "trees")
 SCREENS = os.path.join(TREES, "screens.txt")
+CONTINUOUS = os.path.join(TREES, "continuous")
 PORT = 8085
 
 DEFAULT_SCREENS = [
@@ -69,8 +71,8 @@ def describe(text):
     return f"{text.count(chr(10))} lines, pages: {', '.join(pages_in(text)) or 'none recognised'}"
 
 
-def write_tree(name, text, source, messages=None):
-    path = os.path.join(TREES, f"{name}.txt")
+def write_tree(name, text, source, messages=None, folder=TREES):
+    path = os.path.join(folder, f"{name}.txt")
     with open(path, "w") as f:
         f.write(f"# screen: {name}\n# recorded: {datetime.datetime.now():%Y-%m-%d %H:%M} via {source}\n# {describe(text)}\n")
         if messages:
@@ -183,8 +185,34 @@ def record(url, name, hint):
         return "saved"
 
 
+def record_continuous(url):
+    os.makedirs(CONTINUOUS, exist_ok=True)
+    for old in os.listdir(CONTINUOUS):
+        if old.endswith(".txt"):
+            os.remove(os.path.join(CONTINUOUS, old))
+    print("\nContinuous mode: press Enter to save the visible screen as the next numbered file.   [q] quit")
+    count = 0
+    while True:
+        if ask("> ") == "q":
+            return
+        try:
+            text = fetch(url)
+        except Exception as error:
+            print(f"  could not fetch the tree ({error}).")
+            continue
+        if "== window" not in text:
+            print("  the phone answered but not with a tree, press Enter to try again")
+            continue
+        count += 1
+        path = write_tree(str(count), text, "usb", folder=CONTINUOUS)
+        print(f"  saved {os.path.relpath(path, ROOT)}: {describe(text)}")
+
+
 def main():
     args = sys.argv[1:]
+    continuous = "-C" in args
+    if continuous:
+        args.remove("-C")
     if len(args) == 3 and args[0] == "--import":
         singles, dumps = parse_log(open(args[1], errors="replace"))
         if not dumps and not singles:
@@ -202,6 +230,15 @@ def main():
             sys.exit("no iPhone on USB: plug it in, unlock it, tap Trust if asked, then run again")
         tunnel = subprocess.Popen(["iproxy", f"{PORT}:{PORT}"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         url = f"http://127.0.0.1:{PORT}/tree"
+    if continuous:
+        try:
+            record_continuous(url)
+        except KeyboardInterrupt:
+            print()
+        finally:
+            if tunnel:
+                tunnel.terminate()
+        return
     screens = load_screens()
     chosen = pick(screens)
     if not chosen:
