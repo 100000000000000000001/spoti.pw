@@ -10,3 +10,10 @@
 #define SGHideBarConnect @"spotifyglass.hide.barConnect"   // the device button in the now playing bar
 
 UIViewController *SGNowPlayingSettingsPage(void);   // the Player page
+
+// Posted by NowPlayingBar.x as the full screen player starts to open or close, before the animation
+// runs, and again once it is over; SGPlayerTransitionEnds says when it is expected to be over (as
+// CACurrentMediaTime), 0 when none runs.
+extern NSString *const SGPlayerTransitionNotification;
+extern NSString *const SGPlayerTransitionEndedNotification;
+CFTimeInterval SGPlayerTransitionEnds(void);

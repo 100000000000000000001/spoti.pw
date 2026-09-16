@@ -22,6 +22,37 @@ static __weak UIView *sg_barGlassHost = nil;
 // Open and close tapped in quick succession overlap; only the newest animation takes the bar back.
 static NSUInteger sg_barTransition = 0;
 
+// The karaoke card under the player puts its display link down while the player animates.
+NSString *const SGPlayerTransitionNotification = @"spotifyglass.playerTransition";
+NSString *const SGPlayerTransitionEndedNotification = @"spotifyglass.playerTransitionEnded";
+static CFTimeInterval sg_transitionEnds;
+static NSUInteger sg_transitionGeneration;
+
+CFTimeInterval SGPlayerTransitionEnds(void) {
+    return sg_transitionEnds > CACurrentMediaTime() ? sg_transitionEnds : 0;
+}
+
+// The two animators hooked below are what the bar was written against, but the player of this
+// Spotify never runs through them (no log of theirs has ever shown up), so the announcement comes
+// from the appearance callbacks of a controller inside the player, which UIKit sends as the
+// presentation or the dismissal begins, whatever animates it; the transition coordinator says when
+// it is over, a cancelled swipe included.
+static void announceTransition(UIViewController *unit, BOOL animated, NSString *what) {
+    id<UIViewControllerTransitionCoordinator> coordinator = unit.transitionCoordinator;
+    if (!animated || !coordinator) return;
+    NSTimeInterval duration = MAX(0.1, coordinator.transitionDuration);
+    NSUInteger generation = ++sg_transitionGeneration;
+    sg_transitionEnds = CACurrentMediaTime() + duration;
+    [NSNotificationCenter.defaultCenter postNotificationName:SGPlayerTransitionNotification object:nil];
+    [coordinator animateAlongsideTransition:nil completion:^(id<UIViewControllerTransitionCoordinatorContext> context) {
+        if (generation != sg_transitionGeneration) return;
+        sg_transitionEnds = 0;
+        [NSNotificationCenter.defaultCenter postNotificationName:SGPlayerTransitionEndedNotification object:nil];
+    }];
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{ SGLog(@"player %@ over %.2fs, by its appearance callbacks", what, duration); });
+}
+
 static UIView *detectColoredCard(UIView *bar) {
     __block UIView *best = nil;
     __block CGFloat bestArea = 0;
@@ -170,6 +201,8 @@ static void barStock(BOOL stock, NSTimeInterval fade) {
 static void playerTransition(id<UIViewControllerAnimatedTransitioning> animator, id<UIViewControllerContextTransitioning> context) {
     NSTimeInterval duration = MAX(0.1, [animator transitionDuration:context]);
     NSUInteger generation = ++sg_barTransition;
+    sg_transitionEnds = CACurrentMediaTime() + duration;
+    [NSNotificationCenter.defaultCenter postNotificationName:SGPlayerTransitionNotification object:nil];
     barStock(YES, MIN(kFadeOut, duration / 3));
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(duration * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         if (generation == sg_barTransition) barStock(NO, kFadeIn);
@@ -194,6 +227,17 @@ static void playerTransition(id<UIViewControllerAnimatedTransitioning> animator,
 }
 %end
 
+%hook _TtC21NowPlaying_ScrollImpl27NPVBackgroundViewController
+- (void)viewWillAppear:(BOOL)animated {
+    %orig;
+    announceTransition((UIViewController *)self, animated, @"opens");
+}
+- (void)viewWillDisappear:(BOOL)animated {
+    %orig;
+    announceTransition((UIViewController *)self, animated, @"closes");
+}
+%end
+
 %hook _TtC23NowPlaying_ViewPageImpl35ShowFullscreenAnimatedTransitioning
 - (void)animateTransition:(id<UIViewControllerContextTransitioning>)context {
     playerTransition((id)self, context);
@@ -213,6 +257,7 @@ static void playerTransition(id<UIViewControllerAnimatedTransitioning> animator,
     SGRequireClasses(@[
         @"_TtC18NowPlaying_BarImpl36NowPlayingBarContainerViewController",
         @"_TtC18NowPlaying_BarImpl27NowPlayingBarViewController",
+        @"_TtC21NowPlaying_ScrollImpl27NPVBackgroundViewController",
         @"_TtC23NowPlaying_ViewPageImpl35ShowFullscreenAnimatedTransitioning",
         @"_TtC23NowPlaying_ViewPageImpl36CloseFullScreenAnimatedTransitioning",
     ]);

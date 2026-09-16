@@ -1,6 +1,7 @@
 #import "Core/SGCore.h"
 #import "Karaoke.h"
 #import "Features/LyricsSources/LyricsSources.h"
+#import "Features/NowPlaying/NowPlaying.h"
 
 static const CGFloat kFontSize = 30, kMargin = 24, kLineGap = 24, kRowTighten = 2;
 // The card under the player is a seventh of the page's height, so it gets Spotify's own card type
@@ -18,6 +19,13 @@ static const CGFloat kCreditSize = 12, kCreditAlpha = 0.4, kCreditBottom = 10;
 static const NSTimeInterval kBrowseHold = 3;   // after scrolling by hand, how long until it follows the song again
 static const double kFloatMinMs = 700, kFloatLeadMs = 80;   // a short word still floats up this slowly
 static const double kClockSnapMs = 250, kClockPull = 0.08;
+// Lines get views this far outside the visible part, in screen heights: half a screen above it
+// and below, and a quarter more before a view is let go. The card under the player is in the tree
+// for every open and close of the player, and every view it holds is one more for the window to
+// take in and let go; a line comes into view about once in three seconds, and a page flung by
+// hand fills in at a few lines a frame.
+static const CGFloat kSightBehind = 0.5, kSightAhead = 0.5, kSightSlack = 0.25;
+static const NSTimeInterval kTransitionSlack = 0.05;   // after the player's animation, before the link is back
 static NSString *const kBlurPath = @"filters.gaussianBlur.inputRadius";
 
 @interface CAFilter : NSObject
@@ -406,7 +414,13 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
     // A tap on the card is Spotify's, and opens the full screen page; seeking by tap is the page's.
     if (compact) self.userInteractionEnabled = NO;
     else [self addGestureRecognizer:[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(tapped:)]];
+    [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(playerTransitionChanged:) name:SGPlayerTransitionNotification object:nil];
+    [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(playerTransitionChanged:) name:SGPlayerTransitionEndedNotification object:nil];
     return self;
+}
+
+- (void)dealloc {
+    [NSNotificationCenter.defaultCenter removeObserver:self];
 }
 
 - (void)tapped:(UITapGestureRecognizer *)tap {
@@ -453,18 +467,40 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
 
 - (void)didMoveToWindow {
     [super didMoveToWindow];
-    [_link invalidate];
-    _link = nil;
     if (!self.window) {
         [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(followSong) object:nil];
         _browsing = NO;
-        return;
     }
+    [self scheduleLink];
+}
+
+// The player opens and closes in animations that run at 120 Hz, and while a display link asked
+// for 30 to 60, the range Apple's ProMotion guide says Core Animation gives priority to, those
+// animations ran rough; the player and the lyrics themselves were smooth throughout. The card's
+// link now asks for 60 but takes 120, and is put down for as long as the player animates, which
+// NowPlayingBar.x announces as each animation starts and again as it ends; the card holds still
+// under it, where nobody sees it. The timer is for an end that is never announced.
+- (void)scheduleLink {
+    [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(startLink) object:nil];
+    [_link invalidate];
+    _link = nil;
+    if (!self.window) return;
+    NSTimeInterval wait = SGPlayerTransitionEnds() - CACurrentMediaTime();
+    if (wait <= 0) [self startLink];
+    else [self performSelector:@selector(startLink) withObject:nil afterDelay:wait + kTransitionSlack inModes:@[NSRunLoopCommonModes]];
+}
+
+- (void)startLink {
+    if (!self.window || _link) return;
     _link = [CADisplayLink displayLinkWithTarget:self selector:@selector(tick)];
     // The card stays in the window behind the full screen page, so both sweep at once; the card is
-    // a few lines tall and gives up the high refresh rate the page keeps.
-    _link.preferredFrameRateRange = _compact ? CAFrameRateRangeMake(30, 60, 60) : CAFrameRateRangeMake(80, 120, 120);
+    // a few lines tall and is content with 60, the page keeps the high refresh rate.
+    _link.preferredFrameRateRange = _compact ? CAFrameRateRangeMake(30, 120, 60) : CAFrameRateRangeMake(80, 120, 120);
     [_link addToRunLoop:NSRunLoop.mainRunLoop forMode:NSRunLoopCommonModes];
+}
+
+- (void)playerTransitionChanged:(NSNotification *)note {
+    [self scheduleLink];
 }
 
 // The mask sits in the scroll view's own coordinates, which move with the content as it scrolls, so
@@ -540,10 +576,10 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
     return view;
 }
 
-// Views for the lines within a screen's height of the visible part, wherever that is: around the
+// Views for the lines just outside the visible part as well as in it, wherever that is: around the
 // sung line while following the song, around wherever the page has been scrolled to while browsing.
-// The ones a further screen away are let go, so a long song costs a few dozen line views rather
-// than one for every line, and the lines in sight are the only ones the compositor has to draw.
+// The ones further off are let go, so a long song costs a couple of dozen line views rather than
+// one for every line, and the lines in sight are the only ones the compositor has to draw.
 - (void)showLinesInSight {
     if (!_tops.count) return;
     CGFloat offset = ((CALayer *)_scroll.layer.presentationLayer ?: _scroll.layer).bounds.origin.y;
@@ -551,18 +587,19 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
     _sightOffset = offset;
     _sightFocus = _focusTop;
     _sightActive = _active;
-    CGFloat height = self.bounds.size.height, from = offset - height, to = offset + 2 * height;
+    CGFloat height = self.bounds.size.height;
+    CGFloat from = offset - kSightBehind * height, to = offset + (1 + kSightAhead) * height, slack = kSightSlack * height;
     NSMutableArray<NSNumber *> *gone = [NSMutableArray array];
     for (NSNumber *key in _shown) {
         NSInteger index = key.integerValue;
         CGFloat top = [self topOfLine:index], bottom = top + _shown[key].bounds.size.height;
-        if (index != _active && (bottom < from - height || top > to + height)) [gone addObject:key];
+        if (index != _active && (bottom < from - slack || top > to + slack)) [gone addObject:key];
     }
     for (NSNumber *key in gone) {
         [_shown[key] removeFromSuperview];
         [_shown removeObjectForKey:key];
     }
-    NSInteger count = (NSInteger)_tops.count, focus = MAX(_active, 0);
+    NSInteger count = (NSInteger)_tops.count;
     NSMutableArray<NSNumber *> *wanted = [NSMutableArray array];
     for (NSInteger index = 0; index < count; index++) {
         if (_shown[@(index)]) continue;
@@ -571,9 +608,11 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
         if (bottom < from || top > to) continue;
         [wanted addObject:@(index)];
     }
-    // A few a frame, the nearest the sung line first; the next frame picks up where this one left off.
+    // A few a frame, the nearest the middle of the visible part first, so a page scrolled by hand
+    // fills in what is in view before what is not; the next frame picks up where this one left off.
+    CGFloat middle = offset + height / 2;
     [wanted sortUsingComparator:^NSComparisonResult(NSNumber *a, NSNumber *b) {
-        NSInteger da = labs(a.integerValue - focus), db = labs(b.integerValue - focus);
+        CGFloat da = fabs([self topOfLine:a.integerValue] - middle), db = fabs([self topOfLine:b.integerValue] - middle);
         return da < db ? NSOrderedAscending : da > db ? NSOrderedDescending : NSOrderedSame;
     }];
     NSUInteger made = 0;
