@@ -4,6 +4,7 @@
 #import "Core/SGCore.h"
 #import "Flags.h"
 #import "Features/AdBlock/AdBlock.h"
+#import "Features/LyricsSources/LyricsSources.h"
 
 BOOL SGGlassOwnsFlag(NSString *key) {
     static NSSet<NSString *> *owned;
@@ -27,6 +28,7 @@ static id forced(NSString *key) {
     id value = SGFlagOverride(key);
     if (!value && SGFlag(SGKeySpotifyGlass, NO) && SGGlassOwnsFlag(key)) value = @YES;
     if (!value && SGAdBlockForcesFlagOff(key)) value = @NO;
+    if (!value) value = SGLyricsForcedFlag(key);
     return value;
 }
 

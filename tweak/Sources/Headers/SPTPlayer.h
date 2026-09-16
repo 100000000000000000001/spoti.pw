@@ -17,6 +17,9 @@
 // Seconds. position runs on from positionAsOfTimestamp by the time elapsed since the state was made.
 @property (nonatomic, readonly) double position;
 @property (nonatomic, readonly) double positionAsOfTimestamp;
+// The tracks to come and the ones played, nearest first; SPTPlayerTrack each, read with a type check.
+@property (nonatomic, readonly) NSArray *future;
+@property (nonatomic, readonly) NSArray *reverse;
 @end
 
 @protocol SPTPlayer <NSObject>

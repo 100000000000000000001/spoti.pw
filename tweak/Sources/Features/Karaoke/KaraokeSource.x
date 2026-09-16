@@ -11,6 +11,7 @@
 #import "Headers/SPTPlayer.h"
 
 static const NSUInteger kKeptTracks = 40;
+static const NSUInteger kSeenTracks = 200;
 // What spclient needs from a request to answer it as the signed-in app.
 static NSString *const kSpclientHeaders[] = {@"authorization", @"client-token", @"app-platform", @"spotify-app-version", @"user-agent", @"accept-language"};
 
@@ -18,6 +19,13 @@ static NSMutableDictionary<NSString *, NSArray<SGKaraokeLine *> *> *sg_lyrics;
 static NSMutableSet<NSString *> *sg_requested;
 static NSDictionary<NSString *, NSString *> *sg_spclientHeaders;
 static __weak id sg_player;
+// Every track the player has reported, by id, so a source can name a track that is not the one
+// playing at the moment it is asked: a lyrics request routinely lands a beat before the player
+// moves on to its track. The last object seen is kept by pointer so the check on each call is free,
+// and its id behind it, since the player hands out a fresh object with every state it reports.
+static NSMutableDictionary<NSString *, SPTPlayerTrack *> *sg_seenTracks;
+static __weak SPTPlayerTrack *sg_lastSeen;
+static NSString *sg_lastSeenID;   // the player makes a new track object on every state it reports, so the id is what tells a change
 static BOOL sg_ownSources;   // a source of the mod's answers the color-lyrics request, not Spotify
 static char kBodyKey;
 
@@ -91,6 +99,8 @@ static void requestFromSpotify(NSString *trackID) {
         [request setValue:value forHTTPHeaderField:name];
     }];
     [request setValue:@"application/json" forHTTPHeaderField:@"Accept"];
+    // The mod's own, so LyricsHook's request hook does not send it to the donor.
+    [NSURLProtocol setProperty:@YES forKey:SGLyricsOwnRequestKey inRequest:request];
     [[NSURLSession.sharedSession dataTaskWithRequest:request completionHandler:^(NSData *body, NSURLResponse *response, NSError *error) {
         NSArray<SGKaraokeLine *> *lines = SGKaraokeLinesFromBody(body);
         SGLog(@"karaoke: fetched lyrics for %@: status %ld, %lu synced lines, error %@", trackID,
@@ -147,10 +157,68 @@ void SGKaraokeSeek(NSInteger ms) {
     [(id<SPTPlayer>)player seekTo:ms / 1000.0];
 }
 
+static NSString *idOf(SPTPlayerTrack *track) {
+    id uri = track.URI;
+    NSString *text = [uri isKindOfClass:NSURL.class] ? ((NSURL *)uri).absoluteString : [uri description];
+    return [text hasPrefix:@"spotify:track:"] ? [text substringFromIndex:@"spotify:track:".length] : nil;
+}
+
+// Tracks come in from the player and from every list that reads their metadata, so when the table
+// is full it is emptied, all but the track playing, whose name the next lyrics request needs.
+static void remember(SPTPlayerTrack *track, NSString *trackID) {
+    @synchronized (sg_seenTracks) {
+        if (sg_seenTracks.count >= kSeenTracks) {
+            [sg_seenTracks removeAllObjects];
+            SPTPlayerTrack *playing = sg_lastSeen;
+            NSString *playingID = playing ? idOf(playing) : nil;
+            if (playingID) sg_seenTracks[playingID] = playing;
+        }
+        sg_seenTracks[trackID] = track;
+    }
+}
+
+SPTPlayerTrack *SGKaraokeTrackFor(NSString *trackID) {
+    if (!trackID) return nil;
+    @synchronized (sg_seenTracks) { return sg_seenTracks[trackID]; }
+}
+
+void SGKaraokeRememberTrack(SPTPlayerTrack *track) {
+    if (!sg_seenTracks) return;
+    NSString *trackID = idOf(track);
+    if (trackID) remember(track, trackID);
+}
+
+// With a source of the mod's on, the walk for a track starts the moment the player moves to it and,
+// for the track after it, while this one still plays: Spotify asks for a track's lyrics within a
+// beat of starting it and gives its card list about a second to load, so an answer that is already
+// in is what puts the card there. The track is named here, so no walk waits for a name.
+static void prefetch(SPTPlayerTrack *track, NSString *trackID, SPTPlayerState *state) {
+    if (!sg_ownSources) return;
+    SGLyricsPrefetch(trackID);
+    id future = [state respondsToSelector:@selector(future)] ? state.future : nil;
+    id next = [future isKindOfClass:NSArray.class] ? [(NSArray *)future firstObject] : nil;
+    if (![next isKindOfClass:objc_getClass("SPTPlayerTrack")]) return;
+    NSString *nextID = idOf(next);
+    if (!nextID || [nextID isEqualToString:trackID]) return;
+    remember(next, nextID);
+    SGLyricsPrefetch(nextID);
+}
+
 %hook SPTEsperantoPlayer
 - (id)state {
     if (!sg_player) sg_player = self;
-    return %orig;
+    SPTPlayerState *state = %orig;
+    SPTPlayerTrack *track = state.track;
+    if (track && track != sg_lastSeen) {
+        sg_lastSeen = track;
+        NSString *trackID = idOf(track);
+        if (trackID && ![trackID isEqualToString:sg_lastSeenID]) {
+            sg_lastSeenID = trackID;
+            remember(track, trackID);
+            prefetch(track, trackID, state);
+        }
+    }
+    return state;
 }
 %end
 
@@ -177,7 +245,10 @@ void SGKaraokeSeek(NSInteger ms) {
 %end
 
 %ctor {
-    if (!SGFlag(SGKeyKaraokeLyrics, NO) && !SGFlag(SGKeyLockScreenLyrics, NO)) return;
+    // The sources that search by name learn the name from the player, so the player is caught
+    // whenever one is on, not only for the karaoke page and the lock screen.
+    if (!SGFlag(SGKeyKaraokeLyrics, NO) && !SGFlag(SGKeyLockScreenLyrics, NO) && !SGLyricsEnabled()) return;
+    sg_seenTracks = [NSMutableDictionary dictionary];
     sg_lyrics = [NSMutableDictionary dictionary];
     sg_requested = [NSMutableSet set];
     sg_ownSources = SGLyricsEnabled();

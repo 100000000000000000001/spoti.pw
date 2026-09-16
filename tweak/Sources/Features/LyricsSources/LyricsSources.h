@@ -52,6 +52,9 @@ typedef void (^SGLyricsAsk)(SGLyricsQuery *query, void (^done)(SGLyricsResult *r
 @property (nonatomic, copy) NSString *key;      // stored in the order, never shown
 @property (nonatomic, copy) NSString *name;     // "BiniLyrics", what the credit reads
 @property (nonatomic, copy) NSString *detail;   // one line under the name on the Lyrics page
+// Searches by title and artist, so it has nothing to ask with until someone has named the track.
+// Only Musixmatch matches by Spotify's id and can go without.
+@property (nonatomic) BOOL needsName;
 @property (nonatomic, copy) SGLyricsAsk ask;
 @end
 
@@ -68,6 +71,20 @@ BOOL SGLyricsEnabled(void);   // any source at all is on
 void SGLyricsFetch(NSString *trackID, void (^done)(SGLyricsResult *result));
 // NO once every source has said it has nothing for the track; safe from any thread.
 BOOL SGLyricsMayHave(NSString *trackID);
+// Starts the walk for a track before anyone has asked, so the answer is in when Spotify's request
+// comes; a walk already run or running is left alone. Safe from any thread.
+void SGLyricsPrefetch(NSString *trackID);
+// What Spotify's own metadata says of a track: 1 has lyrics, 0 has none, -1 not seen yet. The
+// player-track hook notes it; the request hook reads it to send a track Spotify has none for to
+// the donor. Safe from any thread.
+NSInteger SGLyricsSpotifyHas(NSString *trackID);
+void SGLyricsNoteSpotifyHas(NSString *trackID, BOOL has);
+// The remote-config values the lyrics feature forces while a source is on, nil for any other flag:
+// the player gives its cards this long to load before it shows the list without the slow ones, and
+// a source of the mod's can take longer than Spotify's default to answer.
+id SGLyricsForcedFlag(NSString *key);
+// Set on the requests the mod sends to spclient itself, so the request hook leaves them alone.
+extern NSString *const SGLyricsOwnRequestKey;
 // The name of the source the lines shown for the track came from, nil until they arrive.
 NSString *SGLyricsCreditFor(NSString *trackID);
 void SGLyricsSetCredit(NSString *trackID, NSString *name);

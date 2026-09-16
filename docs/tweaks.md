@@ -53,8 +53,15 @@ app:
                   BiniLyrics.m and Unison.m, read by SGTTML.m, which is the only shape carrying a second voice and the
                   backing vocals; Musixmatch.m, matched by Spotify's track id with an anonymous token, word timed where
                   it has richsync; NetEase.m, word timing from yrc for what the others only line time; LrcLib.m, open and
-                  keyless and timed by the line, the floor under the rest. color-lyrics is answered with whichever won and
-                  has_lyrics forced for every track (LyricsHook.x)
+                  keyless and timed by the line, the floor under the rest. color-lyrics is answered with whichever won
+                  (LyricsHook.x): Spotify's own 200 gets our lines swapped in; a track Spotify's metadata says has none has
+                  its request sent to a donor track that does, so the reply is a real 200 (a 404 answered as a 200 in the
+                  delegate alone never showed the card on 9.1.78); a 404 for a track not seen yet is held until the chain
+                  answers. The card list the server sends per track (scrollsita) carries a lyrics section only for tracks
+                  Spotify has lyrics for, so one is added to any list without it: that is what makes the player ask for the
+                  lyrics and show the card. has_lyrics is forced on for every track, the walk starts at the track change
+                  for it and the next, and the player's card-loading timeout flag is forced to its 5 s maximum while a
+                  source is on
     Onboarding/   the welcome tour over Home on the first launch (Onboarding.x, the pages in Tour.m), offered again from the Mod page
     About/        the update check and the Mod page: the build, its updates, the links and the reset
 

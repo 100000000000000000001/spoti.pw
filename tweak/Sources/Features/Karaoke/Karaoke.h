@@ -59,6 +59,11 @@ NSString *SGKaraokePlayingTrack(void);   // the base62 id, nil before the player
 NSInteger SGKaraokePositionMs(void);     // negative when unknown
 void SGKaraokeSeek(NSInteger ms);
 id SGKaraokePlayer(void);                // SPTEsperantoPlayer, nil before the app asked it for its state
+// A track the player has reported, by its base62 id; nil for one it has not played this session.
+@class SPTPlayerTrack;
+SPTPlayerTrack *SGKaraokeTrackFor(NSString *trackID);
+// Keeps a track seen elsewhere, so a source can name it before the player has reported it.
+void SGKaraokeRememberTrack(SPTPlayerTrack *track);
 
 @interface SGKaraokeView : UIView
 // Compact is the card under the player: Spotify's own type size, no seeking by tap and no margin of
