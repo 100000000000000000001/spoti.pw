@@ -411,12 +411,23 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
     [_link addToRunLoop:NSRunLoop.mainRunLoop forMode:NSRunLoopCommonModes];
 }
 
-- (void)layoutSubviews {
-    [super layoutSubviews];
+// The mask sits in the scroll view's own coordinates, which move with the content as it scrolls, so
+// it is put back over the visible part on every frame, where the presentation layer says the
+// content is: that holds through a drag and through the animated scroll home alike. Left where
+// layout put it, it covered the first screenful of lines only, and a scroll past them showed nothing.
+- (void)alignFade {
+    CALayer *shown = (CALayer *)_scroll.layer.presentationLayer ?: _scroll.layer;
+    CGRect frame = CGRectMake(0, shown.bounds.origin.y, self.bounds.size.width, self.bounds.size.height);
+    if (CGRectEqualToRect(frame, _fade.frame)) return;
     [CATransaction begin];
     [CATransaction setDisableActions:YES];
-    _fade.frame = self.bounds;
+    _fade.frame = frame;
     [CATransaction commit];
+}
+
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    [self alignFade];
     _scroll.contentSize = self.bounds.size;
     [_credit sizeToFit];
     _credit.frame = CGRectMake(_margin, self.bounds.size.height - _credit.bounds.size.height - kCreditBottom,
@@ -546,6 +557,7 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
     // The source is settled a moment after the lines are, so it is asked for until it answers.
     if (_crediting && _lines && !_credit.text.length) [self creditTo:SGLyricsCreditFor(track)];
     if (!_lineViews) return;
+    [self alignFade];
 
     double now = [self clockMs];
     NSInteger active = -1;
