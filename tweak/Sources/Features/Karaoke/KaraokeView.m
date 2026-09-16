@@ -3,6 +3,11 @@
 #import "Features/LyricsSources/LyricsSources.h"
 
 static const CGFloat kFontSize = 30, kMargin = 24, kLineGap = 24, kRowTighten = 2;
+// The card under the player is a seventh of the page's height, so it gets Spotify's own card type
+// size and the spacing its rows sit on, and it dims less: at full strength a card this small is a
+// blur with a line in it.
+static const CGFloat kCardFontSize = 21, kCardMargin = 0, kCardLineGap = 16;
+static const CGFloat kCardBlurPerLine = 0.9, kCardMaxBlur = 3.5;
 static const CGFloat kDimAlpha = 0.3, kFillEdge = 22, kLift = 2.5, kDimScale = 0.97;
 static const CGFloat kAnchor = 0.28;   // where the sung line rests, as a share of the height
 static const CGFloat kEdgeFade = 0.1;  // the lines fade out over this share at the top and bottom
@@ -304,6 +309,8 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
     BOOL _showing;
     CAGradientLayer *_fade;
     UILabel *_credit;
+    CGFloat _fontSize, _margin, _lineGap, _blurPerLine, _maxBlur;
+    BOOL _compact;
     BOOL _crediting;   // the switch is read once: the page asks for the source on every frame until it has one
     double _clock;
     NSInteger _reported;
@@ -311,10 +318,20 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
 }
 
 - (instancetype)initWithFrame:(CGRect)frame {
+    return [self initWithFrame:frame compact:NO];
+}
+
+- (instancetype)initWithFrame:(CGRect)frame compact:(BOOL)compact {
     self = [super initWithFrame:frame];
     if (!self) return nil;
     self.hidden = YES;
     _active = -1;
+    _compact = compact;
+    _fontSize = compact ? kCardFontSize : kFontSize;
+    _margin = compact ? kCardMargin : kMargin;
+    _lineGap = compact ? kCardLineGap : kLineGap;
+    _blurPerLine = compact ? kCardBlurPerLine : kBlurPerLine;
+    _maxBlur = compact ? kCardMaxBlur : kMaxBlur;
     _fade = [CAGradientLayer layer];
     _fade.colors = @[(id)UIColor.clearColor.CGColor, (id)UIColor.whiteColor.CGColor,
                      (id)UIColor.whiteColor.CGColor, (id)UIColor.clearColor.CGColor];
@@ -332,16 +349,18 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
     _credit.font = [UIFont systemFontOfSize:kCreditSize weight:UIFontWeightSemibold];
     _credit.textColor = [UIColor colorWithWhite:1 alpha:kCreditAlpha];
     _credit.hidden = YES;
-    _crediting = SGFlag(SGKeyLyricsCredit, NO);
+    _crediting = !compact && SGFlag(SGKeyLyricsCredit, NO);   // the card has no room to name a source
     [self addSubview:_credit];
-    [self addGestureRecognizer:[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(tapped:)]];
+    // A tap on the card is Spotify's, and opens the full screen page; seeking by tap is the page's.
+    if (compact) self.userInteractionEnabled = NO;
+    else [self addGestureRecognizer:[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(tapped:)]];
     return self;
 }
 
 - (void)tapped:(UITapGestureRecognizer *)tap {
     CGPoint point = [tap locationInView:_scroll];
     for (SGKaraokeLineView *view in _lineViews) {
-        if (!CGRectContainsPoint(CGRectInset(view.frame, -kMargin, -kLineGap / 2), point)) continue;
+        if (!CGRectContainsPoint(CGRectInset(view.frame, -_margin, -_lineGap / 2), point)) continue;
         SGKaraokeSeek(view.line.start);
         [self followSong];
         return;
@@ -386,7 +405,9 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
         return;
     }
     _link = [CADisplayLink displayLinkWithTarget:self selector:@selector(tick)];
-    _link.preferredFrameRateRange = CAFrameRateRangeMake(80, 120, 120);
+    // The card stays in the window behind the full screen page, so both sweep at once; the card is
+    // a few lines tall and gives up the high refresh rate the page keeps.
+    _link.preferredFrameRateRange = _compact ? CAFrameRateRangeMake(30, 60, 60) : CAFrameRateRangeMake(80, 120, 120);
     [_link addToRunLoop:NSRunLoop.mainRunLoop forMode:NSRunLoopCommonModes];
 }
 
@@ -398,7 +419,7 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
     [CATransaction commit];
     _scroll.contentSize = self.bounds.size;
     [_credit sizeToFit];
-    _credit.frame = CGRectMake(kMargin, self.bounds.size.height - _credit.bounds.size.height - kCreditBottom,
+    _credit.frame = CGRectMake(_margin, self.bounds.size.height - _credit.bounds.size.height - kCreditBottom,
                                _credit.bounds.size.width, _credit.bounds.size.height);
     if (_lines && self.bounds.size.width != _builtWidth) [self rebuild];
 }
@@ -410,9 +431,9 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
     _browsing = NO;
     _scroll.contentOffset = CGPointZero;
     _builtWidth = self.bounds.size.width;
-    CGFloat width = _builtWidth - 2 * kMargin;
+    CGFloat width = _builtWidth - 2 * _margin;
     if (width <= 0) return;
-    UIFont *font = [UIFont systemFontOfSize:kFontSize weight:UIFontWeightBold];
+    UIFont *font = [UIFont systemFontOfSize:_fontSize weight:UIFontWeightBold];
     NSMutableArray<SGKaraokeLineView *> *views = [NSMutableArray array];
     for (SGKaraokeLine *line in _lines) {
         SGKaraokeLineView *view = [[SGKaraokeLineView alloc] initWithLine:line width:width font:font backing:NO];
@@ -433,19 +454,19 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
     for (NSUInteger i = 0; i < _lineViews.count; i++) {
         if ((NSInteger)i == focus) focusTop = top;
         [tops addObject:@(top)];
-        top += _lineViews[i].bounds.size.height + kLineGap;
+        top += _lineViews[i].bounds.size.height + _lineGap;
     }
     for (NSUInteger i = 0; i < _lineViews.count; i++) {
         SGKaraokeLineView *view = _lineViews[i];
         NSInteger distance = (NSInteger)i - _active;
         CGFloat y = height * kAnchor + tops[i].doubleValue - focusTop;
-        CGRect frame = CGRectMake(kMargin, y, view.bounds.size.width, view.bounds.size.height);
+        CGRect frame = CGRectMake(_margin, y, view.bounds.size.width, view.bounds.size.height);
         // The anchor sits on the edge the line is aligned to, so it scales toward its own text.
         BOOL trailing = view.line.align == SGKaraokeAlignTrailing;
-        CGPoint center = CGPointMake(trailing ? CGRectGetMaxX(frame) : kMargin, CGRectGetMidY(frame));
+        CGPoint center = CGPointMake(trailing ? CGRectGetMaxX(frame) : _margin, CGRectGetMidY(frame));
         CGFloat scale = distance == 0 ? 1 : kDimScale;
         CGAffineTransform transform = CGAffineTransformMakeScale(scale, scale);
-        view.blur = distance == 0 ? 0 : MIN(kMaxBlur, labs(distance) * kBlurPerLine);
+        view.blur = distance == 0 ? 0 : MIN(_maxBlur, labs(distance) * _blurPerLine);
         BOOL near = CGRectIntersectsRect(CGRectInset(self.bounds, 0, -height / 2), frame)
                  || CGRectIntersectsRect(CGRectInset(self.bounds, 0, -height / 2), view.frame);
         if (!animated || !near) {

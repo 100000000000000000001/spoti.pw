@@ -61,6 +61,9 @@ void SGKaraokeSeek(NSInteger ms);
 id SGKaraokePlayer(void);                // SPTEsperantoPlayer, nil before the app asked it for its state
 
 @interface SGKaraokeView : UIView
+// Compact is the card under the player: Spotify's own type size, no seeking by tap and no margin of
+// its own, since the card already insets what it holds. initWithFrame: is the full screen page.
+- (instancetype)initWithFrame:(CGRect)frame compact:(BOOL)compact;
 // Hides Spotify's own lyrics next to this view while it has lyrics to show, and brings them back when not.
 - (void)syncSiblings;
 @end

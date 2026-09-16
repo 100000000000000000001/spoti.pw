@@ -45,8 +45,9 @@ app:
                   rewritten on the way in (AdNetwork.x, Premium.m over the protobuf walker in Protobuf.m), with crossfade
                   and automix switched on in the player core and crossfade's switch kept in step with its slider (Crossfade.x)
     ArtistBlock/  tracks by blocked artists skipped as they start (ArtistSkip.x), the list and the Blocked artists page under Player
-    Karaoke/      Apple Music style lyrics on the full screen page: lines read from color-lyrics and the player's clock (KaraokeSource.x),
-                  words timed by estimate inside Spotify's line times (KaraokeTiming.m), drawn by KaraokeView.m over the page (KaraokePage.x)
+    Karaoke/      Apple Music style lyrics on the full screen page and on the card under the player: lines read from color-lyrics
+                  and the player's clock (KaraokeSource.x), words timed by estimate inside Spotify's line times (KaraokeTiming.m),
+                  drawn by KaraokeView.m over the page (KaraokePage.x) and, in compact, over the card (KaraokeCard.x)
     LyricsSources/ the sources lyrics come from, asked in the order the Lyrics page puts them in and merged into the
                   best answer (LyricsSources.m, the list to drag in LyricsSourcesPage.m): Apple Music's TTML from
                   BiniLyrics.m and Unison.m, read by SGTTML.m, which is the only shape carrying a second voice and the
