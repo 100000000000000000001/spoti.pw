@@ -4,10 +4,9 @@
 
 static const CGFloat kFontSize = 30, kMargin = 24, kLineGap = 24, kRowTighten = 2;
 // The card under the player is a seventh of the page's height, so it gets Spotify's own card type
-// size and the spacing its rows sit on, and it dims less: at full strength a card this small is a
-// blur with a line in it.
+// size and the spacing its rows sit on, and no blur: at that size the dimming does the work, and a
+// blur filter on every line in sight, under the card's glass, made the player stutter as it opened.
 static const CGFloat kCardFontSize = 21, kCardMargin = 0, kCardLineGap = 16;
-static const CGFloat kCardBlurPerLine = 0.9, kCardMaxBlur = 3.5;
 static const CGFloat kDimAlpha = 0.3, kFillEdge = 22, kLift = 2.5, kDimScale = 0.97;
 static const CGFloat kAnchor = 0.28;   // where the sung line rests, as a share of the height
 static const CGFloat kEdgeFade = 0.1;  // the lines fade out over this share at the top and bottom
@@ -57,6 +56,9 @@ static UILabel *wordLabel(NSString *text, UIFont *font, UIColor *color, CGRect f
     _word = word;
     [self addSubview:wordLabel(word.text, font, [UIColor colorWithWhite:1 alpha:kDimAlpha], self.bounds)];
     _lit = wordLabel(word.text, font, UIColor.whiteColor, self.bounds);
+    // Hidden until the line is sung: a masked layer is drawn offscreen every frame even when the
+    // mask leaves nothing of it, and a song has hundreds of words waiting their turn.
+    _lit.hidden = YES;
     [self addSubview:_lit];
 
     CGFloat width = self.bounds.size.width + kFillEdge;
@@ -107,7 +109,7 @@ static UILabel *wordLabel(NSString *text, UIFont *font, UIColor *color, CGRect f
 @property (nonatomic, readonly) SGKaraokeLine *line;
 @property (nonatomic) BOOL active;
 @property (nonatomic) CGFloat blur;
-- (instancetype)initWithLine:(SGKaraokeLine *)line width:(CGFloat)width font:(UIFont *)font backing:(BOOL)backing;
+- (instancetype)initWithLine:(SGKaraokeLine *)line width:(CGFloat)width font:(UIFont *)font backing:(BOOL)backing blurred:(BOOL)blurred;
 - (void)showTime:(double)ms;
 @end
 
@@ -123,7 +125,7 @@ typedef struct {
     SGKaraokeLineView *_backing;
 }
 
-- (instancetype)initWithLine:(SGKaraokeLine *)line width:(CGFloat)width font:(UIFont *)font backing:(BOOL)backing {
+- (instancetype)initWithLine:(SGKaraokeLine *)line width:(CGFloat)width font:(UIFont *)font backing:(BOOL)backing blurred:(BOOL)blurred {
     self = [super initWithFrame:CGRectZero];
     if (!self) return nil;
     _line = line;
@@ -166,7 +168,7 @@ typedef struct {
     CGFloat height = y + ceil(font.lineHeight);
     if (line.backing.words.count && !backing) {
         UIFont *smaller = [UIFont systemFontOfSize:round(font.pointSize * kBackingScale) weight:UIFontWeightBold];
-        _backing = [[SGKaraokeLineView alloc] initWithLine:line.backing width:width font:smaller backing:YES];
+        _backing = [[SGKaraokeLineView alloc] initWithLine:line.backing width:width font:smaller backing:YES blurred:NO];
         _backing.alpha = kBackingAlpha;
         _backing.frame = CGRectMake(0, height + kBackingGap, width, _backing.bounds.size.height);
         [self addSubview:_backing];
@@ -178,9 +180,32 @@ typedef struct {
     // Scales toward the edge its text is aligned to, and a backing row rides its line's blur.
     if (backing) return self;
     self.layer.anchorPoint = CGPointMake(line.align == SGKaraokeAlignTrailing ? 1 : 0, 0.5);
+    if (!blurred) return self;
     CAFilter *blur = [NSClassFromString(@"CAFilter") filterWithType:@"gaussianBlur"];
     if (blur) self.layer.filters = @[blur];
     return self;
+}
+
+// The height a line takes at a width, its rows counted the way initWithLine:width:font:backing:blurred:
+// lays them, so the page can place every line of a song while making views for the few in sight.
+static CGFloat lineHeight(SGKaraokeLine *line, CGFloat width, UIFont *font, BOOL backing) {
+    CGFloat space = ceil([@" " sizeWithAttributes:@{NSFontAttributeName: font}].width);
+    CGFloat row = ceil(font.lineHeight) - kRowTighten, x = 0, y = 0;
+    for (SGKaraokeWord *word in line.words) {
+        CGFloat wordWidth = ceil([word.text sizeWithAttributes:@{NSFontAttributeName: font}].width);
+        CGFloat lead = x > 0 && !word.joined ? space : 0;
+        if (x > 0 && x + lead + wordWidth > width) {
+            x = lead = 0;
+            y += row;
+        }
+        x += lead + wordWidth;
+    }
+    CGFloat height = y + ceil(font.lineHeight);
+    if (line.backing.words.count && !backing) {
+        UIFont *smaller = [UIFont systemFontOfSize:round(font.pointSize * kBackingScale) weight:UIFontWeightBold];
+        height += kBackingGap + lineHeight(line.backing, width, smaller, YES);
+    }
+    return height;
 }
 
 - (void)dealloc {
@@ -258,6 +283,7 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
             [word.layer removeAllAnimations];
             [word.lit.layer removeAllAnimations];
             word.lit.alpha = 1;
+            word.lit.hidden = NO;
             [word fillTo:-CGFLOAT_MAX];
             [word settle];
         }
@@ -276,6 +302,7 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
         if (generation != self->_generation) return;
         for (SGKaraokeWordView *word in self->_words) {
             [word fillTo:-CGFLOAT_MAX];
+            word.lit.hidden = YES;
             word.lit.alpha = 1;
         }
     }];
@@ -303,7 +330,13 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
     CADisplayLink *_link;
     NSString *_track;
     NSArray<SGKaraokeLine *> *_lines;
-    NSArray<SGKaraokeLineView *> *_lineViews;
+    // The song is placed from its lines' heights alone; views exist for the lines in and near sight.
+    NSArray<NSNumber *> *_tops;   // where each line starts in the stack
+    NSMutableDictionary<NSNumber *, SGKaraokeLineView *> *_shown;   // the views there are, by line
+    CGFloat _focusTop;            // the top of the line the stack is arranged around
+    CGFloat _sightOffset, _sightFocus;   // what the views in sight were last chosen for
+    NSInteger _sightActive;
+    UIFont *_font;
     NSInteger _active;
     CGFloat _builtWidth;
     BOOL _showing;
@@ -330,8 +363,10 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
     _fontSize = compact ? kCardFontSize : kFontSize;
     _margin = compact ? kCardMargin : kMargin;
     _lineGap = compact ? kCardLineGap : kLineGap;
-    _blurPerLine = compact ? kCardBlurPerLine : kBlurPerLine;
-    _maxBlur = compact ? kCardMaxBlur : kMaxBlur;
+    _blurPerLine = compact ? 0 : kBlurPerLine;
+    _maxBlur = compact ? 0 : kMaxBlur;
+    _shown = [NSMutableDictionary dictionary];
+    _sightActive = -2;
     _fade = [CAGradientLayer layer];
     _fade.colors = @[(id)UIColor.clearColor.CGColor, (id)UIColor.whiteColor.CGColor,
                      (id)UIColor.whiteColor.CGColor, (id)UIColor.clearColor.CGColor];
@@ -359,7 +394,7 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
 
 - (void)tapped:(UITapGestureRecognizer *)tap {
     CGPoint point = [tap locationInView:_scroll];
-    for (SGKaraokeLineView *view in _lineViews) {
+    for (SGKaraokeLineView *view in _shown.allValues) {
         if (!CGRectContainsPoint(CGRectInset(view.frame, -_margin, -_lineGap / 2), point)) continue;
         SGKaraokeSeek(view.line.start);
         [self followSong];
@@ -374,7 +409,11 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
 - (void)scrollViewWillBeginDragging:(UIScrollView *)scrollView {
     [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(followSong) object:nil];
     _browsing = YES;
-    for (SGKaraokeLineView *view in _lineViews) view.blur = 0;
+    for (SGKaraokeLineView *view in _shown.allValues) view.blur = 0;
+}
+
+- (void)scrollViewDidScroll:(UIScrollView *)scrollView {
+    [self showLinesInSight];
 }
 
 - (void)scrollViewDidEndDragging:(UIScrollView *)scrollView willDecelerate:(BOOL)decelerate {
@@ -435,67 +474,116 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
     if (_lines && self.bounds.size.width != _builtWidth) [self rebuild];
 }
 
+- (void)dropLineViews {
+    for (UIView *view in _shown.allValues) [view removeFromSuperview];
+    [_shown removeAllObjects];
+    _tops = nil;
+    _sightActive = -2;
+}
+
 - (void)rebuild {
-    for (UIView *view in _lineViews) [view removeFromSuperview];
-    _lineViews = nil;
+    [self dropLineViews];
     _active = -1;
     _browsing = NO;
     _scroll.contentOffset = CGPointZero;
     _builtWidth = self.bounds.size.width;
     CGFloat width = _builtWidth - 2 * _margin;
     if (width <= 0) return;
-    UIFont *font = [UIFont systemFontOfSize:_fontSize weight:UIFontWeightBold];
-    NSMutableArray<SGKaraokeLineView *> *views = [NSMutableArray array];
+    _font = [UIFont systemFontOfSize:_fontSize weight:UIFontWeightBold];
+    NSMutableArray<NSNumber *> *tops = [NSMutableArray array];
+    CGFloat top = 0;
     for (SGKaraokeLine *line in _lines) {
-        SGKaraokeLineView *view = [[SGKaraokeLineView alloc] initWithLine:line width:width font:font backing:NO];
-        [_scroll addSubview:view];
-        [views addObject:view];
+        [tops addObject:@(top)];
+        top += lineHeight(line, width, _font, NO) + _lineGap;
     }
-    _lineViews = views;
+    _tops = tops;
     [self placeLinesAnimated:NO];
+}
+
+// Where a line starts on the page, for the stack as it is arranged now.
+- (CGFloat)topOfLine:(NSInteger)index {
+    return self.bounds.size.height * kAnchor + _tops[index].doubleValue - _focusTop;
+}
+
+// The view of a line, made the first time it is asked for and placed where the stack has it.
+- (SGKaraokeLineView *)viewForLine:(NSInteger)index {
+    SGKaraokeLineView *view = _shown[@(index)];
+    if (view || !_tops || index < 0 || index >= (NSInteger)_tops.count) return view;
+    view = [[SGKaraokeLineView alloc] initWithLine:_lines[index] width:_builtWidth - 2 * _margin font:_font backing:NO blurred:_maxBlur > 0];
+    [_scroll addSubview:view];
+    _shown[@(index)] = view;
+    [self placeLine:view at:index animated:NO];
+    return view;
+}
+
+// Views for the lines within a screen's height of the visible part, wherever that is: around the
+// sung line while following the song, around wherever the page has been scrolled to while browsing.
+// The ones a further screen away are let go, so a long song costs a few dozen line views rather
+// than one for every line, and the lines in sight are the only ones the compositor has to draw.
+- (void)showLinesInSight {
+    if (!_tops.count) return;
+    CGFloat offset = ((CALayer *)_scroll.layer.presentationLayer ?: _scroll.layer).bounds.origin.y;
+    if (offset == _sightOffset && _focusTop == _sightFocus && _active == _sightActive) return;
+    _sightOffset = offset;
+    _sightFocus = _focusTop;
+    _sightActive = _active;
+    CGFloat height = self.bounds.size.height, from = offset - height, to = offset + 2 * height;
+    NSMutableArray<NSNumber *> *gone = [NSMutableArray array];
+    for (NSNumber *key in _shown) {
+        NSInteger index = key.integerValue;
+        CGFloat top = [self topOfLine:index], bottom = top + _shown[key].bounds.size.height;
+        if (index != _active && (bottom < from - height || top > to + height)) [gone addObject:key];
+    }
+    for (NSNumber *key in gone) {
+        [_shown[key] removeFromSuperview];
+        [_shown removeObjectForKey:key];
+    }
+    NSInteger count = (NSInteger)_tops.count;
+    for (NSInteger index = 0; index < count; index++) {
+        CGFloat top = [self topOfLine:index];
+        CGFloat bottom = index + 1 < count ? [self topOfLine:index + 1] - _lineGap : top + height;
+        if (bottom < from || top > to) continue;
+        [self viewForLine:index];
+    }
+}
+
+// One line's place in the stack: the anchor sits on the edge its text is aligned to, so it scales
+// toward its own text, and it dims and blurs with its distance from the sung line.
+- (void)placeLine:(SGKaraokeLineView *)view at:(NSInteger)index animated:(BOOL)animated {
+    CGFloat height = self.bounds.size.height;
+    NSInteger distance = index - _active;
+    CGRect frame = CGRectMake(_margin, [self topOfLine:index], view.bounds.size.width, view.bounds.size.height);
+    BOOL trailing = view.line.align == SGKaraokeAlignTrailing;
+    CGPoint center = CGPointMake(trailing ? CGRectGetMaxX(frame) : _margin, CGRectGetMidY(frame));
+    CGFloat scale = distance == 0 ? 1 : kDimScale;
+    CGAffineTransform transform = CGAffineTransformMakeScale(scale, scale);
+    view.blur = distance == 0 || _browsing ? 0 : MIN(_maxBlur, labs(distance) * _blurPerLine);
+    BOOL near = CGRectIntersectsRect(CGRectInset(self.bounds, 0, -height / 2), frame)
+             || CGRectIntersectsRect(CGRectInset(self.bounds, 0, -height / 2), view.frame);
+    if (!animated || !near) {
+        view.center = center;
+        view.transform = transform;
+        return;
+    }
+    NSTimeInterval delay = distance > 0 ? MIN(0.3, distance * 0.04) : 0;
+    [UIView animateWithDuration:0.7 delay:delay usingSpringWithDamping:0.86 initialSpringVelocity:0
+                        options:UIViewAnimationOptionBeginFromCurrentState | UIViewAnimationOptionAllowUserInteraction
+                     animations:^{
+        view.center = center;
+        view.transform = transform;
+    } completion:nil];
 }
 
 // The sung line rests at the anchor and the rest stack around it; lines below it follow a beat
 // later, the further down the later, as Apple Music's do.
 - (void)placeLinesAnimated:(BOOL)animated {
-    if (_browsing) return;
-    NSInteger focus = MAX(_active, 0);
-    CGFloat height = self.bounds.size.height, top = 0, focusTop = 0;
-    NSMutableArray<NSNumber *> *tops = [NSMutableArray array];
-    for (NSUInteger i = 0; i < _lineViews.count; i++) {
-        if ((NSInteger)i == focus) focusTop = top;
-        [tops addObject:@(top)];
-        top += _lineViews[i].bounds.size.height + _lineGap;
-    }
-    for (NSUInteger i = 0; i < _lineViews.count; i++) {
-        SGKaraokeLineView *view = _lineViews[i];
-        NSInteger distance = (NSInteger)i - _active;
-        CGFloat y = height * kAnchor + tops[i].doubleValue - focusTop;
-        CGRect frame = CGRectMake(_margin, y, view.bounds.size.width, view.bounds.size.height);
-        // The anchor sits on the edge the line is aligned to, so it scales toward its own text.
-        BOOL trailing = view.line.align == SGKaraokeAlignTrailing;
-        CGPoint center = CGPointMake(trailing ? CGRectGetMaxX(frame) : _margin, CGRectGetMidY(frame));
-        CGFloat scale = distance == 0 ? 1 : kDimScale;
-        CGAffineTransform transform = CGAffineTransformMakeScale(scale, scale);
-        view.blur = distance == 0 ? 0 : MIN(_maxBlur, labs(distance) * _blurPerLine);
-        BOOL near = CGRectIntersectsRect(CGRectInset(self.bounds, 0, -height / 2), frame)
-                 || CGRectIntersectsRect(CGRectInset(self.bounds, 0, -height / 2), view.frame);
-        if (!animated || !near) {
-            view.center = center;
-            view.transform = transform;
-            continue;
-        }
-        NSTimeInterval delay = distance > 0 ? MIN(0.3, distance * 0.04) : 0;
-        [UIView animateWithDuration:0.7 delay:delay usingSpringWithDamping:0.86 initialSpringVelocity:0
-                            options:UIViewAnimationOptionBeginFromCurrentState | UIViewAnimationOptionAllowUserInteraction
-                         animations:^{
-            view.center = center;
-            view.transform = transform;
-        } completion:nil];
-    }
+    if (_browsing || !_tops.count) return;
+    _focusTop = _tops[(NSUInteger)MAX(_active, 0)].doubleValue;
+    [self showLinesInSight];
+    for (NSNumber *key in _shown) [self placeLine:_shown[key] at:key.integerValue animated:animated];
     // Room to scroll until the first line or the last one reaches the anchor.
-    CGFloat lastTop = tops.lastObject.doubleValue;
-    _scroll.contentInset = UIEdgeInsetsMake(focusTop, 0, MAX(0, lastTop - focusTop), 0);
+    CGFloat lastTop = _tops.lastObject.doubleValue;
+    _scroll.contentInset = UIEdgeInsetsMake(_focusTop, 0, MAX(0, lastTop - _focusTop), 0);
 }
 
 - (void)creditTo:(NSString *)source {
@@ -546,8 +634,7 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
         _lines = nil;
         _builtWidth = 0;
         [self creditTo:nil];
-        for (UIView *view in _lineViews) [view removeFromSuperview];
-        _lineViews = nil;
+        [self dropLineViews];
     }
     if (!_lines && track && (_lines = SGKaraokeLinesForTrack(track))) {
         SGLog(@"karaoke: showing %lu lines of %@", (unsigned long)_lines.count, track);
@@ -556,20 +643,22 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
     [self setShowing:_lines != nil];
     // The source is settled a moment after the lines are, so it is asked for until it answers.
     if (_crediting && _lines && !_credit.text.length) [self creditTo:SGLyricsCreditFor(track)];
-    if (!_lineViews) return;
+    if (!_tops) return;
     [self alignFade];
 
     double now = [self clockMs];
     NSInteger active = -1;
     for (NSUInteger i = 0; i < _lines.count && _lines[i].start <= now; i++) active = i;
     if (active != _active) {
-        if (_active >= 0 && _active < (NSInteger)_lineViews.count) _lineViews[_active].active = NO;
-        if (active >= 0) _lineViews[active].active = YES;
+        if (_active >= 0) _shown[@(_active)].active = NO;
+        if (active >= 0) [self viewForLine:active].active = YES;
         BOOL jump = labs(active - _active) > 2;   // a seek, not the song moving on
         _active = active;
         [self placeLinesAnimated:!jump];
+    } else {
+        [self showLinesInSight];   // the page may be scrolling by hand, or springing back
     }
-    if (active >= 0) [_lineViews[active] showTime:now];
+    if (active >= 0) [_shown[@(active)] showTime:now];
 }
 
 @end

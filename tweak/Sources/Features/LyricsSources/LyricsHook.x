@@ -468,9 +468,8 @@ static void onComplete(id delegate, NSURLSession *session, NSURLSessionTask *tas
 // noted first, since it is what sends the request to the donor, and the track is remembered so the
 // chain has its name before the player reports it.
 %group AllTracks
-%hook SPTPlayerTrack
-- (NSDictionary *)metadata {
-    NSDictionary *metadata = %orig;
+// What the metadata is answered with: has_lyrics on for a track a source may have lyrics for.
+static NSDictionary *markedMetadata(SPTPlayerTrack *self, NSDictionary *metadata) {
     BOOL has = [metadata[@"has_lyrics"] isEqual:@"true"];
     id uri = self.URI;
     NSString *text = [uri isKindOfClass:NSURL.class] ? [(NSURL *)uri absoluteString] : [uri description];
@@ -484,6 +483,12 @@ static void onComplete(id delegate, NSURLSession *session, NSURLSessionTask *tas
     NSMutableDictionary *marked = [metadata mutableCopy] ?: [NSMutableDictionary dictionary];
     marked[@"has_lyrics"] = @"true";
     return marked;
+}
+
+%hook SPTPlayerTrack
+- (NSDictionary *)metadata {
+    NSDictionary *metadata = %orig;
+    return markedMetadata(self, metadata);
 }
 %end
 %end
