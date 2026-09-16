@@ -61,7 +61,7 @@ SGLyricsAsk SGBiniLyricsAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResul
             result.karaokeLines = lines;
             NSArray<NSNumber *> *starts;
             NSArray<NSString *> *texts;
-            SGTTMLPageLines(lines, &starts, &texts);
+            SGLyricsPageLines(lines, &starts, &texts);
             result.starts = starts;
             result.texts = texts;
             SGLog(@"binilyrics: %@ by %@ has %lu %@ lines", query.title, query.artist,

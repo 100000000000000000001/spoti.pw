@@ -29,7 +29,7 @@ static UIViewController *nowPlayingBarPage(void) {
 static UIViewController *lyricsPage(void) {
     // The row reads the order out, so which sources are on is visible without opening it.
     SGModRow *sources = SGPageRow(@"Lyrics sources", ^UIViewController *{ return SGLyricsSourcesPage(); });
-    sources.subtitle = @"BiniLyrics, Musixmatch, Unison and NetEase, in the order you put them";
+    sources.subtitle = @"BiniLyrics, Musixmatch, Unison, NetEase and LRCLIB, in the order you put them";
     sources.value = ^NSString *{
         NSMutableArray<NSString *> *names = [NSMutableArray array];
         for (NSString *key in SGLyricsOrder()) [names addObject:SGLyricsProviderFor(key).name];

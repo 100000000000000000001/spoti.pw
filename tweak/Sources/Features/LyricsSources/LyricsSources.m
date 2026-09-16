@@ -70,6 +70,33 @@ void SGLyricsGetText(NSURL *url, void (^done)(NSString *text)) {
     });
 }
 
+// A pause this long between two lines gets a ♪, so Spotify's page does not hold the last one.
+static const NSInteger kBreakMs = 3000;
+
+void SGLyricsPageLines(NSArray<SGKaraokeLine *> *lines, NSArray<NSNumber *> **starts, NSArray<NSString *> **texts) {
+    NSMutableArray<NSNumber *> *at = [NSMutableArray array];
+    NSMutableArray<NSString *> *said = [NSMutableArray array];
+    SGKaraokeLine *last = nil;
+    for (SGKaraokeLine *line in lines) {
+        if (last && line.start - last.end >= kBreakMs) {
+            [at addObject:@(last.end)];
+            [said addObject:@"♪"];
+        }
+        NSString *text = SGKaraokeLineText(line);
+        // The backing vocals read on the same line on Spotify's own page, which has one row a line.
+        if (line.backing) text = [text stringByAppendingFormat:@" %@", SGKaraokeLineText(line.backing)];
+        [at addObject:@(line.start)];
+        [said addObject:text];
+        last = line;
+    }
+    if (last) {
+        [at addObject:@(last.end)];
+        [said addObject:@""];
+    }
+    *starts = at;
+    *texts = said;
+}
+
 #pragma mark - which sources there are, and in what order
 
 NSArray<SGLyricsProvider *> *SGLyricsAllProviders(void) {
@@ -90,6 +117,7 @@ NSArray<SGLyricsProvider *> *SGLyricsAllProviders(void) {
             make(@"musixmatch", @"Musixmatch", @"The catalogue Spotify licenses; matched by track, never by name", SGMusixmatchAsk),
             make(@"unison", @"Unison", @"Written by hand for Better Lyrics: few tracks, the best of them", SGUnisonAsk),
             make(@"netease", @"NetEase", @"Word timing only, for what the others line time; swearing is starred out", SGNetEaseAsk),
+            make(@"lrclib", @"LRCLIB", @"Open and keyless, timed by the line: the floor under the rest", SGLrcLibAsk),
         ];
     });
     return all;

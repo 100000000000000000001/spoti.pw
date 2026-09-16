@@ -52,8 +52,9 @@ app:
                   best answer (LyricsSources.m, the list to drag in LyricsSourcesPage.m): Apple Music's TTML from
                   BiniLyrics.m and Unison.m, read by SGTTML.m, which is the only shape carrying a second voice and the
                   backing vocals; Musixmatch.m, matched by Spotify's track id with an anonymous token, word timed where
-                  it has richsync; NetEase.m, word timing from yrc for what the others only line time. color-lyrics is
-                  answered with whichever won and has_lyrics forced for every track (LyricsHook.x)
+                  it has richsync; NetEase.m, word timing from yrc for what the others only line time; LrcLib.m, open and
+                  keyless and timed by the line, the floor under the rest. color-lyrics is answered with whichever won and
+                  has_lyrics forced for every track (LyricsHook.x)
     Onboarding/   the welcome tour over Home on the first launch (Onboarding.x, the pages in Tour.m), offered again from the Mod page
     About/        the update check and the Mod page: the build, its updates, the links and the reset
 

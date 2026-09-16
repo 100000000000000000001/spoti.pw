@@ -42,6 +42,9 @@
 @property (nonatomic) NSInteger seconds;
 @end
 
+// The lines as Spotify's own page takes them, ♪ over a break and an empty line at the end.
+void SGLyricsPageLines(NSArray<SGKaraokeLine *> *lines, NSArray<NSNumber *> **starts, NSArray<NSString *> **texts);
+
 // Calls back on the main queue, nil when the source has nothing for the track.
 typedef void (^SGLyricsAsk)(SGLyricsQuery *query, void (^done)(SGLyricsResult *result));
 
@@ -79,13 +82,13 @@ void SGLyricsGetText(NSURL *url, void (^done)(NSString *text));
 // SGTTML.m. Apple Music's TTML as timed lines, the voices already turned into alignments; nil when
 // the document holds no line the page could show.
 NSArray<SGKaraokeLine *> *SGTTMLLines(NSString *xml);
-// The lines as Spotify's own page takes them, ♪ over a break and an empty line at the end.
-void SGTTMLPageLines(NSArray<SGKaraokeLine *> *lines, NSArray<NSNumber *> **starts, NSArray<NSString *> **texts);
+
 
 // The sources themselves, each in its own file.
 extern SGLyricsAsk SGBiniLyricsAsk;
 extern SGLyricsAsk SGMusixmatchAsk;
 extern SGLyricsAsk SGUnisonAsk;
 extern SGLyricsAsk SGNetEaseAsk;
+extern SGLyricsAsk SGLrcLibAsk;
 
 UIViewController *SGLyricsSourcesPage(void);   // the ordered list on the Lyrics page

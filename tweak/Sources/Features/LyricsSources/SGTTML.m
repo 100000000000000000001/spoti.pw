@@ -195,30 +195,3 @@ NSArray<SGKaraokeLine *> *SGTTMLLines(NSString *xml) {
     SGKaraokeAlignVoices(reader.lines);
     return reader.lines;
 }
-
-// A pause this long between two lines gets a ♪, so Spotify's page does not hold the last one.
-static const NSInteger kBreakMs = 3000;
-
-void SGTTMLPageLines(NSArray<SGKaraokeLine *> *lines, NSArray<NSNumber *> **starts, NSArray<NSString *> **texts) {
-    NSMutableArray<NSNumber *> *at = [NSMutableArray array];
-    NSMutableArray<NSString *> *said = [NSMutableArray array];
-    SGKaraokeLine *last = nil;
-    for (SGKaraokeLine *line in lines) {
-        if (last && line.start - last.end >= kBreakMs) {
-            [at addObject:@(last.end)];
-            [said addObject:@"♪"];
-        }
-        NSString *text = SGKaraokeLineText(line);
-        // The backing vocals read on the same line on Spotify's own page, which has one row a line.
-        if (line.backing) text = [text stringByAppendingFormat:@" %@", SGKaraokeLineText(line.backing)];
-        [at addObject:@(line.start)];
-        [said addObject:text];
-        last = line;
-    }
-    if (last) {
-        [at addObject:@(last.end)];
-        [said addObject:@""];
-    }
-    *starts = at;
-    *texts = said;
-}
