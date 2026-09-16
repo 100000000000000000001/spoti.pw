@@ -208,6 +208,22 @@ static CGFloat lineHeight(SGKaraokeLine *line, CGFloat width, UIFont *font, BOOL
     return height;
 }
 
+// Where each line starts in the stack, from the heights alone. Measuring text is safe off the main
+// thread, and a song's worth of it is kept off it: the first card of a track lays out while the
+// player is opening, and a frame that measured every line then was a frame the animation lost.
+static NSArray<NSNumber *> *topsOf(NSArray<SGKaraokeLine *> *lines, CGFloat width, UIFont *font, CGFloat gap) {
+    NSMutableArray<NSNumber *> *tops = [NSMutableArray arrayWithCapacity:lines.count];
+    CGFloat top = 0;
+    for (SGKaraokeLine *line in lines) {
+        [tops addObject:@(top)];
+        top += lineHeight(line, width, font, NO) + gap;
+    }
+    return tops;
+}
+
+// How many line views are made in one frame: the rest follow on the next, nearest the sung line first.
+static const NSUInteger kLinesPerFrame = 4;
+
 - (void)dealloc {
     free(_knots);
 }
@@ -336,6 +352,7 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
     CGFloat _focusTop;            // the top of the line the stack is arranged around
     CGFloat _sightOffset, _sightFocus;   // what the views in sight were last chosen for
     NSInteger _sightActive;
+    NSUInteger _build;   // counts the songs and widths measured, so a measurement that is late is dropped
     UIFont *_font;
     NSInteger _active;
     CGFloat _builtWidth;
@@ -479,8 +496,11 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
     [_shown removeAllObjects];
     _tops = nil;
     _sightActive = -2;
+    _build++;
 }
 
+// Measures the song for the width and, once that is in, places it; Spotify's own lines stay in view
+// until then, since the page shows nothing of its own before it has lines to show.
 - (void)rebuild {
     [self dropLineViews];
     _active = -1;
@@ -490,14 +510,18 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
     CGFloat width = _builtWidth - 2 * _margin;
     if (width <= 0) return;
     _font = [UIFont systemFontOfSize:_fontSize weight:UIFontWeightBold];
-    NSMutableArray<NSNumber *> *tops = [NSMutableArray array];
-    CGFloat top = 0;
-    for (SGKaraokeLine *line in _lines) {
-        [tops addObject:@(top)];
-        top += lineHeight(line, width, _font, NO) + _lineGap;
-    }
-    _tops = tops;
-    [self placeLinesAnimated:NO];
+    UIFont *font = _font;
+    NSArray<SGKaraokeLine *> *lines = _lines;
+    CGFloat gap = _lineGap;
+    NSUInteger build = _build;
+    dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INTERACTIVE, 0), ^{
+        NSArray<NSNumber *> *tops = topsOf(lines, width, font, gap);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            if (build != self->_build) return;   // the song or the width moved on meanwhile
+            self->_tops = tops;
+            [self placeLinesAnimated:NO];
+        });
+    });
 }
 
 // Where a line starts on the page, for the stack as it is arranged now.
@@ -538,12 +562,27 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
         [_shown[key] removeFromSuperview];
         [_shown removeObjectForKey:key];
     }
-    NSInteger count = (NSInteger)_tops.count;
+    NSInteger count = (NSInteger)_tops.count, focus = MAX(_active, 0);
+    NSMutableArray<NSNumber *> *wanted = [NSMutableArray array];
     for (NSInteger index = 0; index < count; index++) {
+        if (_shown[@(index)]) continue;
         CGFloat top = [self topOfLine:index];
         CGFloat bottom = index + 1 < count ? [self topOfLine:index + 1] - _lineGap : top + height;
         if (bottom < from || top > to) continue;
-        [self viewForLine:index];
+        [wanted addObject:@(index)];
+    }
+    // A few a frame, the nearest the sung line first; the next frame picks up where this one left off.
+    [wanted sortUsingComparator:^NSComparisonResult(NSNumber *a, NSNumber *b) {
+        NSInteger da = labs(a.integerValue - focus), db = labs(b.integerValue - focus);
+        return da < db ? NSOrderedAscending : da > db ? NSOrderedDescending : NSOrderedSame;
+    }];
+    NSUInteger made = 0;
+    for (NSNumber *index in wanted) {
+        if (made++ == kLinesPerFrame) {
+            _sightOffset = -CGFLOAT_MAX;
+            break;
+        }
+        [self viewForLine:index.integerValue];
     }
 }
 
@@ -640,7 +679,7 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
         SGLog(@"karaoke: showing %lu lines of %@", (unsigned long)_lines.count, track);
         [self setNeedsLayout];
     }
-    [self setShowing:_lines != nil];
+    [self setShowing:_tops != nil];
     // The source is settled a moment after the lines are, so it is asked for until it answers.
     if (_crediting && _lines && !_credit.text.length) [self creditTo:SGLyricsCreditFor(track)];
     if (!_tops) return;
