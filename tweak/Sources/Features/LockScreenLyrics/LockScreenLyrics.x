@@ -20,7 +20,9 @@ static NSString *sg_shownLine;
 static BOOL sg_resending;
 
 static NSString *textOf(NSArray<SGKaraokeWord *> *words) {
-    return [[words valueForKey:@"text"] componentsJoinedByString:@" "];
+    SGKaraokeLine *line = [SGKaraokeLine new];
+    line.words = words;
+    return SGKaraokeLineText(line);
 }
 
 // A line longer than the artist row holds, split into even pieces rather than a full one and a stub.
@@ -33,7 +35,8 @@ static NSArray<NSArray<SGKaraokeWord *> *> *piecesOf(SGKaraokeLine *line) {
     NSMutableArray<SGKaraokeWord *> *piece = [NSMutableArray array];
     NSUInteger pieceLength = 0;
     for (SGKaraokeWord *word in line.words) {
-        NSUInteger withWord = pieceLength ? pieceLength + 1 + word.text.length : word.text.length;
+        NSUInteger gap = pieceLength && !word.joined ? 1 : 0;
+        NSUInteger withWord = pieceLength ? pieceLength + gap + word.text.length : word.text.length;
         if (pieceLength && (withWord > kMaxChars || (withWord > target && pieces.count + 1 < count))) {
             [pieces addObject:piece];
             piece = [NSMutableArray array];

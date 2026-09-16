@@ -1,14 +1,14 @@
-// Spotify's /color-lyrics/v2/track/<id> answered with Musixmatch's lyrics. An NSURLProtocol, put into
+// Spotify's /color-lyrics/v2/track/<id> answered with the chain's lyrics. An NSURLProtocol, put into
 // every session the app makes, takes the request over, sends it on itself and gives Spotify one reply:
-// timed lines from Musixmatch first, then Spotify's timed ones, then untimed ones from Musixmatch. A
-// request Spotify's server has no lyrics for (404) becomes a 200 when Musixmatch has some. Whichever
-// lines win go to the karaoke page as well.
+// timed lines from the chain first, then Spotify's timed ones, then untimed ones from the chain. A
+// request Spotify's server has no lyrics for (404) becomes a 200 when a source has some. Whichever
+// lines win go to the karaoke page as well, and the source that supplied them is credited there.
 //
 // It is a protocol and not a rewrite in the URLSession delegates: a 200 handed to
 // Connectivity_HttpClientKit's delegate in place of a 404 still showed no lyrics, so the task's own
 // response has to be the 200.
 #import "Core/SGCore.h"
-#import "Musixmatch.h"
+#import "LyricsSources.h"
 #import "Features/AdBlock/Protobuf.h"
 #import "Headers/SPTPlayer.h"
 
@@ -35,26 +35,27 @@ static NSInteger statusOf(NSURLResponse *response) {
 
 // Lyrics { 1 data: { 1 time_synchronized, 2 repeated line { 1 offset_ms, 2 content }, 5 provided_by },
 //          2 colors { 1 background, 2 line, 3 active_line } }
-static NSData *lyricsBody(SGMusixmatchLyrics *lyrics, NSData *spotify) {
+static NSData *lyricsBody(SGLyricsResult *lyrics, NSData *spotify) {
     NSMutableArray<SGPBField *> *data = [NSMutableArray array];
     if (lyrics.synced) [data addObject:SGPBVarint(1, 1)];
     for (NSUInteger i = 0; i < lyrics.texts.count; i++) {
         NSData *line = SGPBSerialize(@[SGPBVarint(1, (uint64_t)MAX(lyrics.starts[i].integerValue, 0)), SGPBString(2, lyrics.texts[i])]);
         [data addObject:SGPBBytes(2, line)];
     }
-    [data addObject:SGPBString(5, @"Musixmatch")];
+    [data addObject:SGPBString(5, lyrics.provider ?: @"Musixmatch")];
     SGPBField *colors = SGPBFirst(SGPBParse(spotify), 2);
     if (colors.wire != 2) colors = SGPBBytes(2, SGPBSerialize(@[SGPBVarint(1, kBackground), SGPBVarint(2, kLine), SGPBVarint(3, kActiveLine)]));
     return SGPBSerialize(@[SGPBBytes(1, SGPBSerialize(data)), colors]);
 }
 
-// Musixmatch's body, or nil to hand Spotify's reply on as it came.
-static NSData *chosenBody(NSString *track, SGMusixmatchLyrics *lyrics, NSData *spotify) {
+// The chain's body, or nil to hand Spotify's reply on as it came.
+static NSData *chosenBody(NSString *track, SGLyricsResult *lyrics, NSData *spotify) {
     NSArray<SGKaraokeLine *> *spotifyLines = SGKaraokeLinesFromBody(spotify);
     BOOL ours = lyrics.texts.count && (lyrics.synced || !spotifyLines);
     NSArray<SGKaraokeLine *> *karaoke = lyrics.wordTimed || ours ? lyrics.karaokeLines : spotifyLines;
     if (karaoke) SGKaraokeKeepLines(track, karaoke);
-    SGLog(@"musixmatch: lyrics page of %@ gets %@, %@ word timing", track, ours ? @"Musixmatch's lines" : spotify.length ? @"Spotify's own lines" : @"no lyrics",
+    SGLyricsSetCredit(track, karaoke == lyrics.karaokeLines ? lyrics.provider : @"Spotify");
+    SGLog(@"lyrics: page of %@ gets %@, %@ word timing", track, ours ? [NSString stringWithFormat:@"%@'s lines", lyrics.provider] : spotify.length ? @"Spotify's own lines" : @"no lyrics",
           lyrics.wordTimed ? @"real" : @"estimated");
     return ours ? lyricsBody(lyrics, spotify) : nil;
 }
@@ -125,12 +126,12 @@ static NSData *chosenBody(NSString *track, SGMusixmatchLyrics *lyrics, NSData *s
         }
         NSInteger status = statusOf(response);
         BOOL json = data.length && ((const uint8_t *)data.bytes)[0] == '{';
-        SGLog(@"musixmatch: Spotify answered %ld with %lu bytes for %@", (long)status, (unsigned long)data.length, track);
+        SGLog(@"lyrics: Spotify answered %ld with %lu bytes for %@", (long)status, (unsigned long)data.length, track);
         if ((status != 200 && status < 400) || (status == 200 && json)) {
             [self replyWith:response data:data];
             return;
         }
-        SGMusixmatchFetch(track, ^(SGMusixmatchLyrics *lyrics) {
+        SGLyricsFetch(track, ^(SGLyricsResult *lyrics) {
             NSData *body = chosenBody(track, lyrics, status == 200 ? data : nil);
             if (!body) {
                 [self replyWith:response data:data];
@@ -177,9 +178,9 @@ static NSData *chosenBody(NSString *track, SGMusixmatchLyrics *lyrics, NSData *s
     if ([metadata[@"has_lyrics"] isEqual:@"true"]) return metadata;
     id uri = self.URI;
     NSString *text = [uri isKindOfClass:NSURL.class] ? [(NSURL *)uri absoluteString] : [uri description];
-    if (![text hasPrefix:@"spotify:track:"] || !SGMusixmatchMayHave([text substringFromIndex:@"spotify:track:".length])) return metadata;
+    if (![text hasPrefix:@"spotify:track:"] || !SGLyricsMayHave([text substringFromIndex:@"spotify:track:".length])) return metadata;
     static dispatch_once_t once;
-    dispatch_once(&once, ^{ SGLog(@"musixmatch: marking tracks without Spotify lyrics as having some, first %@", text); });
+    dispatch_once(&once, ^{ SGLog(@"lyrics: marking tracks without Spotify lyrics as having some, first %@", text); });
     NSMutableDictionary *marked = [metadata mutableCopy] ?: [NSMutableDictionary dictionary];
     marked[@"has_lyrics"] = @"true";
     return marked;
@@ -188,11 +189,12 @@ static NSData *chosenBody(NSString *track, SGMusixmatchLyrics *lyrics, NSData *s
 %end
 
 %ctor {
-    if (!SGFlag(SGKeyMusixmatchLyrics, NO)) return;
+    SGLyricsMigrateLegacyKeys();
+    if (!SGLyricsEnabled()) return;
     sg_sessionHeaders = [NSMutableDictionary dictionary];
     %init;
-    BOOL allTracks = SGFlag(SGKeyMusixmatchAllTracks, NO);
+    BOOL allTracks = SGFlag(SGKeyLyricsAllTracks, NO);
     if (allTracks) %init(AllTracks);
-    SGLog(@"musixmatch: on, every track %@", allTracks ? @"on" : @"off");
+    SGLog(@"lyrics: sources %@, every track %@", [SGLyricsOrder() componentsJoinedByString:@", "], allTracks ? @"on" : @"off");
     SGRequireClasses(@[@"SPTPlayerTrack"]);
 }

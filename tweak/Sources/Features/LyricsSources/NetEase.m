@@ -1,5 +1,9 @@
+// Word timing from NetEase Cloud Music, for the tracks the other sources only line-time, e.g. most
+// of Eminem. It has no text of its own to offer Spotify's page, only the time of every word, so it
+// earns its place at the end of the order rather than the front. Searched by title, artist and
+// length; NetEase censors swear words with asterisks.
 #import "Core/SGCore.h"
-#import "Musixmatch.h"
+#import "LyricsSources.h"
 
 static const NSTimeInterval kTimeout = 3;
 // A NetEase recording is only taken when its length is this close to the track's, so the words fall
@@ -40,23 +44,33 @@ static NSArray<SGKaraokeLine *> *linesFromYrc(NSString *yrc) {
         NSArray<NSTextCheckingResult *> *pieces = [piece matchesInString:row options:0 range:NSMakeRange(NSMaxRange(head.range), row.length - NSMaxRange(head.range))];
         NSMutableArray<SGKaraokeWord *> *words = [NSMutableArray array];
         SGKaraokeWord *open = nil;
+        BOOL spaced = YES;   // a space has gone by, so the next word is not joined to the last
         for (NSUInteger i = 0; i < pieces.count; i++) {
             NSUInteger from = NSMaxRange(pieces[i].range), to = i + 1 < pieces.count ? pieces[i + 1].range.location : row.length;
             NSString *raw = [row substringWithRange:NSMakeRange(from, to - from)];
             NSString *text = [raw stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceCharacterSet];
             NSInteger start = [row substringWithRange:[pieces[i] rangeAtIndex:1]].integerValue;
             NSInteger end = start + [row substringWithRange:[pieces[i] rangeAtIndex:2]].integerValue;
-            if (text.length && open) {
+            // yrc times a Chinese or Japanese syllable a piece at a time and never spaces them, so
+            // each one is a word of its own; only a spaced script runs its pieces together.
+            BOOL unspaced = SGKaraokeUnspacedScript(text);
+            if (text.length && open && !unspaced) {
                 open.text = [open.text stringByAppendingString:text];
                 open.end = end;
             } else if (text.length) {
-                open = [SGKaraokeWord new];
-                open.text = text;
-                open.start = start;
-                open.end = end;
-                [words addObject:open];
+                SGKaraokeWord *word = [SGKaraokeWord new];
+                word.text = text;
+                word.start = start;
+                word.end = end;
+                word.joined = !spaced;
+                [words addObject:word];
+                open = unspaced ? nil : word;
+                spaced = NO;
             }
-            if (raw.length > text.length || !text.length) open = nil;
+            if (raw.length > text.length || !text.length) {
+                open = nil;
+                spaced = YES;
+            }
         }
         if (!words.count) continue;
         SGKaraokeLine *line = [SGKaraokeLine new];
@@ -85,10 +99,24 @@ static void tryLyrics(NSArray<NSNumber *> *songs, NSUInteger index, void (^done)
     });
 }
 
-void SGNetEaseWordLines(NSString *title, NSString *artist, NSInteger seconds, void (^done)(NSArray<SGKaraokeLine *> *lines)) {
-    NSString *lead = [artist componentsSeparatedByString:@" feat"].firstObject.lowercaseString;
+// A recording is only taken when its length is this close to the track's, so the words fall on the
+// same beat as the recording Spotify is playing.
+SGLyricsAsk SGNetEaseAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResult *result)) {
+    void (^answer)(NSArray<SGKaraokeLine *> *) = ^(NSArray<SGKaraokeLine *> *lines) {
+        if (!lines.count) {
+            done(nil);
+            return;
+        }
+        SGLyricsResult *result = [SGLyricsResult new];
+        result.wordTimed = result.synced = YES;
+        result.karaokeLines = lines;
+        done(result);
+    };
+    NSString *lead = [query.artist componentsSeparatedByString:@" feat"].firstObject.lowercaseString;
+    NSString *title = query.title;
+    NSInteger seconds = query.seconds;
     if (!title.length || !lead.length || seconds <= 0) {
-        done(nil);
+        answer(nil);
         return;
     }
     get(@"search/get", @{@"s": [NSString stringWithFormat:@"%@ %@", title, lead], @"type": @"1", @"limit": @"10"}, ^(NSDictionary *root) {
@@ -110,6 +138,6 @@ void SGNetEaseWordLines(NSString *title, NSString *artist, NSInteger seconds, vo
         }];
         NSArray *ids = [[fitting valueForKey:@"id"] subarrayWithRange:NSMakeRange(0, MIN(fitting.count, kTriedSongs))];
         if (!ids.count) SGLog(@"netease: no recording of %@ by %@ within %lds of %lds", title, lead, (long)kLengthSlack, (long)seconds);
-        tryLyrics(ids, 0, done);
+        tryLyrics(ids, 0, answer);
     });
-}
+};

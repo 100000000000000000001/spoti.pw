@@ -14,14 +14,109 @@ static const NSInteger kLineBaseMs = 350, kMsPerLetter = 75;
 static const double kMinGapShare = 0.6, kMaxStretch = 1.8;
 // Added to every word's letters, for the breath between words and so a one-letter word still shows.
 static const NSUInteger kWordWeight = 2;
+// A syllable of an unspaced script is one character but a whole beat, so it counts for this many
+// letters; without it a Japanese line reads as a handful of letters and its sweep finishes early.
+static const NSUInteger kSyllableLetters = 3;
+
+#pragma mark - the model
+
+NSString *SGKaraokeLineText(SGKaraokeLine *line) {
+    NSMutableString *text = [NSMutableString string];
+    for (SGKaraokeWord *word in line.words) {
+        if (text.length && !word.joined) [text appendString:@" "];
+        [text appendString:word.text ?: @""];
+    }
+    return text;
+}
+
+// Japanese, Chinese and Korean, and the punctuation set with them. Kana and Hangul are listed as
+// well as the ideographs: a line of either is written without spaces just the same.
+static NSCharacterSet *unspacedScript(void) {
+    static NSCharacterSet *set;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        NSMutableCharacterSet *building = [NSMutableCharacterSet new];
+        [building addCharactersInRange:NSMakeRange(0x3000, 0x40)];    // CJK punctuation
+        [building addCharactersInRange:NSMakeRange(0x3040, 0xC0)];    // hiragana and katakana
+        [building addCharactersInRange:NSMakeRange(0x3400, 0x9C0)];   // ideographs, extension A
+        [building addCharactersInRange:NSMakeRange(0x4E00, 0x5200)];  // ideographs
+        [building addCharactersInRange:NSMakeRange(0xAC00, 0x2BA4)];  // hangul syllables
+        [building addCharactersInRange:NSMakeRange(0xF900, 0x200)];   // compatibility ideographs
+        [building addCharactersInRange:NSMakeRange(0xFF66, 0x38)];    // halfwidth katakana
+        set = [building copy];
+    });
+    return set;
+}
+
+BOOL SGKaraokeUnspacedScript(NSString *text) {
+    return text.length && [text rangeOfCharacterFromSet:unspacedScript()].location != NSNotFound;
+}
+
+void SGKaraokeAlignVoices(NSArray<SGKaraokeLine *> *lines) {
+    NSMutableArray<NSString *> *heard = [NSMutableArray array];
+    for (SGKaraokeLine *line in lines) {
+        if (!line.voice.length || [heard containsObject:line.voice]) continue;
+        [heard addObject:line.voice];
+    }
+    if (heard.count < 2) return;   // one voice, or none named: every line leads, as it already does
+    NSString *trailing = heard[1];
+    for (SGKaraokeLine *line in lines) {
+        line.align = [line.voice isEqualToString:trailing] ? SGKaraokeAlignTrailing : SGKaraokeAlignLeading;
+        line.backing.align = line.align;
+    }
+}
+
+#pragma mark - estimating the words inside a line
 
 static NSUInteger lettersIn(NSString *text) {
-    NSUInteger count = 0;
-    NSCharacterSet *letters = NSCharacterSet.alphanumericCharacterSet;
-    for (NSUInteger i = 0; i < text.length; i++) {
-        if ([letters characterIsMember:[text characterAtIndex:i]]) count++;
-    }
+    __block NSUInteger count = 0;
+    NSCharacterSet *letters = NSCharacterSet.alphanumericCharacterSet, *unspaced = unspacedScript();
+    [text enumerateSubstringsInRange:NSMakeRange(0, text.length)
+                             options:NSStringEnumerationByComposedCharacterSequences
+                          usingBlock:^(NSString *piece, NSRange a, NSRange b, BOOL *stop) {
+        if ([unspaced characterIsMember:[piece characterAtIndex:0]]) count += kSyllableLetters;
+        else if ([letters characterIsMember:[piece characterAtIndex:0]]) count++;
+    }];
     return count;
+}
+
+static void appendPiece(NSMutableArray<SGKaraokeWord *> *pieces, NSString *text) {
+    if (!text.length) return;
+    SGKaraokeWord *word = [SGKaraokeWord new];
+    word.text = text;
+    [pieces addObject:word];
+}
+
+// The line split into what the sweep lights one at a time: words where the script spaces them, a
+// syllable at a time where it does not, so a Japanese line sweeps instead of lighting up whole.
+// Everything a token holds past its first piece is joined to the one before it.
+static NSArray<SGKaraokeWord *> *piecesOf(NSString *line) {
+    NSMutableArray<SGKaraokeWord *> *pieces = [NSMutableArray array];
+    for (NSString *token in [line componentsSeparatedByCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet]) {
+        if (!token.length) continue;
+        NSUInteger first = pieces.count;
+        if (!SGKaraokeUnspacedScript(token)) {
+            appendPiece(pieces, token);
+        } else {
+            // Latin letters or digits caught between two syllables stay together as one piece.
+            NSMutableString *run = [NSMutableString string];
+            NSCharacterSet *unspaced = unspacedScript();
+            [token enumerateSubstringsInRange:NSMakeRange(0, token.length)
+                                      options:NSStringEnumerationByComposedCharacterSequences
+                                   usingBlock:^(NSString *piece, NSRange a, NSRange b, BOOL *stop) {
+                if (![unspaced characterIsMember:[piece characterAtIndex:0]]) {
+                    [run appendString:piece];
+                    return;
+                }
+                appendPiece(pieces, [run copy]);
+                [run setString:@""];
+                appendPiece(pieces, piece);
+            }];
+            appendPiece(pieces, [run copy]);
+        }
+        for (NSUInteger i = first + 1; i < pieces.count; i++) pieces[i].joined = YES;
+    }
+    return pieces;
 }
 
 static BOOL isBreak(NSString *text) {
@@ -31,13 +126,10 @@ static BOOL isBreak(NSString *text) {
 
 // gap is the time to the next line, 0 for the last one.
 static SGKaraokeLine *timedLine(NSString *text, NSInteger start, NSInteger gap) {
-    NSMutableArray<NSString *> *tokens = [NSMutableArray array];
-    for (NSString *token in [text componentsSeparatedByCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet]) {
-        if (token.length) [tokens addObject:token];
-    }
+    NSArray<SGKaraokeWord *> *words = piecesOf(text);
     NSUInteger weight = 0, letters = 0;
-    for (NSString *token in tokens) {
-        NSUInteger count = lettersIn(token);
+    for (SGKaraokeWord *word in words) {
+        NSUInteger count = lettersIn(word.text);
         letters += count;
         weight += count + kWordWeight;
     }
@@ -49,15 +141,11 @@ static SGKaraokeLine *timedLine(NSString *text, NSInteger start, NSInteger gap) 
         sung = MIN(sung, gap);
     }
 
-    NSMutableArray<SGKaraokeWord *> *words = [NSMutableArray array];
     double at = start;
-    for (NSString *token in tokens) {
-        SGKaraokeWord *word = [SGKaraokeWord new];
-        word.text = token;
+    for (SGKaraokeWord *word in words) {
         word.start = (NSInteger)at;
-        at += (double)sung * (lettersIn(token) + kWordWeight) / weight;
+        at += weight ? (double)sung * (lettersIn(word.text) + kWordWeight) / weight : 0;
         word.end = (NSInteger)at;
-        [words addObject:word];
     }
     SGKaraokeLine *line = [SGKaraokeLine new];
     line.words = words;
@@ -76,6 +164,8 @@ NSArray<SGKaraokeLine *> *SGKaraokeEstimatedLines(NSArray<NSNumber *> *starts, N
     }
     return lines.count ? lines : nil;
 }
+
+#pragma mark - Spotify's own bodies
 
 // Lyrics { 1 data: { 1 time_synchronized, 2 repeated line: { 1 offset_ms, 2 content } }, 2 colors }
 static NSArray<SGKaraokeLine *> *fromProtobuf(NSData *body) {

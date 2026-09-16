@@ -1,11 +1,16 @@
 #import "Core/SGCore.h"
 #import "Karaoke.h"
+#import "Features/LyricsSources/LyricsSources.h"
 
 static const CGFloat kFontSize = 30, kMargin = 24, kLineGap = 24, kRowTighten = 2;
 static const CGFloat kDimAlpha = 0.3, kFillEdge = 22, kLift = 2.5, kDimScale = 0.97;
 static const CGFloat kAnchor = 0.28;   // where the sung line rests, as a share of the height
 static const CGFloat kEdgeFade = 0.1;  // the lines fade out over this share at the top and bottom
 static const CGFloat kBlurPerLine = 1.4, kMaxBlur = 6;
+// The (oh, aye) hanging under a line: smaller, a little dimmer, and just clear of it.
+static const CGFloat kBackingScale = 0.62, kBackingAlpha = 0.8, kBackingGap = 4;
+// The line naming the source, under the lyrics and outside the fade so it does not dim with them.
+static const CGFloat kCreditSize = 12, kCreditAlpha = 0.4, kCreditBottom = 10;
 static const NSTimeInterval kBrowseHold = 3;   // after scrolling by hand, how long until it follows the song again
 static const double kFloatMinMs = 700, kFloatLeadMs = 80;   // a short word still floats up this slowly
 static const double kClockSnapMs = 250, kClockPull = 0.08;
@@ -97,6 +102,7 @@ static UILabel *wordLabel(NSString *text, UIFont *font, UIColor *color, CGRect f
 @property (nonatomic, readonly) SGKaraokeLine *line;
 @property (nonatomic) BOOL active;
 @property (nonatomic) CGFloat blur;
+- (instancetype)initWithLine:(SGKaraokeLine *)line width:(CGFloat)width font:(UIFont *)font backing:(BOOL)backing;
 - (void)showTime:(double)ms;
 @end
 
@@ -109,35 +115,64 @@ typedef struct {
     NSUInteger _generation;
     SGSweepKnot *_knots;
     NSUInteger _knotCount;
+    SGKaraokeLineView *_backing;
 }
 
-- (instancetype)initWithLine:(SGKaraokeLine *)line width:(CGFloat)width font:(UIFont *)font {
+- (instancetype)initWithLine:(SGKaraokeLine *)line width:(CGFloat)width font:(UIFont *)font backing:(BOOL)backing {
     self = [super initWithFrame:CGRectZero];
     if (!self) return nil;
     _line = line;
     CGFloat space = ceil([@" " sizeWithAttributes:@{NSFontAttributeName: font}].width);
     CGFloat row = ceil(font.lineHeight) - kRowTighten, x = 0, y = 0, offset = 0;
     NSMutableArray<SGKaraokeWordView *> *words = [NSMutableArray array];
+    NSMutableArray<NSMutableArray<SGKaraokeWordView *> *> *rows = [NSMutableArray arrayWithObject:[NSMutableArray array]];
     for (SGKaraokeWord *word in line.words) {
         SGKaraokeWordView *view = [[SGKaraokeWordView alloc] initWithWord:word font:font];
         CGSize size = view.bounds.size;
-        if (x > 0 && x + size.width > width) {
-            x = 0;
+        // A joined word follows the one before it flush: the scripts that do not space their words
+        // would otherwise read with a gap between every syllable.
+        CGFloat lead = x > 0 && !word.joined ? space : 0;
+        if (x > 0 && x + lead + size.width > width) {
+            x = lead = 0;
             y += row;
+            [rows addObject:[NSMutableArray array]];
         }
+        x += lead;
+        offset += lead;
         view.center = CGPointMake(x + size.width / 2, y + size.height / 2);
         view.offset = offset;
-        x += size.width + space;
-        offset += size.width + space;
+        x += size.width;
+        offset += size.width;
         [self addSubview:view];
         [words addObject:view];
+        [rows.lastObject addObject:view];
+    }
+    // A second voice is laid against the far edge, as Apple Music sets the two sides of a duet apart.
+    if (line.align == SGKaraokeAlignTrailing) {
+        for (NSArray<SGKaraokeWordView *> *wrapped in rows) {
+            if (!wrapped.count) continue;
+            CGFloat shift = width - CGRectGetMaxX(wrapped.lastObject.frame);
+            if (shift <= 0) continue;
+            for (SGKaraokeWordView *view in wrapped) view.center = CGPointMake(view.center.x + shift, view.center.y);
+        }
     }
     _words = words;
-    self.frame = CGRectMake(0, 0, width, y + ceil(font.lineHeight));
-    // Scales toward its left edge, where the text is aligned.
-    self.layer.anchorPoint = CGPointMake(0, 0.5);
+
+    CGFloat height = y + ceil(font.lineHeight);
+    if (line.backing.words.count && !backing) {
+        UIFont *smaller = [UIFont systemFontOfSize:round(font.pointSize * kBackingScale) weight:UIFontWeightBold];
+        _backing = [[SGKaraokeLineView alloc] initWithLine:line.backing width:width font:smaller backing:YES];
+        _backing.alpha = kBackingAlpha;
+        _backing.frame = CGRectMake(0, height + kBackingGap, width, _backing.bounds.size.height);
+        [self addSubview:_backing];
+        height = CGRectGetMaxY(_backing.frame);
+    }
+    self.frame = CGRectMake(0, 0, width, height);
     [self buildSweep];
 
+    // Scales toward the edge its text is aligned to, and a backing row rides its line's blur.
+    if (backing) return self;
+    self.layer.anchorPoint = CGPointMake(line.align == SGKaraokeAlignTrailing ? 1 : 0, 0.5);
     CAFilter *blur = [NSClassFromString(@"CAFilter") filterWithType:@"gaussianBlur"];
     if (blur) self.layer.filters = @[blur];
     return self;
@@ -211,6 +246,7 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
 - (void)setActive:(BOOL)active {
     if (active == _active) return;
     _active = active;
+    _backing.active = active;
     NSUInteger generation = ++_generation;
     if (active) {
         for (SGKaraokeWordView *word in _words) {
@@ -246,6 +282,7 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
         [word fillTo:cursor];
         [word floatAt:ms];
     }
+    [_backing showTime:ms];   // timed on its own, so it lags the line as it is sung
 }
 
 @end
@@ -266,6 +303,8 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
     CGFloat _builtWidth;
     BOOL _showing;
     CAGradientLayer *_fade;
+    UILabel *_credit;
+    BOOL _crediting;   // the switch is read once: the page asks for the source on every frame until it has one
     double _clock;
     NSInteger _reported;
     CFTimeInterval _clockTime;
@@ -280,8 +319,8 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
     _fade.colors = @[(id)UIColor.clearColor.CGColor, (id)UIColor.whiteColor.CGColor,
                      (id)UIColor.whiteColor.CGColor, (id)UIColor.clearColor.CGColor];
     _fade.locations = @[@0, @(kEdgeFade), @(1 - kEdgeFade), @1];
-    self.layer.mask = _fade;
     _scroll = [[UIScrollView alloc] initWithFrame:self.bounds];
+    _scroll.layer.mask = _fade;
     _scroll.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     _scroll.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
     _scroll.showsVerticalScrollIndicator = NO;
@@ -289,6 +328,12 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
     _scroll.scrollsToTop = NO;
     _scroll.delegate = self;
     [self addSubview:_scroll];
+    _credit = [[UILabel alloc] initWithFrame:CGRectZero];
+    _credit.font = [UIFont systemFontOfSize:kCreditSize weight:UIFontWeightSemibold];
+    _credit.textColor = [UIColor colorWithWhite:1 alpha:kCreditAlpha];
+    _credit.hidden = YES;
+    _crediting = SGFlag(SGKeyLyricsCredit, NO);
+    [self addSubview:_credit];
     [self addGestureRecognizer:[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(tapped:)]];
     return self;
 }
@@ -352,6 +397,9 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
     _fade.frame = self.bounds;
     [CATransaction commit];
     _scroll.contentSize = self.bounds.size;
+    [_credit sizeToFit];
+    _credit.frame = CGRectMake(kMargin, self.bounds.size.height - _credit.bounds.size.height - kCreditBottom,
+                               _credit.bounds.size.width, _credit.bounds.size.height);
     if (_lines && self.bounds.size.width != _builtWidth) [self rebuild];
 }
 
@@ -367,7 +415,7 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
     UIFont *font = [UIFont systemFontOfSize:kFontSize weight:UIFontWeightBold];
     NSMutableArray<SGKaraokeLineView *> *views = [NSMutableArray array];
     for (SGKaraokeLine *line in _lines) {
-        SGKaraokeLineView *view = [[SGKaraokeLineView alloc] initWithLine:line width:width font:font];
+        SGKaraokeLineView *view = [[SGKaraokeLineView alloc] initWithLine:line width:width font:font backing:NO];
         [_scroll addSubview:view];
         [views addObject:view];
     }
@@ -392,7 +440,9 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
         NSInteger distance = (NSInteger)i - _active;
         CGFloat y = height * kAnchor + tops[i].doubleValue - focusTop;
         CGRect frame = CGRectMake(kMargin, y, view.bounds.size.width, view.bounds.size.height);
-        CGPoint center = CGPointMake(kMargin, CGRectGetMidY(frame));
+        // The anchor sits on the edge the line is aligned to, so it scales toward its own text.
+        BOOL trailing = view.line.align == SGKaraokeAlignTrailing;
+        CGPoint center = CGPointMake(trailing ? CGRectGetMaxX(frame) : kMargin, CGRectGetMidY(frame));
         CGFloat scale = distance == 0 ? 1 : kDimScale;
         CGAffineTransform transform = CGAffineTransformMakeScale(scale, scale);
         view.blur = distance == 0 ? 0 : MIN(kMaxBlur, labs(distance) * kBlurPerLine);
@@ -416,6 +466,14 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
     _scroll.contentInset = UIEdgeInsetsMake(focusTop, 0, MAX(0, lastTop - focusTop), 0);
 }
 
+- (void)creditTo:(NSString *)source {
+    NSString *text = source.length && _crediting ? [NSString stringWithFormat:@"Lyrics from %@", source] : nil;
+    if (text == _credit.text || [text isEqualToString:_credit.text]) return;
+    _credit.text = text;
+    _credit.hidden = !_showing || !text.length;
+    [self setNeedsLayout];
+}
+
 - (void)syncSiblings {
     for (UIView *sibling in self.superview.subviews) {
         if (sibling != self && _showing) sibling.alpha = 0;
@@ -426,6 +484,7 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
     if (showing == _showing) return;
     _showing = showing;
     self.hidden = !showing;
+    _credit.hidden = !showing || !_credit.text.length;
     for (UIView *sibling in self.superview.subviews) {
         if (sibling != self) sibling.alpha = showing ? 0 : 1;
     }
@@ -454,6 +513,7 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
         _track = track;
         _lines = nil;
         _builtWidth = 0;
+        [self creditTo:nil];
         for (UIView *view in _lineViews) [view removeFromSuperview];
         _lineViews = nil;
     }
@@ -462,6 +522,8 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
         [self setNeedsLayout];
     }
     [self setShowing:_lines != nil];
+    // The source is settled a moment after the lines are, so it is asked for until it answers.
+    if (_crediting && _lines && !_credit.text.length) [self creditTo:SGLyricsCreditFor(track)];
     if (!_lineViews) return;
 
     double now = [self clockMs];

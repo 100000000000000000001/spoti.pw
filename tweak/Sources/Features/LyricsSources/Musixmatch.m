@@ -1,5 +1,10 @@
+// Lyrics from Musixmatch. It is the catalogue Spotify licenses, and for part of it Musixmatch also
+// has the time of every word (richsync), which Spotify never sends. The token is an anonymous one
+// asked for as Musixmatch's iOS app, so Musixmatch learns the track's id and nothing of the Spotify
+// account. It is the one source that matches by Spotify's own track id, so it never has to guess at
+// a title, and what it learns about the track is passed to the sources asked after it.
 #import "Core/SGCore.h"
-#import "Musixmatch.h"
+#import "LyricsSources.h"
 
 static NSString *const kAPI = @"https://apic-appmobile.musixmatch.com/ws/1.1/";
 static NSString *const kAppID = @"mac-ios-v2.0";
@@ -11,15 +16,11 @@ static const NSTimeInterval kTokenPause = 600;
 static const NSInteger kBreakMs = 3000;
 static const NSUInteger kKeptTracks = 40;
 
-@implementation SGMusixmatchLyrics
-@end
-
-// Main queue only, except sg_missing. NSNull is kept for a track Musixmatch has nothing for.
+// Main queue only. NSNull is kept for a track Musixmatch has nothing for.
 static NSMutableDictionary<NSString *, id> *sg_kept;
 static NSMutableDictionary<NSString *, NSMutableArray *> *sg_waiting;
 static NSMutableArray<void (^)(NSString *)> *sg_tokenWaiting;
 static NSDate *sg_tokenRefused;
-static NSMutableSet<NSString *> *sg_missing;
 
 static void setUp(void) {
     static dispatch_once_t once;
@@ -27,7 +28,6 @@ static void setUp(void) {
         sg_kept = [NSMutableDictionary dictionary];
         sg_waiting = [NSMutableDictionary dictionary];
         sg_tokenWaiting = [NSMutableArray array];
-        sg_missing = [NSMutableSet set];
     });
 }
 
@@ -109,25 +109,37 @@ static void withToken(void (^use)(NSString *token)) {
 // one entry ("Milion", "+", ","), so everything between two spaces is one word.
 static SGKaraokeLine *richsyncLine(NSDictionary *entry, NSInteger start, NSInteger end) {
     NSMutableArray<SGKaraokeWord *> *words = [NSMutableArray array];
-    SGKaraokeWord *open = nil;
+    BOOL open = NO;     // the word last added may still take further entries
+    BOOL spaced = YES;  // a space has gone by since the last word, so the next one is not joined
     id parts = entry[@"l"];
     for (NSDictionary *part in [parts isKindOfClass:NSArray.class] ? parts : @[]) {
         id text = dig(part, @"c");
         if (![text isKindOfClass:NSString.class]) continue;
         NSInteger at = start + msOf(part[@"o"]);
         NSString *trimmed = [text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+        SGKaraokeWord *last = words.lastObject;
         if (!trimmed.length) {
-            open.end = MAX(at, open.start);
-            open = nil;
-        } else if (open) {
-            open.text = [open.text stringByAppendingString:trimmed];
-        } else {
-            open = [SGKaraokeWord new];
-            open.text = trimmed;
-            open.start = at;
-            open.end = MAX(end, at);
-            [words addObject:open];
+            last.end = MAX(at, last.start);
+            open = NO;
+            spaced = YES;
+            continue;
         }
+        if (open && !SGKaraokeUnspacedScript(trimmed)) {
+            last.text = [last.text stringByAppendingString:trimmed];
+            continue;
+        }
+        // A syllable of an unspaced script stands as a word of its own. Musixmatch times each one,
+        // but sends no space to end it, so running them together is what left a Japanese or Chinese
+        // line lighting up whole instead of sweeping.
+        last.end = MAX(at, last.start);
+        SGKaraokeWord *word = [SGKaraokeWord new];
+        word.text = trimmed;
+        word.start = at;
+        word.end = MAX(end, at);
+        word.joined = !spaced;
+        [words addObject:word];
+        open = !SGKaraokeUnspacedScript(trimmed);
+        spaced = NO;
     }
     if (!words.count) return nil;
     SGKaraokeLine *line = [SGKaraokeLine new];
@@ -137,7 +149,7 @@ static SGKaraokeLine *richsyncLine(NSDictionary *entry, NSInteger start, NSInteg
     return line;
 }
 
-static SGMusixmatchLyrics *fromRichsync(id body) {
+static SGLyricsResult *fromRichsync(id body) {
     if (![body isKindOfClass:NSArray.class]) return nil;
     NSMutableArray<NSNumber *> *starts = [NSMutableArray array];
     NSMutableArray<NSString *> *texts = [NSMutableArray array];
@@ -152,13 +164,13 @@ static SGMusixmatchLyrics *fromRichsync(id body) {
         }
         id text = entry[@"x"];
         [starts addObject:@(line.start)];
-        [texts addObject:[text isKindOfClass:NSString.class] ? text : [[line.words valueForKey:@"text"] componentsJoinedByString:@" "]];
+        [texts addObject:[text isKindOfClass:NSString.class] ? text : SGKaraokeLineText(line)];
         [karaoke addObject:line];
     }
     if (!karaoke.count) return nil;
     [starts addObject:@(karaoke.lastObject.end)];
     [texts addObject:@""];
-    SGMusixmatchLyrics *lyrics = [SGMusixmatchLyrics new];
+    SGLyricsResult *lyrics = [SGLyricsResult new];
     lyrics.synced = lyrics.wordTimed = YES;
     lyrics.starts = starts;
     lyrics.texts = texts;
@@ -168,7 +180,7 @@ static SGMusixmatchLyrics *fromRichsync(id body) {
 
 // [{ "text": "Yeah, yeah", "time": { "total": 3.32 } }, …, { "text": "", "time": { "total": 241.15 } }]
 // An empty text is a break, and the last one marks the end.
-static SGMusixmatchLyrics *fromSubtitles(id body) {
+static SGLyricsResult *fromSubtitles(id body) {
     if (![body isKindOfClass:NSArray.class] || ![body count]) return nil;
     NSMutableArray<NSNumber *> *starts = [NSMutableArray array];
     NSMutableArray<NSString *> *texts = [NSMutableArray array];
@@ -180,7 +192,7 @@ static SGMusixmatchLyrics *fromSubtitles(id body) {
         [starts addObject:@(msOf(dig(lines[i], @"time/total")))];
         [texts addObject:last ? @"" : ([text length] ? text : @"♪")];
     }
-    SGMusixmatchLyrics *lyrics = [SGMusixmatchLyrics new];
+    SGLyricsResult *lyrics = [SGLyricsResult new];
     lyrics.synced = YES;
     lyrics.starts = starts;
     lyrics.texts = texts;
@@ -188,7 +200,7 @@ static SGMusixmatchLyrics *fromSubtitles(id body) {
     return lyrics.karaokeLines ? lyrics : nil;
 }
 
-static SGMusixmatchLyrics *fromPlain(id body) {
+static SGLyricsResult *fromPlain(id body) {
     if (![body isKindOfClass:NSString.class] || ![body length]) return nil;
     NSMutableArray<NSNumber *> *starts = [NSMutableArray array];
     NSMutableArray<NSString *> *texts = [NSMutableArray array];
@@ -196,17 +208,17 @@ static SGMusixmatchLyrics *fromPlain(id body) {
         [starts addObject:@0];
         [texts addObject:line.length ? line : @"♪"];
     }
-    SGMusixmatchLyrics *lyrics = [SGMusixmatchLyrics new];
+    SGLyricsResult *lyrics = [SGLyricsResult new];
     lyrics.starts = starts;
     lyrics.texts = texts;
     return lyrics;
 }
 
 // macro.subtitles.get runs the matcher and every lookup in one call; the best shape it has wins.
-static SGMusixmatchLyrics *fromCalls(NSDictionary *calls) {
+static SGLyricsResult *fromCalls(NSDictionary *calls) {
     if (truthy(dig(calls, @"matcher.track.get/message/body/track/instrumental"))) return nil;
     id richsync = dig(calls, @"track.richsync.get/message/body/richsync");
-    SGMusixmatchLyrics *lyrics = nil;
+    SGLyricsResult *lyrics = nil;
     if (richsync && !truthy(dig(richsync, @"restricted"))) lyrics = fromRichsync(jsonOf(dig(richsync, @"richsync_body")));
     if (lyrics) return lyrics;
     id list = dig(calls, @"track.subtitles.get/message/body/subtitle_list");
@@ -219,17 +231,28 @@ static SGMusixmatchLyrics *fromCalls(NSDictionary *calls) {
 
 #pragma mark - asking
 
-static void finish(NSString *trackID, SGMusixmatchLyrics *lyrics, BOOL answered) {
+static void finish(NSString *trackID, SGLyricsResult *lyrics, BOOL answered) {
     if (answered) {
         if (sg_kept.count >= kKeptTracks) [sg_kept removeAllObjects];
         sg_kept[trackID] = lyrics ?: NSNull.null;
-        if (!lyrics.texts.count) {
-            @synchronized (sg_missing) { [sg_missing addObject:trackID]; }
-        }
     }
     NSArray *waiting = sg_waiting[trackID];
     [sg_waiting removeObjectForKey:trackID];
-    for (void (^done)(SGMusixmatchLyrics *) in waiting) done(lyrics);
+    for (void (^done)(SGLyricsResult *) in waiting) done(lyrics);
+}
+
+// What the matcher settled on, kept even when Musixmatch may show no lyrics: the sources asked after
+// this one search by name, and this is the best name anyone has.
+static SGLyricsResult *withTrack(SGLyricsResult *lyrics, id track) {
+    if (![track isKindOfClass:NSDictionary.class]) return lyrics;
+    SGLyricsResult *result = lyrics ?: [SGLyricsResult new];
+    id title = track[@"track_name"], artist = track[@"artist_name"], album = track[@"album_name"];
+    if ([title isKindOfClass:NSString.class]) result.title = title;
+    if ([artist isKindOfClass:NSString.class]) result.artist = artist;
+    if ([album isKindOfClass:NSString.class]) result.album = album;
+    result.seconds = [track[@"track_length"] integerValue];
+    result.instrumental = truthy(track[@"instrumental"]);
+    return result;
 }
 
 static void ask(NSString *trackID, BOOL renewToken) {
@@ -258,50 +281,33 @@ static void ask(NSString *trackID, BOOL renewToken) {
                 finish(trackID, nil, NO);
                 return;
             }
-            SGMusixmatchLyrics *lyrics = fromCalls(calls);
+            SGLyricsResult *lyrics = fromCalls(calls);
             SGLog(@"musixmatch: %@ has %@", trackID, !lyrics ? @"no lyrics it may show"
                   : lyrics.wordTimed ? [NSString stringWithFormat:@"%lu word timed lines", (unsigned long)lyrics.karaokeLines.count]
                   : lyrics.synced ? [NSString stringWithFormat:@"%lu line timed lines", (unsigned long)lyrics.karaokeLines.count]
                   : [NSString stringWithFormat:@"%lu untimed lines", (unsigned long)lyrics.texts.count]);
-            id track = dig(calls, @"matcher.track.get/message/body/track");
-            if (lyrics.wordTimed || !SGFlag(SGKeyNetEaseWordTiming, NO) || ![track isKindOfClass:NSDictionary.class] || truthy(track[@"instrumental"])) {
-                finish(trackID, lyrics, YES);
-                return;
-            }
-            id title = track[@"track_name"], artist = track[@"artist_name"];
-            SGNetEaseWordLines([title isKindOfClass:NSString.class] ? title : nil, [artist isKindOfClass:NSString.class] ? artist : nil,
-                               [track[@"track_length"] integerValue], ^(NSArray<SGKaraokeLine *> *lines) {
-                SGMusixmatchLyrics *merged = lyrics;
-                if (lines) {
-                    merged = lyrics ?: [SGMusixmatchLyrics new];
-                    merged.karaokeLines = lines;
-                    merged.wordTimed = YES;
-                }
-                finish(trackID, merged, YES);
-            });
+            finish(trackID, withTrack(lyrics, dig(calls, @"matcher.track.get/message/body/track")), YES);
         });
     });
 }
 
-void SGMusixmatchFetch(NSString *trackID, void (^done)(SGMusixmatchLyrics *lyrics)) {
+SGLyricsAsk SGMusixmatchAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResult *lyrics)) {
     setUp();
-    dispatch_async(dispatch_get_main_queue(), ^{
-        id kept = sg_kept[trackID];
-        if (kept) {
-            done(kept == NSNull.null ? nil : kept);
-            return;
-        }
-        NSMutableArray *waiting = sg_waiting[trackID];
-        if (waiting) {
-            [waiting addObject:done];
-            return;
-        }
-        sg_waiting[trackID] = [NSMutableArray arrayWithObject:done];
-        ask(trackID, YES);
-    });
-}
-
-BOOL SGMusixmatchMayHave(NSString *trackID) {
-    setUp();
-    @synchronized (sg_missing) { return ![sg_missing containsObject:trackID]; }
-}
+    NSString *trackID = query.trackID;
+    if (!trackID.length) {
+        done(nil);
+        return;
+    }
+    id kept = sg_kept[trackID];
+    if (kept) {
+        done(kept == NSNull.null ? nil : kept);
+        return;
+    }
+    NSMutableArray *waiting = sg_waiting[trackID];
+    if (waiting) {
+        [waiting addObject:[done copy]];
+        return;
+    }
+    sg_waiting[trackID] = [NSMutableArray arrayWithObject:[done copy]];
+    ask(trackID, YES);
+};

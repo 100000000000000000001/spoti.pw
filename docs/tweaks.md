@@ -47,9 +47,12 @@ app:
     ArtistBlock/  tracks by blocked artists skipped as they start (ArtistSkip.x), the list and the Blocked artists page under Player
     Karaoke/      Apple Music style lyrics on the full screen page: lines read from color-lyrics and the player's clock (KaraokeSource.x),
                   words timed by estimate inside Spotify's line times (KaraokeTiming.m), drawn by KaraokeView.m over the page (KaraokePage.x)
-    Musixmatch/   lyrics from Musixmatch with an anonymous token (Musixmatch.m), word timed where it has richsync; color-lyrics
-                  answered with them and has_lyrics forced for every track (MusixmatchLyrics.x); word timing from NetEase's yrc
-                  for the karaoke page when Musixmatch has none (NetEase.m); rows on the Lyrics page
+    LyricsSources/ the sources lyrics come from, asked in the order the Lyrics page puts them in and merged into the
+                  best answer (LyricsSources.m, the list to drag in LyricsSourcesPage.m): Apple Music's TTML from
+                  BiniLyrics.m and Unison.m, read by SGTTML.m, which is the only shape carrying a second voice and the
+                  backing vocals; Musixmatch.m, matched by Spotify's track id with an anonymous token, word timed where
+                  it has richsync; NetEase.m, word timing from yrc for what the others only line time. color-lyrics is
+                  answered with whichever won and has_lyrics forced for every track (LyricsHook.x)
     Onboarding/   the welcome tour over Home on the first launch (Onboarding.x, the pages in Tour.m), offered again from the Mod page
     About/        the update check and the Mod page: the build, its updates, the links and the reset
 
@@ -80,8 +83,8 @@ one page, the mod's own rows first and Spotify's flags below them or on a sub pa
 they change. It opens on the Appearance card, the three switches that style the whole app: Liquid
 Glass UI, AMOLED and the accent colour (Spotify's green is offered from the colour row once a colour
 is set). Then a card of parts. Navbar: the glass tab bar and search field, then the tab editor.
-Player: Gestures, Lyrics (Apple Music style, glass lyrics, lyrics from Musixmatch and for every track,
-hiding the lyrics card and preview, the lyrics flags), Blocked artists (with the count on the row) and Now playing bar (its glass, its device
+Player: Gestures, Lyrics (Apple Music style, glass lyrics, the ordered list of lyrics sources, lyrics
+for every track, naming the source, hiding the lyrics card and preview, the lyrics flags), Blocked artists (with the count on the row) and Now playing bar (its glass, its device
 button and its flags) as pages; then the player screen (artwork background, glass header buttons,
 Disable Canvas and the sheet, header, slider and sticky header flags), the cards under the player and
 the player buttons to hide, and Queue & devices and Lock screen widget as flag pages. Home & Library:

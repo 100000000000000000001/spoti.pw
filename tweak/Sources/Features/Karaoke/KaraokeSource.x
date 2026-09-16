@@ -2,11 +2,12 @@
 // the same URLSession delegates AdBlock/AdNetwork.x reads, untouched, and kept per track, since the
 // page may open long after the request finished. The clock is SPTEsperantoPlayer's state, asked for on
 // every frame: the player is caught the first time the app asks it, and its position runs on by itself.
-// With Musixmatch on, the color-lyrics body is Features/Musixmatch's to answer and it hands the lines over.
+// With a source of the mod's on, the color-lyrics body is Features/LyricsSources' to answer and it
+// hands the lines over.
 #import "Core/SGCore.h"
 #import "Karaoke.h"
 #import "Features/LockScreenLyrics/LockScreenLyrics.h"
-#import "Features/Musixmatch/Musixmatch.h"
+#import "Features/LyricsSources/LyricsSources.h"
 #import "Headers/SPTPlayer.h"
 
 static const NSUInteger kKeptTracks = 40;
@@ -17,7 +18,7 @@ static NSMutableDictionary<NSString *, NSArray<SGKaraokeLine *> *> *sg_lyrics;
 static NSMutableSet<NSString *> *sg_requested;
 static NSDictionary<NSString *, NSString *> *sg_spclientHeaders;
 static __weak id sg_player;
-static BOOL sg_musixmatch;
+static BOOL sg_ownSources;   // a source of the mod's answers the color-lyrics request, not Spotify
 static char kBodyKey;
 
 static NSString *trackInURL(NSURL *url) {
@@ -55,7 +56,7 @@ void SGKaraokeKeepLines(NSString *track, NSArray<SGKaraokeLine *> *lines) {
 
 static void received(NSURLSession *session, NSURLSessionTask *task, NSData *data) {
     rememberHeaders(session, task.currentRequest);
-    if (sg_musixmatch || !trackInURL(task.currentRequest.URL)) return;
+    if (sg_ownSources || !trackInURL(task.currentRequest.URL)) return;
     NSMutableData *body = objc_getAssociatedObject(task, &kBodyKey);
     if (!body) objc_setAssociatedObject(task, &kBodyKey, (body = [NSMutableData data]), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     [body appendData:data];
@@ -65,7 +66,7 @@ static void completed(NSURLSessionTask *task, NSError *error) {
     NSMutableData *body = objc_getAssociatedObject(task, &kBodyKey);
     if (!body) {
         NSString *path = task.currentRequest.URL.path;
-        if (!sg_musixmatch && [path.lowercaseString containsString:@"lyrics"]) SGLog(@"karaoke: lyrics request not read: %@ (error %@)", path, error);
+        if (!sg_ownSources && [path.lowercaseString containsString:@"lyrics"]) SGLog(@"karaoke: lyrics request not read: %@ (error %@)", path, error);
         return;
     }
     objc_setAssociatedObject(task, &kBodyKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
@@ -94,20 +95,24 @@ static void requestFromSpotify(NSString *trackID) {
         NSArray<SGKaraokeLine *> *lines = SGKaraokeLinesFromBody(body);
         SGLog(@"karaoke: fetched lyrics for %@: status %ld, %lu synced lines, error %@", trackID,
               (long)[(NSHTTPURLResponse *)response statusCode], (unsigned long)lines.count, error);
-        if (lines) SGKaraokeKeepLines(trackID, lines);
+        if (lines) {
+            SGKaraokeKeepLines(trackID, lines);
+            SGLyricsSetCredit(trackID, @"Spotify");
+        }
     }] resume];
 }
 
 void SGKaraokeRequestLyrics(NSString *trackID) {
     if (!trackID || sg_lyrics[trackID] || [sg_requested containsObject:trackID]) return;
-    if (!sg_musixmatch) {
+    if (!sg_ownSources) {
         requestFromSpotify(trackID);
         return;
     }
     [sg_requested addObject:trackID];
-    SGMusixmatchFetch(trackID, ^(SGMusixmatchLyrics *lyrics) {
+    SGLyricsFetch(trackID, ^(SGLyricsResult *lyrics) {
         if (lyrics.karaokeLines) {
             SGKaraokeKeepLines(trackID, lyrics.karaokeLines);
+            SGLyricsSetCredit(trackID, lyrics.provider);
             return;
         }
         [sg_requested removeObject:trackID];
@@ -175,7 +180,7 @@ void SGKaraokeSeek(NSInteger ms) {
     if (!SGFlag(SGKeyKaraokeLyrics, NO) && !SGFlag(SGKeyLockScreenLyrics, NO)) return;
     sg_lyrics = [NSMutableDictionary dictionary];
     sg_requested = [NSMutableSet set];
-    sg_musixmatch = SGFlag(SGKeyMusixmatchLyrics, NO);
+    sg_ownSources = SGLyricsEnabled();
     %init;
     SGLog(@"karaoke: on");
     SGRequireClasses(@[
