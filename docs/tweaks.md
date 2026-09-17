@@ -13,7 +13,7 @@
     tweak/Sources/Redesigned/   the redesign, running only while Redesigned UI is on
     tweak/Sources/App/          what brings the layers together: Mod Settings' root and composed pages, the Mod page,
                                 backup and signing, the welcome tour
-    tweak/Sources/Diagnostics/  screen dumps and the tree server of FLEX builds
+    tweak/Sources/Diagnostics/  screen dumps, the tree server and the main thread hang sampler of FLEX builds
     scripts/                    pipeline.sh (build + inject), install.sh (sign + install), record-trees.py,
                                 record-session.py, dump-log.sh, extract-flags.py, publish.sh (release: version bump,
                                 site release.json)
@@ -108,6 +108,11 @@ Redesigned:
     Player/       the redesigned full screen player (Player.h lists its files)
     Lyrics/       the full screen lyrics page on glass with Apple Music style lyrics over it, always on (SGRKaraokeView,
                   also over the card under the player, Player/KaraokeCard.x)
+    Home/         Home decluttered to music on black (an allow list of its sections: shortcuts, the DJ without its heading and
+                  transcript, the shelves of cards), a large title where the filter pills were with the avatar at the trailing
+                  edge, the shelves' headings at the Music app's size, each shortcut tile's cover run across it blurred
+                  (SGRPalette's extension), continuous corners on the covers, and in FLEX builds a meter of each scroll's
+                  frames and the hooks' time (Home.h lists its files)
 
 App:
 

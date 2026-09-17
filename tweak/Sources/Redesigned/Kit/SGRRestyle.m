@@ -4,7 +4,7 @@
 #import "SGRRestyle.h"
 #import "SGRTokens.h"
 
-static char kPlateKey;
+static char kPlateKey, kImageObserverKey;
 
 @interface SGRWeakBox : NSObject
 @property (nonatomic, weak) id value;
@@ -133,6 +133,29 @@ void SGRMonospacedDigits(UILabel *label) {
     });
     Class original = kept ? class_getSuperclass(object_getClass(label)) : object_getClass(label);
     keepMonospaced(label, original);
+}
+
+BOOL SGRObserveImage(UIImageView *view, void (^changed)(UIImageView *view)) {
+    if (![view isKindOfClass:UIImageView.class]) return NO;
+    objc_setAssociatedObject(view, &kImageObserverKey, changed, OBJC_ASSOCIATION_COPY_NONATOMIC);
+    BOOL kept = adopt(view, "SGRImageObserved_", ^(Class subclass, Class original) {
+        addOverride(subclass, original, @selector(setImage:), ^(UIImageView *self, UIImage *image) {
+            struct objc_super parent = {self, original};
+            ((void (*)(struct objc_super *, SEL, id))objc_msgSendSuper)(&parent, @selector(setImage:), image);
+            void (^block)(UIImageView *) = objc_getAssociatedObject(self, &kImageObserverKey);
+            if (block) block(self);
+        });
+    });
+    if (!kept) {
+        static NSMutableSet<NSString *> *logged;
+        if (!logged) logged = [NSMutableSet set];
+        NSString *name = NSStringFromClass(object_getClass(view));
+        if (![logged containsObject:name]) {
+            [logged addObject:name];
+            SGLog(@"redesign kit: %@ cannot be watched for its image", name);
+        }
+    }
+    return kept;
 }
 
 // An identifier ending in * matches by prefix, for Spotify's ids that carry an entity after a dash.

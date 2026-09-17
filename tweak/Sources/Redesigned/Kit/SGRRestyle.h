@@ -22,6 +22,11 @@ void SGRSuppress(UIView *view);
 // setFont: by a runtime subclass of the instance, like SGRSuppress. Idempotent.
 void SGRMonospacedDigits(UILabel *label);
 
+// `changed` after every setImage: on the image view, Spotify's included, for as long as the view lives, by a
+// runtime subclass of the instance like SGRSuppress. A second call replaces the block. NO when the view
+// cannot be subclassed (a KVO-observed instance): the caller then only sees what its own passes read.
+BOOL SGRObserveImage(UIImageView *view, void (^changed)(UIImageView *view));
+
 // The first view under `root` (itself included) with the accessibility identifier, depth first. The
 // answer is kept weakly on `root` under `cacheKey` and searched for again only when it is gone, has
 // left `root` or changed its identifier. nil when there is none; a miss is not cached.

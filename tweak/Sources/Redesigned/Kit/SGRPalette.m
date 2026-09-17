@@ -10,6 +10,11 @@ static const CGFloat kMaxLuminance = 0.07, kMaxLuminanceContrast = 0.04;
 static const CGFloat kBackdropWidth = 160, kBackdropMaxHeight = 400, kBackdropSigma = 12;
 static const CGFloat kDissolveWidth = 96, kDissolveSigma = 5;
 static const CGFloat kFadeFrom = 0.55, kDissolveOpaque = 0.85;
+static const CGFloat kExtensionSigma = 8, kExtensionLuminance = 0.16, kExtensionLuminanceContrast = 0.08, kExtensionMinDim = 0.15;
+// The share of the artwork's width, at its trailing edge, stretched over the rest of the strip.
+static const CGFloat kExtensionEdge = 0.04;
+// The dim starts at this share of the artwork's width and is full this far past it, where a row's text begins.
+static const CGFloat kExtensionRampFrom = 0.4, kExtensionRampOut = 8;
 
 @interface SGRPalette ()
 @property (nonatomic, readwrite) UIColor *edgeColor;
@@ -155,6 +160,99 @@ static UIImage *finished(CGImageRef blurred, BOOL dim, CGFloat dimBottom, CGFloa
     return image;
 }
 
+#pragma mark - extension
+
+// The artwork filling `rect` and clipped to it.
+static void drawFillingRect(CGContextRef context, CGImageRef image, CGRect rect) {
+    CGFloat iw = CGImageGetWidth(image), ih = CGImageGetHeight(image);
+    CGFloat scale = MAX(rect.size.width / iw, rect.size.height / ih);
+    CGContextSaveGState(context);
+    CGContextClipToRect(context, rect);
+    CGContextDrawImage(context, CGRectMake(CGRectGetMidX(rect) - iw * scale / 2, CGRectGetMidY(rect) - ih * scale / 2, iw * scale, ih * scale), image);
+    CGContextRestoreGState(context);
+}
+
+// The luminance under which 90% of the pixels right of `fromX` fall, read off a histogram.
+static CGFloat upperLuminance(const uint8_t *px, size_t width, size_t height, size_t fromX) {
+    static CGFloat linear[256];
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        for (int i = 0; i < 256; i++) linear[i] = toLinear(i / 255.0);
+    });
+    enum { kBins = 64 };
+    size_t bins[kBins] = {0}, total = 0;
+    for (size_t y = 0; y < height; y++) {
+        for (size_t x = fromX; x < width; x++) {
+            const uint8_t *p = px + (y * width + x) * 4;
+            CGFloat luminance = 0.2126 * linear[p[0]] + 0.7152 * linear[p[1]] + 0.0722 * linear[p[2]];
+            bins[MIN(kBins - 1, (size_t)(luminance * kBins))]++;
+            total++;
+        }
+    }
+    size_t seen = 0;
+    for (size_t i = 0; i < kBins; i++) {
+        seen += bins[i];
+        if (seen * 10 >= total * 9) return (CGFloat)(i + 1) / kBins;
+    }
+    return 1;
+}
+
+static UIImage *extensionOf(CGImageRef image, CGSize size, CGFloat artWidth, CGFloat ceiling) {
+    size_t width = (size_t)ceil(size.width), height = (size_t)ceil(size.height);
+    CGFloat art = MIN(MAX(1, round(artWidth)), width);
+    CGContextRef context = newBitmap(width, height);
+    if (!context) return nil;
+    CGContextSetInterpolationQuality(context, kCGInterpolationMedium);
+    drawFillingRect(context, image, CGRectMake(0, 0, art, height));
+    if (art < width) {
+        // The part of the picture that shows once it fills the artwork's place, and the strip at its trailing
+        // edge; copies laid side by side instead repeat whatever stands out in the picture along the row.
+        CGFloat iw = CGImageGetWidth(image), ih = CGImageGetHeight(image);
+        CGFloat scale = MAX(art / iw, height / ih);
+        CGFloat shownWidth = art / scale, shownHeight = height / scale;
+        CGFloat edge = MAX(2, round(shownWidth * kExtensionEdge));
+        CGRect strip = CGRectMake(floor((iw + shownWidth) / 2 - edge), floor((ih - shownHeight) / 2), edge, floor(shownHeight));
+        CGImageRef column = CGImageCreateWithImageInRect(image, strip);
+        if (column) CGContextDrawImage(context, CGRectMake(art, 0, width - art, height), column);
+        CGImageRelease(column);
+    }
+    CGImageRef tiled = CGBitmapContextCreateImage(context);
+    CGContextRelease(context);
+    if (!tiled) return nil;
+    CIImage *input = [CIImage imageWithCGImage:tiled];
+    CGImageRelease(tiled);
+    CIImage *output = [[input imageByClampingToExtent] imageByApplyingGaussianBlurWithSigma:kExtensionSigma];
+    CGImageRef blurred = [blurContext() createCGImage:output fromRect:input.extent format:kCIFormatRGBA8 colorSpace:sRGB()];
+    if (!blurred) return nil;
+
+    context = newBitmap(width, height);
+    if (!context) {
+        CGImageRelease(blurred);
+        return nil;
+    }
+    CGContextDrawImage(context, CGRectMake(0, 0, width, height), blurred);
+    CGImageRelease(blurred);
+    const uint8_t *px = CGBitmapContextGetData(context);
+    size_t textFrom = (size_t)MIN(width - 1, art + kExtensionRampOut);
+    CGFloat upper = px ? upperLuminance(px, width, height, textFrom) : 1;
+    // A black over sRGB takes the encoded channels down linearly, the luminance by about that to the 2.4.
+    CGFloat keep = MIN(1, ceiling / MAX(upper, 0.0001));
+    CGFloat dim = MAX(kExtensionMinDim, 1 - pow(keep, 1 / 2.4));
+    CGFloat components[] = {0, 0, 0, 0, 0, 0, 0, dim};
+    CGFloat locations[] = {0, 1};
+    CGGradientRef gradient = CGGradientCreateWithColorComponents(sRGB(), components, locations, 2);
+    CGContextDrawLinearGradient(context, gradient, CGPointMake(art * kExtensionRampFrom, 0), CGPointMake(art + kExtensionRampOut, 0), kCGGradientDrawsAfterEndLocation);
+    CGGradientRelease(gradient);
+    CGImageRef result = CGBitmapContextCreateImage(context);
+    CGContextRelease(context);
+    UIImage *extension = result ? [UIImage imageWithCGImage:result scale:1 orientation:UIImageOrientationUp] : nil;
+    CGImageRelease(result);
+
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{ SGLog(@"redesign kit: first extension %zux%zu, luminance p90 %.3f, dim %.2f", width, height, upper, dim); });
+    return extension;
+}
+
 @implementation SGRPalette
 
 + (void)paletteForImage:(UIImage *)image request:(SGRPaletteRequest)request completion:(void (^)(SGRPalette *palette))completion {
@@ -188,6 +286,19 @@ static UIImage *finished(CGImageRef blurred, BOOL dim, CGFloat dimBottom, CGFloa
             dispatch_once(&once, ^{ SGLog(@"redesign kit: first palette %@ from %zux%zu in %.1f ms", palette.fieldColor, CGImageGetWidth(cg), CGImageGetHeight(cg), ms); });
         }
         dispatch_async(dispatch_get_main_queue(), ^{ completion(palette); });
+    });
+}
+
++ (void)extensionForImage:(UIImage *)image size:(CGSize)size artWidth:(CGFloat)artWidth completion:(void (^)(UIImage *extension))completion {
+    if (!completion) return;
+    CGFloat ceiling = SGRIncreaseContrast() ? kExtensionLuminanceContrast : kExtensionLuminance;
+    dispatch_async(paletteQueue(), ^{
+        CGImageRef cg = image.CGImage;
+        UIImage *extension = nil;
+        if (cg && CGImageGetWidth(cg) && CGImageGetHeight(cg) && size.width >= 1 && size.height >= 1 && artWidth >= 1) {
+            extension = extensionOf(cg, size, artWidth, ceiling);
+        }
+        dispatch_async(dispatch_get_main_queue(), ^{ completion(extension); });
     });
 }
 
