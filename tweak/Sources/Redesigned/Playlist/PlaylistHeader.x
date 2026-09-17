@@ -251,16 +251,24 @@ static void applyHero(UIView *layout, UIView *cover, UIView *plane, UIView *bloc
     if (hero.superview != plane) [plane insertSubview:hero atIndex:0];
     else if (plane.subviews.firstObject != hero) [plane sendSubviewToBack:hero];
 
+    // The top of the block in the layout's own space, which is the plane's own while the header is whole:
+    // both sit at the top of the clipping view, and the 134pt the page is pulled down by moves them
+    // together. So it is the height the picture wants, and the only one that does not move under the
+    // header's animations.
+    //
+    // The furthest down it has been, rather than where it is: a header still loading puts the block higher
+    // than it will end up (267 against the 338 it settled at, trees/continuous 2026-09-17, which left the
+    // picture stopping short with a band of bare field between it and the title), and a header collapsing
+    // climbs it out of its place altogether. Both are answered by only ever letting it grow, which settles
+    // once the cover and the description are in and never moves again.
     CGFloat height = [objc_getAssociatedObject(hero, &kHeroHeightKey) doubleValue];
-    if (height <= 0) {
-        // The first pass with the header whole. The block sits where the header put it while the header is
-        // whole and climbs out of its place while it collapses, so a page opened already scrolled waits.
-        CGFloat measured = [plane convertPoint:CGPointMake(0, CGRectGetMinY(block.frame)) fromView:layout].y;
-        if (measured < kMinHero) return;
-        height = measured;
+    CGFloat top = CGRectGetMinY(block.frame);
+    if (top > height + 0.5) {
+        height = top;
         objc_setAssociatedObject(hero, &kHeroHeightKey, @(height), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        SGLog(@"redesign playlist: hero %.0fpt across the top of the plane, for good", height);
+        SGLog(@"redesign playlist: hero %.0fpt across the top of the plane", height);
     }
+    if (height < kMinHero) return;
     CGRect frame = CGRectMake(0, 0, plane.bounds.size.width, height);
     if (!CGRectEqualToRect(hero.frame, frame)) hero.frame = frame;
     hero.fieldColor = SGRPlaylistFieldColor(layout);
@@ -641,6 +649,19 @@ static UIView *layoutIn(UIView *root) {
 
 // The header's own pass catches the parts that fade in rather than being laid out: the find bar, and the
 // action buttons as they arrive. The scroll's is where what Spotify fades back in is taken again.
+// The play button arrives in the header's foreground plane after the row that replaces it has been laid
+// out, so a page opening showed Spotify's green disc in the corner until something else laid the header out
+// (device, 2026-09-17). Its own pass is where it goes, and the class is Spotify's own so nothing else pays
+// for the check.
+%hook _TtC28EncoreConsumerMobile_BaseKit14PlayButtonView
+- (void)layoutSubviews {
+    %orig;
+    UIView *button = (UIView *)self;
+    if (button.layer.hidden || ![button.accessibilityIdentifier isEqualToString:@"header-play-button"]) return;
+    if (SGRPlaylistHeaderOf(button)) conceal(button);
+}
+%end
+
 %hook SPTFreeTierPlaylistEncoreHeaderViewController
 - (void)viewDidLayoutSubviews {
     %orig;
@@ -656,5 +677,6 @@ static UIView *layoutIn(UIView *root) {
     SGRequireClasses(@[
         @"_TtC28EncoreConsumerMobile_BaseKit19HeaderContentLayout",
         @"SPTFreeTierPlaylistEncoreHeaderViewController",
+        @"_TtC28EncoreConsumerMobile_BaseKit14PlayButtonView",
     ]);
 }

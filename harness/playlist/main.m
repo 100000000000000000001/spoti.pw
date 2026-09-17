@@ -168,7 +168,7 @@ static UIView *actionButton(UIView *row, CGRect frame, NSString *identifier, NSS
     UIView *layout = box(contentView, _TtC28EncoreConsumerMobile_BaseKit19HeaderContentLayout.class, contentView.bounds, nil);
 
     // the cover square
-    UIView *cover = box(layout, UIView.class, CGRectMake(round((W - 243) / 2), 68, 243, 243), @"Components.Header.UI.ArtworkImage");
+    UIView *cover = box(layout, UIView.class, CGRectMake(round((W - 182) / 2), 68, 182, 182), @"Components.Header.UI.ArtworkImage");
     UIView *coverImage = box(cover, UIView.class, cover.bounds, @"Encore.ImageView");
     UIImageView *coverPicture = [[UIImageView alloc] initWithFrame:coverImage.bounds];
     coverPicture.image = artwork();
@@ -176,7 +176,7 @@ static UIView *actionButton(UIView *row, CGRect frame, NSString *identifier, NSS
     [coverImage addSubview:coverPicture];
 
     // the block: the column, then the action row
-    UIView *block = box(layout, UIView.class, CGRectMake(0, 327, W - 16, 178.33), nil);
+    UIView *block = box(layout, UIView.class, CGRectMake(0, 266.67, W - 16, 178.33), nil);
     UIView *blockStack = box(block, _TtC19LegacyUI_ECMCoreKit19AutoLayoutStackView.class, block.bounds, nil);
     UIView *blockInner = box(blockStack, UIView.class, blockStack.bounds, nil);
 
