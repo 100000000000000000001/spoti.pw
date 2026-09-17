@@ -197,7 +197,8 @@ the bar shows them: drag to reorder, tap to hide or show, and Add a tab puts a p
 any `spotify:` link on the bar with one of Encore's own glyphs. Spotify's own tabs are kept by the
 name under their icon, so they can be hidden but never removed, and switching the app's language
 starts the order over. A tab of the mod's own opens its link through Spotify's link dispatcher, so it
-never lights up as the tab you are on.
+never lights up as the tab you are on. Hide labels, on the same page, leaves the glass bar with its
+icons alone and applies straight away too.
 
 ## Adding a feature
 

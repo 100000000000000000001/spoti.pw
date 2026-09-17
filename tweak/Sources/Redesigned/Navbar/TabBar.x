@@ -191,16 +191,19 @@ static void forwardTap(UIView *item) {
     });
 }
 
-// UIKit's item views are private, so the item under a touch is the one whose title label is nearest.
+// UIKit's item views are private, so the item under a touch is the one whose title label or glyph is
+// nearest. With the labels hidden only the glyph is left; UIKit shows the item's own image instance.
 - (UITabBarItem *)itemAt:(CGPoint)point {
     __block UITabBarItem *nearest = nil;
     __block CGFloat best = CGFLOAT_MAX;
     SGForEachView(self, ^(UIView *v) {
-        if (![v isKindOfClass:UILabel.class] || v.bounds.size.width < 1) return;
+        BOOL label = [v isKindOfClass:UILabel.class], glyph = [v isKindOfClass:UIImageView.class];
+        if ((!label && !glyph) || v.bounds.size.width < 1) return;
         CGFloat distance = fabs([v convertPoint:CGPointMake(CGRectGetMidX(v.bounds), 0) toView:self].x - point.x);
         if (distance >= best) return;
         for (UITabBarItem *item in self.items) {
-            if (![((UILabel *)v).text isEqualToString:item.title]) continue;
+            UIImage *image = glyph ? ((UIImageView *)v).image : nil;
+            if (label ? ![((UILabel *)v).text isEqualToString:item.title] : !image || (image != item.image && image != item.selectedImage)) continue;
             best = distance;
             nearest = item;
             break;
@@ -288,10 +291,12 @@ static void syncBar(UIView *stockBar) {
 
     NSArray<UIView *> *sources = tabItems(stockBar);
     if (!sources.count) return;
+    // An item with no title is drawn by UIKit as its glyph alone, centred, on a bar of the same height.
+    BOOL hideLabels = SGHidden(SGRKeyNavbarHideLabels);
 
     if (![sources isEqualToArray:bar.sources]) {
         NSMutableArray<UITabBarItem *> *items = [NSMutableArray array];
-        for (UIView *source in sources) [items addObject:[[UITabBarItem alloc] initWithTitle:labelIn(source).text image:nil tag:items.count]];
+        for (UIView *source in sources) [items addObject:[[UITabBarItem alloc] initWithTitle:hideLabels ? nil : labelIn(source).text image:nil tag:items.count]];
         bar.sources = sources;
         [bar setItems:items animated:NO];
         NSMutableString *out = [NSMutableString stringWithString:@"tab bar icons"];
@@ -313,8 +318,8 @@ static void syncBar(UIView *stockBar) {
         if (!item.image) item.image = glyphOf(sources[i], NO);
         if (!item.selectedImage || item.selectedImage == item.image) item.selectedImage = glyphOf(sources[i], YES);
         missing |= !item.image || !item.selectedImage;
-        NSString *title = labelIn(sources[i]).text;
-        if (title.length && ![title isEqualToString:item.title]) item.title = title;
+        NSString *title = hideLabels ? nil : labelIn(sources[i]).text;
+        if (hideLabels ? item.title != nil : title.length && ![title isEqualToString:item.title]) item.title = title;
         if (!selected && isActive(sources[i])) selected = item;
     }
     if (selected && bar.selectedItem != selected) bar.selectedItem = selected;
