@@ -4,7 +4,7 @@
 #import "SGRRestyle.h"
 #import "SGRTokens.h"
 
-static char kPlateKey, kImageObserverKey;
+static char kPlateKey, kImageObserverKey, kLayoutObserverKey;
 
 @interface SGRWeakBox : NSObject
 @property (nonatomic, weak) id value;
@@ -153,6 +153,37 @@ BOOL SGRObserveImage(UIImageView *view, void (^changed)(UIImageView *view)) {
         if (![logged containsObject:name]) {
             [logged addObject:name];
             SGLog(@"redesign kit: %@ cannot be watched for its image", name);
+        }
+    }
+    return kept;
+}
+
+// A pass the block itself sets off (a frame it moves) reaches layoutSubviews again before the block has
+// returned; one level is enough to settle, and re-entering would not end.
+static BOOL sg_reportingLayout = NO;
+
+BOOL SGRObserveLayout(UIView *view, void (^laidOut)(UIView *view)) {
+    if (![view isKindOfClass:UIView.class]) return NO;
+    objc_setAssociatedObject(view, &kLayoutObserverKey, laidOut, OBJC_ASSOCIATION_COPY_NONATOMIC);
+    BOOL kept = adopt(view, "SGRLayoutObserved_", ^(Class subclass, Class original) {
+        addOverride(subclass, original, @selector(layoutSubviews), ^(UIView *self) {
+            struct objc_super parent = {self, original};
+            ((void (*)(struct objc_super *, SEL))objc_msgSendSuper)(&parent, @selector(layoutSubviews));
+            if (sg_reportingLayout) return;
+            void (^block)(UIView *) = objc_getAssociatedObject(self, &kLayoutObserverKey);
+            if (!block) return;
+            sg_reportingLayout = YES;
+            block(self);
+            sg_reportingLayout = NO;
+        });
+    });
+    if (!kept) {
+        static NSMutableSet<NSString *> *logged;
+        if (!logged) logged = [NSMutableSet set];
+        NSString *name = NSStringFromClass(object_getClass(view));
+        if (![logged containsObject:name]) {
+            [logged addObject:name];
+            SGLog(@"redesign kit: %@ cannot be watched for its layout", name);
         }
     }
     return kept;

@@ -118,6 +118,12 @@ Redesigned:
                   carousels and promos collapse, and the cards move up by the spacing they leave), the header the way Home
                   has it without the camera, and each card as Liquid Glass tinted by its own colour, read off the Box's
                   shape layer (Search.h lists its files)
+    Playlist/     the playlist page (Liked Songs and one's own too, all three being the same page) the way the Music
+                  app lays one out: the cover full bleed across the top dissolving into the page's field with no seam,
+                  the title, the creator and the length centred under it, one row of glass controls (shuffle, a
+                  prominent Play capsule taking its glyph and its word from Spotify's own button, add, more), the find
+                  bar and the curation pills gone, and the track rows on the field with a hairline between them
+                  (Playlist.h lists its files). Laid out on the Mac against harness/playlist/
     Haptics/      Vibrations (Haptics.h lists its files): a tap of UIKit's feedback generators for the player's and the now
                   playing bar's controls, the scrubber's tenths and ends, cover swipes, gestures and the lyrics page's tap to
                   seek (ControlHaptics.x, SGRFeedback.m); and Music Haptics, Core Haptics playing along with the song:

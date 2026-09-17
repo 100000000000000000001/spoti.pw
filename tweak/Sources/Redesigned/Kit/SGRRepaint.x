@@ -6,10 +6,11 @@
 __weak UIView *sgr_nowPlayingRoot = nil;
 __weak UIView *sgr_nowPlayingCard = nil;
 __weak UIView *sgr_lyricsPageRoot = nil;
+__weak UIView *sgr_playlistRoot = nil;
 
 %hook CALayer
 - (void)setBackgroundColor:(CGColorRef)color {
-    if (color && (sgr_nowPlayingRoot || sgr_lyricsPageRoot)) {
+    if (color && (sgr_nowPlayingRoot || sgr_lyricsPageRoot || sgr_playlistRoot)) {
         UIView *view = (UIView *)self.delegate;
         if ([view isKindOfClass:UIView.class] && view.layer == self && !SGKeepsColor(view)) {
             if (SGIsInside(view, sgr_nowPlayingRoot)) {
@@ -20,6 +21,8 @@ __weak UIView *sgr_lyricsPageRoot = nil;
                 }
                 color = NULL;
             } else if (SGIsInside(view, sgr_lyricsPageRoot)) {
+                color = NULL;
+            } else if (SGIsBaseSurface(color) && SGIsInside(view, sgr_playlistRoot)) {
                 color = NULL;
             }
         }

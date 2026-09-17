@@ -27,6 +27,15 @@ void SGRMonospacedDigits(UILabel *label);
 // cannot be subclassed (a KVO-observed instance): the caller then only sees what its own passes read.
 BOOL SGRObserveImage(UIImageView *view, void (^changed)(UIImageView *view));
 
+// `laidOut` after every layoutSubviews of the view, Spotify's included, for as long as the view lives, by
+// a runtime subclass of the instance like SGRSuppress. A second call replaces the block, and a pass started
+// from inside the block is not reported again. NO when the view cannot be subclassed (one of Spotify's Swift
+// classes, a KVO-observed instance): the caller then has only the passes it hooks itself to work from.
+//
+// For a screen that arranges Spotify's controls its own way: a parent lays its children out after the
+// hook that placed them has returned, so frames set from an ancestor's pass are the ones overwritten.
+BOOL SGRObserveLayout(UIView *view, void (^laidOut)(UIView *view));
+
 // The first view under `root` (itself included) with the accessibility identifier, depth first. The
 // answer is kept weakly on `root` under `cacheKey` and searched for again only when it is gone, has
 // left `root` or changed its identifier. nil when there is none; a miss is not cached.

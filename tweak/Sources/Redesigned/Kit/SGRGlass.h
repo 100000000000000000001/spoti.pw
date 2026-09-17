@@ -14,3 +14,8 @@
 // laid the unit out again, trees/continuous/1.txt 2026-09-17). Takes no touches; made once per control
 // under `key`, and made again when Reduce Transparency changes the kind of shape.
 UIView *SGRGlassInside(UIView *control, const void *key, CGFloat side);
+
+// The same, in a capsule `size` across rather than a circle: for the one control of an action row that
+// leads (the playlist header's Play). `prominent` lays a white film inside the shape, so that control
+// reads a step brighter than the circles beside it without leaving the same material.
+UIView *SGRGlassCapsuleInside(UIView *control, const void *key, CGSize size, BOOL prominent);
