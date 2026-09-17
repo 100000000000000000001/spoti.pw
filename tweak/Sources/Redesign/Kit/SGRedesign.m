@@ -1,42 +1,35 @@
-// The switches of the redesigned screens and the flags they force. A screen's switch is the tab its
-// part's settings page picks it with (the Player page's Native player and Redesigned player).
+// The one switch of the redesign, Redesigned UI in Appearance, and the flags the redesigned screens
+// force. The switch turns every redesigned screen on together: two looks, Spotify's with the mod's
+// switches on it or the redesign, rather than a mix of both whose switches would cross.
 #import <os/lock.h>
 #import "Core/SGCore.h"
 #import "SGRedesign.h"
 
-// A screen added later needs its name here and a way to pick it on its part's settings page.
+// The screens Redesigned UI turns on; a screen added later needs only its name here.
 NSArray<NSString *> *SGRedesignScreens(void) {
     return @[@"player"];
 }
 
-static NSString *keyFor(NSString *screen) {
-    return [SGKeyRedesignPrefix stringByAppendingString:screen];
-}
-
-#pragma mark - switches
+#pragma mark - switch
 
 // Read once, the first time anything asks, so a switch flipped in Mod Settings waits for the restart
 // like every other; the hooks, the flags and the pages all see the same answer for the whole launch.
-static NSSet<NSString *> *onAtLaunch(void) {
-    static NSSet<NSString *> *on;
+static BOOL onAtLaunch(void) {
+    static BOOL on;
     static dispatch_once_t once;
     dispatch_once(&once, ^{
-        NSMutableSet *found = [NSMutableSet set];
-        for (NSString *screen in SGRedesignScreens()) {
-            if (SGFlag(keyFor(screen), NO)) [found addObject:screen];
-        }
-        on = [found copy];
-        if (on.count) SGLog(@"redesign: on for %@", [on.allObjects componentsJoinedByString:@", "]);
+        on = SGFlag(SGKeyRedesign, NO);
+        if (on) SGLog(@"redesign: on for %@", [SGRedesignScreens() componentsJoinedByString:@", "]);
     });
     return on;
 }
 
 BOOL SGRedesignOn(NSString *screen) {
-    return screen && [onAtLaunch() containsObject:screen];
+    return screen && onAtLaunch() && [SGRedesignScreens() containsObject:screen];
 }
 
 BOOL SGRedesignAnyOn(void) {
-    return onAtLaunch().count > 0;
+    return onAtLaunch();
 }
 
 #pragma mark - forced flags
@@ -64,7 +57,7 @@ void SGRedesignForceFlags(NSString *screen, NSDictionary<NSString *, id> *flags)
     SGLog(@"redesign %@: forcing %lu flags", screen, (unsigned long)flags.count);
     [flags enumerateKeysAndObjectsUsingBlock:^(NSString *key, id value, BOOL *stop) {
         id override = SGFlagOverride(key);
-        if (override) SGLog(@"redesign %@: flag %@ forced %@, the All flags override %@ wins", screen, key, value, override);
+        if (override) SGLog(@"redesign %@: flag %@ forced %@ over the All flags override %@", screen, key, value, override);
     }];
 }
 
@@ -77,13 +70,13 @@ id SGRedesignForcedFlag(NSString *key) {
 }
 
 id SGRedesignOwnedFlag(NSString *key) {
-    if (!key) return nil;
+    if (!key || !SGFlag(SGKeyRedesign, NO)) return nil;
     os_unfair_lock_lock(&sg_flagsLock);
     NSDictionary<NSString *, NSDictionary<NSString *, id> *> *byScreen = sg_flagsByScreen;
     os_unfair_lock_unlock(&sg_flagsLock);
     for (NSString *screen in SGRedesignScreens()) {
         id value = byScreen[screen][key];
-        if (value && SGFlag(keyFor(screen), NO)) return value;
+        if (value) return value;
     }
     return nil;
 }

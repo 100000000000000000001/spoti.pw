@@ -9,9 +9,6 @@ NSNotificationName const SGRFieldColorDidChangeNotification = @"spotifyglass.red
 static const CGFloat kAmoledFrom = 0.55;
 static const CGFloat kFallbackHeight = 874;   // a window-less field sizes for an iPhone 17 Pro
 
-// The colour the last field took, for a card surface that follows whichever field posts.
-static UIColor *sg_lastFieldColor;
-
 static CGFloat windowHeight(UIView *view) {
     CGFloat height = view.window.bounds.size.height;
     return height > 0 ? height : kFallbackHeight;
@@ -110,7 +107,6 @@ static NSDictionary *noActions(void) {
     CALayer *shown = _solid.presentationLayer ?: _solid;
     id from = (__bridge id)shown.backgroundColor;
     _color = color;
-    sg_lastFieldColor = color;
     [CATransaction begin];
     [CATransaction setDisableActions:YES];
     _solid.backgroundColor = color.CGColor;
@@ -166,80 +162,3 @@ static NSDictionary *noActions(void) {
 }
 
 @end
-
-#pragma mark - card surface
-
-static char kSurfaceKey;
-
-@interface SGRCardSurfaceView : UIView
-@property (nonatomic, weak) SGRArtworkField *field;
-@end
-
-@implementation SGRCardSurfaceView {
-    CALayer *_paint;
-}
-
-- (instancetype)initWithFrame:(CGRect)frame {
-    if (!(self = [super initWithFrame:frame])) return nil;
-    self.userInteractionEnabled = NO;
-    self.accessibilityElementsHidden = YES;
-    self.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    self.layer.zPosition = -1;
-    _paint = [CALayer layer];
-    _paint.actions = noActions();
-    _paint.cornerRadius = SGRRadiusCard;
-    _paint.cornerCurve = kCACornerCurveContinuous;
-    [self.layer addSublayer:_paint];
-    [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(fieldColorChanged:) name:SGRFieldColorDidChangeNotification object:nil];
-    return self;
-}
-
-- (void)dealloc {
-    [NSNotificationCenter.defaultCenter removeObserver:self];
-}
-
-- (void)layoutSubviews {
-    [super layoutSubviews];
-    [CATransaction begin];
-    [CATransaction setDisableActions:YES];
-    _paint.frame = self.bounds;
-    [CATransaction commit];
-}
-
-- (void)paintWith:(UIColor *)field animated:(BOOL)animated {
-    CGColorRef color = SGRElevated(field ?: SGRNeutralField()).CGColor;
-    if (!animated) {
-        [CATransaction begin];
-        [CATransaction setDisableActions:YES];
-        _paint.backgroundColor = color;
-        [CATransaction commit];
-        return;
-    }
-    [CATransaction begin];
-    [CATransaction setAnimationDuration:SGRCrossfade];
-    _paint.actions = nil;
-    _paint.backgroundColor = color;
-    _paint.actions = noActions();
-    [CATransaction commit];
-}
-
-- (void)fieldColorChanged:(NSNotification *)note {
-    SGRArtworkField *field = self.field;
-    if (field && note.object != field) return;
-    [self paintWith:note.userInfo[@"color"] animated:self.window != nil];
-}
-
-@end
-
-UIView *SGRCardSurface(UIView *host, SGRArtworkField *field) {
-    if (!host) return nil;
-    SGRCardSurfaceView *surface = objc_getAssociatedObject(host, &kSurfaceKey);
-    if (!surface) {
-        surface = [[SGRCardSurfaceView alloc] initWithFrame:host.bounds];
-        surface.field = field;
-        [surface paintWith:field ? field.fieldColor : sg_lastFieldColor animated:NO];
-        objc_setAssociatedObject(host, &kSurfaceKey, surface, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    }
-    if (surface.superview != host) [host insertSubview:surface atIndex:0];
-    return surface;
-}

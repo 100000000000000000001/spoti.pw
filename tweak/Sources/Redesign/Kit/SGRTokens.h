@@ -14,7 +14,7 @@
 extern const CGFloat SGRSideMargin;      // 16, the page's side margin
 extern const CGFloat SGRGrid;            // 8, every gap is a multiple of it
 extern const CGFloat SGRRadiusArtwork;   // 12, the player's cover
-extern const CGFloat SGRRadiusCard;      // 16, a content card (the lyrics card under the player)
+extern const CGFloat SGRRadiusCard;      // 16, a content card
 extern const CGFloat SGRRadiusCover;     // 8, a release cover in a list
 extern const CGFloat SGRRadiusThumb;     // 6, a row's thumbnail up to 64pt
 extern const CGFloat SGRGlassCircleSize; // 44, a round glass behind a top bar button

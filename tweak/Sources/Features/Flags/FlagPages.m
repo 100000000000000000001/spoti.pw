@@ -37,7 +37,7 @@ UIViewController *SGLabsPage(void) {
             SGFlagRow(@"Fade out", @"ios-feature-sleeptimer.enable_fade_out"),
             SGFlagRow(@"One minute option", @"ios-feature-sleeptimer.enable_one_minute_option"),
             SGFlagRow(@"Options sheet", @"ios-feature-sleeptimer.use_options_sheet"),
-        ], @"The options sheet is locked on while Liquid Glass UI is on."),
+        ], @"The options sheet is locked on while Redesigned UI is on."),
         SGSection(@"Player", @[
             SGFlagRow(@"Snake on the cover art", @"ios-feature-cover-art-snake.enabled"),
         ]),

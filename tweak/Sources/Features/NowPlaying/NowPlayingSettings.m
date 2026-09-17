@@ -8,7 +8,6 @@
 #import "Features/LockScreenLyrics/LockScreenLyrics.h"
 #import "Features/LyricsSources/LyricsSources.h"
 #import "Redesign/Kit/SGRedesign.h"
-#import "Redesign/Player/Player.h"
 
 static UIViewController *nowPlayingBarPage(void) {
     return [[SGModPage alloc] initWithTitle:@"Now playing bar" intro:SGRestartNote sections:@[
@@ -73,7 +72,7 @@ static UIViewController *queuePage(void) {
             bare(SGFlagRow(@"Queue as a bottom sheet", @"ios-feature-nowplaying.bottom_sheet_queue_enabled")),
             bare(SGFlagRow(@"Connect as a bottom sheet", @"ios-feature-nowplaying-elements.enable_connect_bottom_sheet")),
             bare(SGFlagRow(@"Connect sheet from the video switcher", @"ios-playbackcontrol-audiovideoswitcher-impl.enable_connect_bottom_sheet")),
-        ], @"Locked on while Liquid Glass UI is on."),
+        ], @"Locked on while Redesigned UI is on."),
         SGSection(@"Queue", @[
             bare(SGFlagRow(@"Queue flip transition", @"ios-feature-nowplaying.queue_flip_transition_enabled")),
             bare(SGFlagRow(@"Play next in the context menu", @"ios-feature-queue.is_play_next_context_menu_enabled")),
@@ -97,18 +96,16 @@ static UIViewController *lockScreenPage(void) {
     ] footer:nil];
 }
 
-// The player screen is one of two, picked with the tabs: Spotify's own player with the switches of
-// Player.x and Declutter.x on it, or the redesigned one of Redesign/Player, which those switches don't
-// reach. Everything above the tabs (gestures, lyrics, blocked artists, the bar, the queue, the lock
-// screen) works the same with either player, so it sits above them and the tabs never hide it.
-UIViewController *SGNowPlayingSettingsPage(void) {
-    SGModRow *blocked = SGPageRow(@"Blocked artists", ^UIViewController *{ return SGArtistBlockSettingsPage(); });
-    blocked.value = ^NSString *{
-        return SGFlag(SGKeyArtistBlock, NO) ? @(SGBlockedArtists().count).stringValue : @"Off";
-    };
-
-    SGModTab *native = SGTab(@"Native player", @"Spotify's own player, with the switches below on it.", @[
-        SGNotedSection(@"Look", @[
+// The pages at the top work with either player. Under them, Spotify's own player screen and its
+// switches (Player.x and Declutter.x), which are put away while Redesigned UI is on: the player is the
+// redesign's then (Redesign/Player), and none of them would change it. The stored switch decides, so a
+// page opened after flipping it and before the restart already shows what the restart will bring.
+static NSArray<SGModSection *> *playerScreenSections(void) {
+    if (SGFlag(SGKeyRedesign, NO)) {
+        return @[SGNotedSection(@"Player screen", @[], @"Redesigned UI is on, so the player is the redesign's own and the switches for Spotify's player are put away. Turn it off in Appearance to change Spotify's player again.")];
+    }
+    return @[
+        SGNotedSection(@"Player screen", @[
             SGOptionRow(@"Artwork background", @"The cover blurred and dimmed behind the player instead of the flat album colour", SGKeyPlayerBackdrop),
             SGOptionRow(@"Glass header buttons", nil, SGKeyPlayer),
             bare(SGKillRow(@"Disable Canvas", @"ios-feature-canvas.canvas_enabled")),
@@ -116,7 +113,7 @@ UIViewController *SGNowPlayingSettingsPage(void) {
             bare(SGFlagRow(@"Redesigned header", @"ios-feature-nowplaying.new_redesign_header_with_context_menu_enabled")),
             bare(SGFlagRow(@"New progress slider", @"ios-feature-encoreexperiments.new_npv_slider_enabled")),
             bare(SGFlagRow(@"Expand the sticky header on tap", @"ios-feature-nowplaying.expand_sticky_header_on_tap")),
-        ], @"Liquid Glass UI turns the first two on or off with it, and locks the sheet, header and slider on."),
+        ], @"Redesigned UI turns the first two on or off with it."),
         SGSection(@"Hide cards below the player", @[
             SGHideRow(@"Lyrics", nil, SGHideLyricsCard),
             SGHideRow(@"About the artist", nil, SGHideAboutArtist),
@@ -137,17 +134,16 @@ UIViewController *SGNowPlayingSettingsPage(void) {
             SGHideRow(@"Share", nil, SGHideShare),
             SGHideRow(@"Connect to a device", nil, SGHideConnect),
         ]),
-    ]);
+    ];
+}
 
-    SGModTab *redesigned = SGTab(@"Redesigned player", @"The cover's own colour behind the whole player, glass behind the header buttons, bare playback controls, and nothing under the player but lyrics.", @[
-        SGSection(@"Below the player", @[
-            SGSwitchRow(@"Lyrics", @"The lyrics card below the player; every other card is left out", SGKeyRedesignPlayerLyricsCard),
-        ]),
-    ]);
+UIViewController *SGNowPlayingSettingsPage(void) {
+    SGModRow *blocked = SGPageRow(@"Blocked artists", ^UIViewController *{ return SGArtistBlockSettingsPage(); });
+    blocked.value = ^NSString *{
+        return SGFlag(SGKeyArtistBlock, NO) ? @(SGBlockedArtists().count).stringValue : @"Off";
+    };
 
-    return [[SGModPage alloc] initWithTitle:@"Player"
-                                      intro:@"Changes apply after you restart Spotify. Gestures and Blocked artists apply straight away."
-                                   sections:@[
+    NSArray<SGModSection *> *sections = @[
         SGSection(nil, @[
             SGWithSymbol(SGPageRow(@"Gestures", ^UIViewController *{ return SGGesturesSettingsPage(); }), @"hand.tap"),
             SGWithSymbol(SGPageRow(@"Lyrics", ^UIViewController *{ return lyricsPage(); }), @"quote.bubble"),
@@ -158,10 +154,9 @@ UIViewController *SGNowPlayingSettingsPage(void) {
             SGWithSymbol(SGPageRow(@"Queue & devices", ^UIViewController *{ return queuePage(); }), @"text.line.first.and.arrowtriangle.forward"),
             SGWithSymbol(SGPageRow(@"Lock screen widget", ^UIViewController *{ return lockScreenPage(); }), @"lock"),
         ]),
-    ]
-                                  tabsTitle:@"Player screen"
-                                    tabsKey:SGKeyRedesignPlayer
-                                       tabs:@[native, redesigned]
-                                   fallback:0
+    ];
+    return [[SGModPage alloc] initWithTitle:@"Player"
+                                      intro:@"Changes apply after you restart Spotify. Gestures and Blocked artists apply straight away."
+                                   sections:[sections arrayByAddingObjectsFromArray:playerScreenSections()]
                                      footer:nil];
 }

@@ -1,5 +1,6 @@
 #import "SGModPage.h"
 #import "SGPageStyle.h"
+#import "SGGlowSwitch.h"
 #import "Core/SGCore.h"
 #import "Features/Flags/Flags.h"
 #import "Features/About/About.h"
@@ -199,25 +200,6 @@ SGModRow *SGWithSymbol(SGModRow *row, NSString *symbol) {
     return row;
 }
 
-@implementation SGModTab
-@end
-
-SGModTab *SGTab(NSString *title, NSString *note, NSArray<SGModSection *> *sections) {
-    SGModTab *tab = [SGModTab new];
-    tab.title = title;
-    tab.note = note;
-    tab.sections = sections;
-    return tab;
-}
-
-// The row the tabs are drawn in: no key, no page, no action, so nothing else in the page mistakes it
-// for a row of its own kind.
-@interface SGTabsRow : SGModRow
-@end
-
-@implementation SGTabsRow
-@end
-
 // What a page row carrying a value shows on the right: the value, then the chevron, the same
 // distance apart as Spotify's own rows keep them.
 static UIView *valueAndChevron(NSString *text) {
@@ -243,8 +225,8 @@ static BOOL flagRowOn(SGModRow *row) {
     return value && [value boolValue] != row.forceOff;
 }
 
-// A flag the Liquid Glass UI switch or a redesigned screen owns: its row shows what that switch
-// forces and takes no touch, so the flag has one place to change. An override from All flags still wins.
+// A flag Redesigned UI owns, for Spotify's newer design or for a redesigned screen: its row shows what
+// the switch forces and takes no touch, so the flag has one place to change.
 static BOOL flagRowLocked(SGModRow *row) {
     if (!row.flag) return NO;
     return (SGGlassOwnsFlag(row.key) && SGFlag(SGKeySpotifyGlass, NO)) || (row.forceOff && SGAdBlockForcesFlagOff(row.key))
@@ -252,7 +234,7 @@ static BOOL flagRowLocked(SGModRow *row) {
 }
 
 // What a locked row shows: the value its owner forces, read the row's way, so a Disable Canvas row
-// reads on while a redesign forces Canvas off. Liquid Glass UI and the ad blocking only ever force a
+// reads on while the redesign forces Canvas off. The glass flags and the ad blocking only ever force a
 // flag the way its row would.
 static BOOL lockedRowOn(SGModRow *row) {
     id owned = SGRedesignOwnedFlag(row.key);
@@ -261,11 +243,6 @@ static BOOL lockedRowOn(SGModRow *row) {
 
 @implementation SGModPage {
     NSArray<SGModSection *> *_sections;
-    NSArray<SGModSection *> *_shared;
-    NSArray<SGModTab *> *_tabs;
-    NSString *_tabsKey;
-    NSString *_tabsTitle;
-    NSInteger _tabsFallback;
     UIView *_intro;
     UIView *_footer;
     NSTimer *_ticker;
@@ -278,82 +255,10 @@ static BOOL lockedRowOn(SGModRow *row) {
     _sections = sections;
     _intro = intro ? SGNote(intro) : nil;
     _footer = footer ? SGNote(footer) : nil;
-    [self noteLiveRows];
+    // A page row reads its value out when the page appears rather than on the ticker, so only the
+    // rows whose numbers climb on their own keep one running.
+    for (SGModSection *s in sections) for (SGModRow *row in s.rows) _live |= row.value && !row.page;
     return self;
-}
-
-- (instancetype)initWithTitle:(NSString *)title intro:(NSString *)intro sections:(NSArray<SGModSection *> *)sections tabsTitle:(NSString *)tabsTitle tabsKey:(NSString *)key tabs:(NSArray<SGModTab *> *)tabs fallback:(NSInteger)fallback footer:(NSString *)footer {
-    if (!(self = [self initWithTitle:title intro:intro sections:sections footer:footer])) return nil;
-    _shared = sections;
-    _tabs = tabs;
-    _tabsKey = key;
-    _tabsTitle = [tabsTitle copy];
-    _tabsFallback = fallback;
-    [self layOutTabs];
-    return self;
-}
-
-// A page row reads its value out when the page appears rather than on the ticker, so only the rows
-// whose numbers climb on their own keep one running.
-- (void)noteLiveRows {
-    _live = NO;
-    for (SGModSection *s in _sections) for (SGModRow *row in s.rows) _live |= row.value && !row.page;
-}
-
-- (NSInteger)pickedTab {
-    NSInteger index = SGInt(_tabsKey, _tabsFallback);
-    return index >= 0 && index < (NSInteger)_tabs.count ? index : 0;
-}
-
-// The sections the pick has nothing to do with, then the control's own section, headed and footed by
-// what the picked tab means, then the tab's sections.
-- (void)layOutTabs {
-    SGModTab *tab = _tabs[(NSUInteger)[self pickedTab]];
-    SGModSection *control = SGNotedSection(_tabsTitle, @[[SGTabsRow new]], tab.note);
-    _sections = [[(_shared ?: @[]) arrayByAddingObject:control] arrayByAddingObjectsFromArray:tab.sections ?: @[]];
-    [self noteLiveRows];
-}
-
-- (void)tabPicked:(UISegmentedControl *)control {
-    if (control.selectedSegmentIndex == [self pickedTab]) return;
-    SGSetInt(_tabsKey, control.selectedSegmentIndex);
-    [self layOutTabs];
-    [UIView transitionWithView:self.tableView duration:0.2 options:UIViewAnimationOptionTransitionCrossDissolve | UIViewAnimationOptionAllowUserInteraction animations:^{
-        [self.tableView reloadData];
-    } completion:nil];
-}
-
-// The control on the page itself rather than on a card, full width, the picked tab's name in white on
-// the selection and the other names in the grey of a subtitle.
-- (UITableViewCell *)tabsCellIn:(UITableView *)table {
-    UITableViewCell *cell = [table dequeueReusableCellWithIdentifier:@"tabs"];
-    UISegmentedControl *control = (UISegmentedControl *)[cell.contentView viewWithTag:1];
-    if (!cell) {
-        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"tabs"];
-        cell.backgroundConfiguration = [UIBackgroundConfiguration clearConfiguration];
-        cell.selectionStyle = UITableViewCellSelectionStyleNone;
-        control = [UISegmentedControl new];
-        control.tag = 1;
-        control.translatesAutoresizingMaskIntoConstraints = NO;
-        UIFont *font = [UIFont systemFontOfSize:14 weight:UIFontWeightSemibold];
-        [control setTitleTextAttributes:@{NSFontAttributeName: font, NSForegroundColorAttributeName: SGGrey()} forState:UIControlStateNormal];
-        [control setTitleTextAttributes:@{NSFontAttributeName: font, NSForegroundColorAttributeName: UIColor.whiteColor} forState:UIControlStateSelected];
-        [control addTarget:self action:@selector(tabPicked:) forControlEvents:UIControlEventValueChanged];
-        [cell.contentView addSubview:control];
-        [NSLayoutConstraint activateConstraints:@[
-            [control.leadingAnchor constraintEqualToAnchor:cell.contentView.leadingAnchor],
-            [control.trailingAnchor constraintEqualToAnchor:cell.contentView.trailingAnchor],
-            [control.topAnchor constraintEqualToAnchor:cell.contentView.topAnchor],
-            [control.bottomAnchor constraintEqualToAnchor:cell.contentView.bottomAnchor],
-            [control.heightAnchor constraintEqualToConstant:40],
-        ]];
-    }
-    if (control.numberOfSegments != _tabs.count) {
-        [control removeAllSegments];
-        for (NSUInteger i = 0; i < _tabs.count; i++) [control insertSegmentWithTitle:_tabs[i].title atIndex:i animated:NO];
-    }
-    control.selectedSegmentIndex = [self pickedTab];
-    return cell;
 }
 
 - (void)viewDidLoad {
@@ -436,7 +341,6 @@ static BOOL lockedRowOn(SGModRow *row) {
 
 - (UITableViewCell *)tableView:(UITableView *)table cellForRowAtIndexPath:(NSIndexPath *)path {
     SGModRow *row = [self rowAt:path];
-    if ([row isKindOfClass:SGTabsRow.class]) return [self tabsCellIn:table];
     UITableViewCell *cell = SGDequeueCell(table, @"row");
     SGFillCell(cell, row.title, row.subtitle, row.color, row.symbol);
     UIListContentConfiguration *content = (UIListContentConfiguration *)cell.contentConfiguration;
@@ -447,16 +351,28 @@ static BOOL lockedRowOn(SGModRow *row) {
     cell.separatorInset = UIEdgeInsetsMake(0, row.symbol ? (tile ? 58 : 48) : 16, 0, 0);
 
     if (row.key) {
-        UISwitch *toggle = [UISwitch new];
-        toggle.onTintColor = SGGreen();
         BOOL locked = flagRowLocked(row);
-        toggle.on = row.flag ? (locked && !SGFlagOverride(row.key) ? lockedRowOn(row) : flagRowOn(row)) : SGFlag(row.key, row.defaultOn);
+        // The redesign's own flags win over an override; the others' lock gives way to one.
+        BOOL showsLock = locked && (SGRedesignOwnedFlag(row.key) || !SGFlagOverride(row.key));
+        BOOL on = row.flag ? (showsLock ? lockedRowOn(row) : flagRowOn(row)) : SGFlag(row.key, row.defaultOn);
+        UIControl *toggle;
+        if (row.glows) {
+            SGGlowSwitch *glow = [SGGlowSwitch new];
+            glow.on = on;
+            glow.accessibilityLabel = row.title;
+            toggle = glow;
+        } else {
+            UISwitch *plain = [UISwitch new];
+            plain.onTintColor = SGGreen();
+            plain.on = on;
+            toggle = plain;
+        }
         toggle.enabled = !locked;
         // A disabled switch would swallow the tap; letting it through is what gets the row asked.
         toggle.userInteractionEnabled = !locked;
         toggle.tag = path.section * 1000 + path.row;
         [toggle addTarget:self action:@selector(toggled:) forControlEvents:UIControlEventValueChanged];
-        cell.accessoryView = toggle;
+        cell.accessoryView = row.info ? [self infoButtonBeside:toggle tag:toggle.tag] : toggle;
         cell.selectionStyle = locked ? UITableViewCellSelectionStyleDefault : UITableViewCellSelectionStyleNone;
     } else if (row.page) {
         cell.accessoryView = row.value ? valueAndChevron(row.value()) : SGSymbolView(@"chevron.right", 13, UIImageSymbolWeightSemibold, 16);
@@ -489,15 +405,45 @@ static BOOL lockedRowOn(SGModRow *row) {
     [self readValues];
 }
 
-- (void)toggled:(UISwitch *)toggle {
+// The ⓘ to the left of the switch, the grey of a subtitle, 30pt across so it is easy to hit next to it.
+- (UIView *)infoButtonBeside:(UIControl *)toggle tag:(NSInteger)tag {
+    UIButton *info = [UIButton buttonWithType:UIButtonTypeSystem];
+    UIImageSymbolConfiguration *symbol = [UIImageSymbolConfiguration configurationWithPointSize:17 weight:UIImageSymbolWeightRegular];
+    [info setImage:[UIImage systemImageNamed:@"info.circle" withConfiguration:symbol] forState:UIControlStateNormal];
+    info.tintColor = SGGrey();
+    info.tag = tag;
+    info.accessibilityLabel = @"About this switch";
+    [info addTarget:self action:@selector(infoTapped:) forControlEvents:UIControlEventTouchUpInside];
+    [toggle sizeToFit];
+    CGFloat side = 30, gap = 8, height = MAX(side, toggle.bounds.size.height);
+    UIView *box = [[UIView alloc] initWithFrame:CGRectMake(0, 0, side + gap + toggle.bounds.size.width, height)];
+    info.frame = CGRectMake(0, (height - side) / 2, side, side);
+    toggle.frame = CGRectMake(side + gap, (height - toggle.bounds.size.height) / 2, toggle.bounds.size.width, toggle.bounds.size.height);
+    [box addSubview:info];
+    [box addSubview:toggle];
+    return box;
+}
+
+- (void)infoTapped:(UIButton *)button {
+    SGModRow *row = [self rowAt:[NSIndexPath indexPathForRow:button.tag % 1000 inSection:button.tag / 1000]];
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:row.title message:row.info preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
+// A UISwitch or an SGGlowSwitch, both answering isOn.
+- (void)toggled:(UIControl *)toggle {
+    BOOL on = [(UISwitch *)toggle isOn];
     SGModRow *row = [self rowAt:[NSIndexPath indexPathForRow:toggle.tag % 1000 inSection:toggle.tag / 1000]];
-    if (row.flag) SGSetFlagOverride(row.key, toggle.on ? @(!row.forceOff) : nil);
-    else SGSetEnabled(row.key, toggle.on);
+    if (row.flag) SGSetFlagOverride(row.key, on ? @(!row.forceOff) : nil);
+    else SGSetEnabled(row.key, on);
     if (row.changed) {
-        row.changed(toggle.on);
-        [self.tableView reloadData];
+        row.changed(on);
+        // A glowing switch is let finish its slide before the reload puts a new one in its place.
+        NSTimeInterval wait = [toggle isKindOfClass:SGGlowSwitch.class] ? 0.45 : 0;
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(wait * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ [self.tableView reloadData]; });
     }
-    if (toggle.on && row.warning) [self warn:row];
+    if (on && row.warning) [self warn:row];
 }
 
 // A locked row will not move, and nothing on it says why.

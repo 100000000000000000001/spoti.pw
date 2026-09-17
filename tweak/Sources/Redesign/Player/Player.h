@@ -17,10 +17,6 @@
 
 @class SGRArtworkField;
 
-// Whether the lyrics card stays under the player; on until switched off. Off collapses it with the
-// rest, and the lyrics glyph still opens the full screen page.
-#define SGKeyRedesignPlayerLyricsCard @"spotifyglass.redesign.player.lyricsCard"
-
 // The field behind the player, nil until the player has laid out once (PlayerField.x).
 SGRArtworkField *SGRPlayerField(void);
 

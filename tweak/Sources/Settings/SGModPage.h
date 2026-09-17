@@ -21,6 +21,10 @@
 @property (nonatomic, copy) void (^changed)(BOOL on);   // after the switch is stored; the page reloads
 @property (nonatomic, strong) UIColor *color;   // title, subtitle and symbol, for a warning row
 @property (nonatomic, copy) NSString *symbol;
+// A switch row that changes the whole app draws SGGlowSwitch instead of a UISwitch.
+@property (nonatomic) BOOL glows;
+// An ⓘ button beside the row's switch, whose tap reads this out under the row's title.
+@property (nonatomic, copy) NSString *info;
 @end
 
 @interface SGModSection : NSObject
@@ -29,24 +33,8 @@
 @property (nonatomic, copy) NSString *footer;
 @end
 
-// One tab of a page with tabs: its name on the control, a line under the control saying what picking
-// it means, and the sections that show while it is picked.
-@interface SGModTab : NSObject
-@property (nonatomic, copy) NSString *title;
-@property (nonatomic, copy) NSString *note;
-@property (nonatomic, copy) NSArray<SGModSection *> *sections;
-@end
-
-SGModTab *SGTab(NSString *title, NSString *note, NSArray<SGModSection *> *sections);
-
 @interface SGModPage : SGPage
 - (instancetype)initWithTitle:(NSString *)title intro:(NSString *)intro sections:(NSArray<SGModSection *> *)sections footer:(NSString *)footer;
-// A page whose tabs pick one of several ways of doing the same thing, the Player page's native and
-// redesigned player: `sections`, which have nothing to do with the pick, come first, then the segmented
-// control under the heading `tabsTitle`, then the picked tab's sections, so that everything under the
-// control belongs to it. The pick is stored under `key` as the tab's index, `fallback` until there is
-// one, and picking another swaps the sections in place.
-- (instancetype)initWithTitle:(NSString *)title intro:(NSString *)intro sections:(NSArray<SGModSection *> *)sections tabsTitle:(NSString *)tabsTitle tabsKey:(NSString *)key tabs:(NSArray<SGModTab *> *)tabs fallback:(NSInteger)fallback footer:(NSString *)footer;
 @end
 
 // The intro of every page whose switches the hooks read at launch.

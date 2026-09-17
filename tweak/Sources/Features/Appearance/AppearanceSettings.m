@@ -5,9 +5,12 @@
 #import "Features/Navbar/Navbar.h"
 #import "Features/Flags/Flags.h"
 #import "Features/NowPlaying/NowPlaying.h"
+#import "Redesign/Kit/SGRedesign.h"
 
-void SGSetLiquidGlassUI(BOOL on) {
-    for (NSString *key in @[SGKeySpotifyGlass, SGKeyTabBar, SGKeySearchField, SGKeyNowPlayingBar, SGKeyPlayer, SGKeyPlayerBackdrop, SGKeyLyricsCard]) {
+NSString *const SGRedesignedUIInfo = @"Replaces Spotify's own screens with the mod's redesign, built in Liquid Glass: for now the full screen player with the lyrics under it, and every screen redesigned later joins it here. It also turns on Spotify's own glass bars, slider and sheets, and the mod's glass tab bar, search field and now playing bar.\n\nWhile it is on, the switches that change Spotify's own version of a redesigned screen are put away on that screen's page, since the screen is no longer Spotify's. Off, Spotify looks the way it does with the switches you set.\n\nChanges apply after you restart Spotify.";
+
+void SGSetRedesignedUI(BOOL on) {
+    for (NSString *key in @[SGKeyRedesign, SGKeySpotifyGlass, SGKeyTabBar, SGKeySearchField, SGKeyNowPlayingBar, SGKeyPlayer, SGKeyPlayerBackdrop, SGKeyLyricsCard]) {
         SGSetEnabled(key, on);
     }
 }
@@ -31,11 +34,13 @@ static void chooseAccent(void) {
 }
 
 SGModSection *SGAppearanceSection(void) {
-    SGModRow *glass = SGOptionRow(@"Liquid Glass UI", @"Spotify's own glass bars, slider and sheets, and every glass switch of the mod's with it", SGKeySpotifyGlass);
-    glass.changed = ^(BOOL on) { SGSetLiquidGlassUI(on); };
+    SGModRow *redesign = SGOptionRow(@"Redesigned UI", @"The mod's own screens in Liquid Glass, and every glass switch with them", SGKeyRedesign);
+    redesign.glows = YES;
+    redesign.info = SGRedesignedUIInfo;
+    redesign.changed = ^(BOOL on) { SGSetRedesignedUI(on); };
     return SGNotedSection(@"Appearance", @[
-        SGWithSymbol(glass, @"drop"),
+        SGWithSymbol(redesign, @"sparkles"),
         SGWithSymbol(SGOptionRow(@"AMOLED background", nil, SGKeyAmoled), @"moon"),
         SGWithSymbol(SGStatActionRow(@"Accent colour", nil, ^NSString *{ return SGAccentLabel(); }, ^{ chooseAccent(); }), @"paintpalette"),
-    ], @"Liquid Glass UI turns every glass switch of the mod's on or off with it. Changes apply after you restart Spotify.");
+    ], @"Redesigned UI turns every glass switch of the mod's on or off with it. Changes apply after you restart Spotify.");
 }

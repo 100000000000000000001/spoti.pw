@@ -9,6 +9,7 @@
 #import "Features/Declutter/Declutter.h"
 #import "Features/Navbar/Navbar.h"
 #import "Features/Privacy/Privacy.h"
+#import "Redesign/Kit/SGRedesign.h"
 
 static const CGFloat kMargin = 24;
 static const CGFloat kCardRadius = 22;
@@ -336,8 +337,8 @@ static SGTourRow *actionRow(NSString *symbol, NSString *title, NSString *subtitl
 
 - (NSArray<SGTourPage *> *)buildPages {
     __weak typeof(self) weakSelf = self;
-    SGTourRow *glass = switchRow(@"drop.fill", @"Liquid Glass UI", @"Spotify's own glass bars and sheets, the tab bar, search field, now playing bar, artwork background and lyrics", SGKeySpotifyGlass, NO);
-    glass.changed = ^(BOOL on) { SGSetLiquidGlassUI(on); };
+    SGTourRow *glass = switchRow(@"sparkles", @"Redesigned UI", @"The mod's own player in Liquid Glass, with Spotify's glass bars and sheets, the tab bar, search field and now playing bar", SGKeyRedesign, NO);
+    glass.changed = ^(BOOL on) { SGSetRedesignedUI(on); };
     SGTourRow *premium = switchRow(@"crown.fill", @"Spoof Premium", @"Free accounts only", SGKeyFakePremium, NO);
     premium.warning = SGFakePremiumWarning;
     NSMutableArray *pages = [NSMutableArray array];

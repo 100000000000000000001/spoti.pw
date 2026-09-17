@@ -96,17 +96,20 @@ Mod Settings, opened by holding Home on the tab bar or from the first row of the
 last row of Spotify's Settings, sorts every
 setting by the part of Spotify it changes, so a part's glass, its hide switches and its flags sit on
 one page, the mod's own rows first and Spotify's flags below them or on a sub page named after what
-they change. It opens on the Appearance card, the three switches that style the whole app: Liquid
-Glass UI, AMOLED and the accent colour (Spotify's green is offered from the colour row once a colour
-is set). Then a card of parts. Navbar: the glass tab bar and search field, then the tab editor.
+they change. It opens on the Appearance card, the three switches that style the whole app: Redesigned
+UI, AMOLED and the accent colour (Spotify's green is offered from the colour row once a colour
+is set). Redesigned UI is the one switch between two looks: off, Spotify's own screens with the mod's
+switches on them; on, the redesigned screens of Redesign/ in their place (for now the full screen
+player), Spotify's newer glass design and every glass switch of the mod's. It glows (Settings/SGGlowSwitch)
+and its ⓘ says what it changes. While it is on, the switches for Spotify's own version of a redesigned
+screen are put away on that screen's page, the legacy hooks of that screen stand aside, and the flags
+the redesign is built on are forced over any override. Then a card of parts. Navbar: the glass tab bar and search field, then the tab editor.
 Player: Gestures, Lyrics (Apple Music style, glass lyrics, the ordered list of lyrics sources, lyrics
 for every track, naming the source, the lyrics flags), Blocked artists (with the count on the row), Now
 playing bar (its glass, its device button and its flags), and Queue & devices and Lock screen widget as
-flag pages; these work with either player. Under them, tabs pick the player screen: Native player,
-Spotify's own with the switches of Player.x and Declutter.x (artwork background, glass header buttons,
-Disable Canvas and the sheet, header, slider and sticky header flags, the cards under the player and the
-lyrics preview and player buttons to hide), or Redesigned player (Redesign/Player, which those switches
-don't reach, with the lyrics card as its one row). Each tab shows only its own player's rows. Home & Library:
+flag pages, which work with either player; then Spotify's own player screen (artwork background, glass
+header buttons, Disable Canvas and the sheet, header, slider and sticky header flags, the cards under the
+player and the lyrics preview and player buttons to hide), put away while Redesigned UI is on. Home & Library:
 the Gradient page (the wash behind the top of Home in one of eight colours, at three strengths and
 four heights) and the Home flags, the parts of Home to hide including the DJ button and badge, the
 playlist header, buttons and pills to hide, and the Library flags. Then Premium, ads & privacy
@@ -119,7 +122,7 @@ Auto / Off / On control per flag (a text field for the number and text ones), an
 check, the build and Spotify's version, the site and the repo, the welcome tour again and Reset all
 settings. A flag switch on a page forces that one flag and off leaves Spotify's own value, so the All
 flags page is where a flag goes back to Auto. Spotify ships its newer design behind several flags at
-once, so Liquid Glass UI owns them (the glass navigation bar, the new player slider, the sheet style
+once, so Redesigned UI owns them (the glass navigation bar, the new player slider, the sheet style
 player, the queue and Connect sheets, the redesigned player header, the sleep timer's options sheet):
 while it is on it forces each of them, and their rows elsewhere show what it forces and take no
 touch, so the group has one switch. `SGGlassOwnsFlag` in Features/Flags/Flags.x holds the list. A

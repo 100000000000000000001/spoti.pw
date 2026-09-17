@@ -1,7 +1,8 @@
 // Spotify reads every remote-config flag once at startup through the configuration provider,
-// keyed "component.property". An override from the Flags page wins; a redesigned screen then forces
-// the flags its redesign is built on (Redesign/Kit/SGRedesign.h), and the Spotify's own Liquid
-// Glass switch the flags of Spotify's own newer design, which it ships switched off.
+// keyed "component.property". While Redesigned UI is on, the flags its screens are built on come first
+// (Redesign/Kit/SGRedesign.h), so an override left from Spotify's own screens cannot pull a redesigned
+// one apart; then an override from the Flags page, then the flags of Spotify's own newer design, which
+// it ships switched off and Redesigned UI turns on.
 #import "Core/SGCore.h"
 #import "Flags.h"
 #import "Features/AdBlock/AdBlock.h"
@@ -27,8 +28,8 @@ BOOL SGGlassOwnsFlag(NSString *key) {
 }
 
 static id forced(NSString *key) {
-    id value = SGFlagOverride(key);
-    if (!value) value = SGRedesignForcedFlag(key);
+    id value = SGRedesignForcedFlag(key);
+    if (!value) value = SGFlagOverride(key);
     if (!value && SGFlag(SGKeySpotifyGlass, NO) && SGGlassOwnsFlag(key)) value = @YES;
     if (!value && SGAdBlockForcesFlagOff(key)) value = @NO;
     if (!value) value = SGLyricsForcedFlag(key);

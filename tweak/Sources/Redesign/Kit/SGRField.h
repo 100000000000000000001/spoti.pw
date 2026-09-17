@@ -38,8 +38,3 @@ extern NSNotificationName const SGRFieldColorDidChangeNotification;
 // what the field shows.
 - (void)setArtwork:(UIImage *)image identity:(NSString *)identity animated:(BOOL)animated;
 @end
-
-// A content surface (a card, not glass) filling `host` behind its content, rounded SGRRadiusCard, in
-// SGRElevated of the field's colour and following it. `field` nil follows whichever field posts.
-// Created once per host and returned again after; main thread.
-UIView *SGRCardSurface(UIView *host, SGRArtworkField *field);

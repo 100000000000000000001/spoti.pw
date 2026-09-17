@@ -1,6 +1,6 @@
 // Now Playing: the glass bar (NowPlayingBar.x), the full screen player (Player.x) and the lyrics
 // card with the page it expands into (Lyrics.x). The bar, the backdrop and the lyrics card are off
-// until asked for, together through Liquid Glass UI in Appearance; the header buttons are on.
+// until asked for, together through Redesigned UI in Appearance; the header buttons are on.
 #import <UIKit/UIKit.h>
 
 #define SGKeyNowPlayingBar @"spotifyglass.nowPlayingBar"

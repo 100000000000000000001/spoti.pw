@@ -1,6 +1,7 @@
-// Player redesign: of the cards under the player only lyrics is kept, on a content surface in the field's
-// colour when Apple Music style lyrics draw it; every other card (about the artist, videos, SongDNA, events, explore, credits, merch, anything
-// Spotify adds later) reports no height, so the list closes up around it.
+// Player redesign: of the cards under the player only lyrics is kept, and it has no card of its own when
+// Apple Music style lyrics draw it: the lines sit straight on the field, with no edge where the card was;
+// every other card (about the artist, videos, SongDNA, events, explore, credits, merch, anything Spotify
+// adds later) reports no height, so the list closes up around it.
 //
 // An allow list rather than Declutter's block list: the server decides which cards a track gets, and a
 // new kind should not turn up under a redesigned player. The collapse is the one Declutter/Declutter.x
@@ -23,18 +24,10 @@ static const CGFloat kLivingHeight = 40;
 static char kShareKey, kRevalidatedKey;
 static __weak UIView *sg_lyricsCard;
 
-// Read once, like the switch: every card is sized through here.
-static BOOL lyricsAllowed(void) {
-    static BOOL allowed;
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{ allowed = SGEnabled(SGKeyRedesignPlayerLyricsCard); });
-    return allowed;
-}
-
 // Spotify draws the lines still to come in black, for its card in the album colour (lyrics/01.txt:1054),
-// so they read on the field's dark surface only with Apple Music style lyrics drawn over them; without
-// those the card keeps Spotify's own colour.
-static BOOL surfaceWanted(void) {
+// so they read on the dark field only with Apple Music style lyrics drawn over them; without those the
+// card keeps Spotify's own colour.
+static BOOL clearWanted(void) {
     static BOOL wanted;
     static dispatch_once_t once;
     dispatch_once(&once, ^{ wanted = SGFlag(SGKeyKaraokeLyrics, NO); });
@@ -94,7 +87,7 @@ static UIView *cellAround(UIView *view) {
     UIView *content = cell.subviews.firstObject;
     if (!content || !isPlayerCard(content)) return result;
     UIView *root = content.subviews.firstObject.subviews.firstObject;
-    if ([root isKindOfClass:cardViewClass()] && lyricsAllowed()) return result;
+    if ([root isKindOfClass:cardViewClass()]) return result;
     result.size = CGSizeMake(result.size.width, 0);
     cell.clipsToBounds = YES;
 
@@ -123,12 +116,16 @@ static UIView *cellAround(UIView *view) {
     UIView *share = SGRFindByIdentifier(card, @"lyrics-share-button", &kShareKey);
     SGRPlayerVanish(share);
 
-    if (!lyricsAllowed()) return;
     if (cell.bounds.size.height >= kLivingHeight) {
         objc_setAssociatedObject(cell, &kRevalidatedKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        SGRArtworkField *field = SGRPlayerField();
-        // Made only once the player has a field of its own for the surface to follow.
-        if (field && surfaceWanted()) SGRCardSurface(cell, field);
+        // Spotify paints the cell the album colour again at every track change, which is no layout pass
+        // of the card's; as the root of the lyrics card, Appearance/Repaint.x keeps it clear in between.
+        if (clearWanted()) {
+            sg_lyricsCardRoot = cell;
+            SGStripBackgrounds(cell);
+            static dispatch_once_t once;
+            dispatch_once(&once, ^{ SGLog(@"redesign player: lyrics card cleared onto the field"); });
+        }
         return;
     }
     // Sized before its card was in it, so it was collapsed as an unknown card: the list is asked once to
