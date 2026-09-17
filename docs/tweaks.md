@@ -39,8 +39,8 @@ screens works under both. So the sources are four layers, each a directory of fe
 
 The two looks never run together, so each hooks the same Spotify class in its own way, and a part of
 the look is edited on its own side without touching the other: where both need the same thing, each
-has its own copy (the karaoke view, the tab bar's composition and its editor, the lyrics page's glass,
-the soft top edge), under its own names (SG… native, SGR… redesign) and its own keys. The imports run
+has its own copy (the tab bar's composition and its editor, the lyrics page's glass, the soft top edge,
+AMOLED, the accent colour), under its own names (SG… native, SGR… redesign) and its own keys. The imports run
 one way, Core <- Settings <- Shared <- Native | Redesigned <- App, and `scripts/check-layers.sh`, run
 by tweak/Makefile before every build, fails on any other. A layer below that needs something from one
 above takes it through a registry in Core (forced flags, SGFlagForce.h) or a function declared low and
@@ -64,8 +64,9 @@ Shared:
     ArtistBlock/  tracks by blocked artists skipped as they start (ArtistSkip.x), the list and the Blocked artists page under Player
     Flags/        Spotify's remote-config flags: the provider hook, the generated table, the All flags page and the Labs page
     Gestures/     the double tap zones on the player: the grid, what each cell does, the recognizer (each look hooks it on)
-    Lyrics/       Apple Music style lyrics' engine: lines read from color-lyrics and the player's clock (KaraokeSource.x),
-                  words timed by estimate inside Spotify's line times (KaraokeTiming.m), and the Lyrics page's rows
+    Lyrics/       the lyrics engine for the redesign's Apple Music style lyrics and the lock screen: lines read from
+                  color-lyrics and the player's clock (KaraokeSource.x), words timed by estimate inside Spotify's line
+                  times (KaraokeTiming.m), and the Lyrics page's parts
     LyricsSources/ the sources lyrics come from, asked in the order the Lyrics page puts them in and merged into the
                   best answer (LyricsSources.m, the list to drag in LyricsSourcesPage.m): Apple Music's TTML from
                   BiniLyrics.m and Unison.m, read by SGTTML.m, which is the only shape carrying a second voice and the
@@ -91,8 +92,8 @@ Native:
     Navbar/       Spotify's tab bar composed (Navbar.x, NavbarLayout.m, hooked from TabBarHooks.x), the Navbar and Add a tab pages
     NowPlayingBar/ the device button hidden, the bar's flags
     Player/       the full screen player (Player.x), its cards and buttons hidden (PlayerDeclutter.x), the glass lyrics card
-                  (LyricsCard.x), karaoke on the card (KaraokeCard.x), the gestures' hookup, the Queue & devices flags
-    Lyrics/       the full screen lyrics page on glass (LyricsPage.x), karaoke over it (KaraokePage.x, KaraokeView.m)
+                  (LyricsCard.x), the gestures' hookup, the Queue & devices flags
+    Lyrics/       the full screen lyrics page on glass (LyricsPage.x)
     Home/         the Home gradient, Home's sections and pills hidden (HomeDeclutter.x), the Home & Library page
     Playlist/     the playlist header and pills, hidden one switch each
     Album/, Artist/ their pages' parts hidden, and the cover or photo behind their headers
@@ -105,7 +106,8 @@ Redesigned:
     Navbar/       the glass tab bar (TabBar.x) over its own composition (Navbar.x, NavbarLayout.m) and editor, the glass search field
     NowPlayingBar/ the glass now playing bar
     Player/       the redesigned full screen player (Player.h lists its files)
-    Lyrics/       the full screen lyrics page on glass and its own karaoke view (SGRKaraokeView)
+    Lyrics/       the full screen lyrics page on glass with Apple Music style lyrics over it, always on (SGRKaraokeView,
+                  also over the card under the player, Player/KaraokeCard.x)
 
 App:
 
@@ -146,9 +148,8 @@ is set. Redesigned UI is the one switch between the two looks (see Layers): it g
 (Settings/SGGlowSwitch), its ⓘ says what it changes, and flipping it offers to restart Spotify.
 The pages show only what the stored look has: a page opened after flipping the switch already shows
 what the restart will bring. Then a card of parts. Navbar: the tab editor of the stored look, each with
-its own list of tabs. Player: Gestures, Lyrics (Apple Music style, the lock screen, in the native look
-glass lyrics, the ordered list of lyrics sources, lyrics for every track, naming the source, the lyrics
-flags), Blocked artists (with the count on the row) and Lock screen widget, which work with either look;
+its own list of tabs. Player: Gestures, Lyrics (the ordered list of lyrics sources, lyrics for every track,
+naming the source in the redesign, the lock screen, and glass lyrics in the native look), Blocked artists (with the count on the row) and Lock screen widget, which work with either look;
 in the native look also Now playing bar (its device button and its flags), Queue & devices, and
 Spotify's own player screen (artwork background, glass header buttons, Disable Canvas and the sheet,
 header, slider and sticky header flags, the cards under the player and the lyrics preview and player

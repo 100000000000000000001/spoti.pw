@@ -1,5 +1,5 @@
-// The redesign's copy of Native/Lyrics/KaraokeView.m, to be changed for the redesign without touching
-// the native look's.
+// The redesign's Apple Music style lyrics, always on: the line being sung lights up word by word, the
+// rest dim and blur with distance. The lines and the clock are Shared/Lyrics/Lyrics.h's.
 #import "Core/SGCore.h"
 #import "SGRKaraokeView.h"
 #import "Shared/LyricsSources/LyricsSources.h"

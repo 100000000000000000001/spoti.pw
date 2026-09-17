@@ -25,7 +25,7 @@ static char kKaraokeKey;
 %end
 
 %ctor {
-    if (!SGRedesignedUI() || !SGFlag(SGKeyKaraokeLyrics, NO)) return;
+    if (!SGRedesignedUI()) return;
     %init;
     SGRequireClasses(@[@"_TtC32Lyrics_FullscreenElementPageImpl10LyricsView"]);
 }

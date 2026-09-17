@@ -1,5 +1,5 @@
-// Player redesign: of the cards under the player only lyrics is kept, and it has no card of its own when
-// Apple Music style lyrics draw it: the lines sit straight on the field, with no edge where the card was;
+// Player redesign: of the cards under the player only lyrics is kept, with no card of its own: the Apple
+// Music style lines sit straight on the field, with no edge where the card was;
 // every other card (about the artist, videos, SongDNA, events, explore, credits, merch, anything Spotify
 // adds later) reports no height, so the list closes up around it.
 //
@@ -16,7 +16,6 @@
 #import "Core/SGCore.h"
 #import "Redesigned/Kit/SGRKit.h"
 #import "Redesigned/Kit/SGRRepaint.h"
-#import "Shared/Lyrics/Lyrics.h"
 #import "Player.h"
 
 // Below this a cell is collapsed, or still being laid out.
@@ -24,16 +23,6 @@ static const CGFloat kLivingHeight = 40;
 
 static char kShareKey, kRevalidatedKey;
 static __weak UIView *sg_lyricsCard;
-
-// Spotify draws the lines still to come in black, for its card in the album colour (lyrics/01.txt:1054),
-// so they read on the dark field only with Apple Music style lyrics drawn over them; without those the
-// card keeps Spotify's own colour.
-static BOOL clearWanted(void) {
-    static BOOL wanted;
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{ wanted = SGFlag(SGKeyKaraokeLyrics, NO); });
-    return wanted;
-}
 
 // In a window and not in a hidden cell: the list keeps the cells it has put aside for reuse in it, hidden
 // (player/02.txt:521), each with the card it last held.
@@ -121,12 +110,12 @@ static UIView *cellAround(UIView *view) {
         objc_setAssociatedObject(cell, &kRevalidatedKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         // Spotify paints the cell the album colour again at every track change, which is no layout pass
         // of the card's; as the root of the lyrics card, Redesigned/Kit/SGRRepaint.x keeps it clear in between.
-        if (clearWanted()) {
-            sgr_lyricsCardRoot = cell;
-            SGStripBackgrounds(cell);
-            static dispatch_once_t once;
-            dispatch_once(&once, ^{ SGLog(@"redesign player: lyrics card cleared onto the field"); });
-        }
+        // Spotify draws the lines still to come in black for that colour (lyrics/01.txt:1054); the Apple
+        // Music style lyrics drawn over them (KaraokeCard.x) are what read on the field.
+        sgr_lyricsCardRoot = cell;
+        SGStripBackgrounds(cell);
+        static dispatch_once_t once;
+        dispatch_once(&once, ^{ SGLog(@"redesign player: lyrics card cleared onto the field"); });
         return;
     }
     // Sized before its card was in it, so it was collapsed as an unknown card: the list is asked once to

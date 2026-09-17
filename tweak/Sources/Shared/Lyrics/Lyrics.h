@@ -1,17 +1,15 @@
-// Apple Music style lyrics, the engine both looks draw from: the line being sung lights up word by
-// word. Spotify only times whole lines, so the words inside a line are timed by an estimate
-// (KaraokeTiming.m), unless a source of the mod's times them. The lines are read from the color-lyrics
-// response as it arrives, or handed over by Shared/LyricsSources, and the position from the player's
-// state (KaraokeSource.x); a track without synced lyrics keeps Spotify's own page. What draws them is
-// each look's own: Native/Lyrics/KaraokeView.h and Redesigned/Lyrics/SGRKaraokeView.h.
+// The lyrics engine: timed lines and the player's clock, for the redesign's Apple Music style lyrics
+// (Redesigned/Lyrics/SGRKaraokeView.h) and the lock screen (Shared/LockScreenLyrics). Spotify only
+// times whole lines, so the words inside a line are timed by an estimate (KaraokeTiming.m), unless a
+// source of the mod's times them. The lines are read from the color-lyrics response as it arrives, or
+// handed over by Shared/LyricsSources, and the position from the player's state (KaraokeSource.x).
 #import <UIKit/UIKit.h>
 
-#define SGKeyKaraokeLyrics @"spotifyglass.karaokeLyrics"
-
 @class SGModRow, SGModSection;
-// LyricsSettings.m: the Lyrics page's rows for either look.
-NSArray<SGModRow *> *SGLyricsLookRows(void);
-NSArray<SGModSection *> *SGLyricsSourceSections(void);
+// LyricsSettings.m: the Lyrics page's parts (App/Pages.m puts the page together): where lyrics come
+// from, naming the source (read by the redesign's lyrics view only), and the lock screen.
+SGModSection *SGLyricsSourcesSection(BOOL namingSource);
+SGModRow *SGLockScreenLyricsRow(void);
 
 // Which edge a line is laid against. Apple Music puts a duet's second voice against the far one, so
 // the two sides of the song read apart; a track sung by one voice stays leading throughout.

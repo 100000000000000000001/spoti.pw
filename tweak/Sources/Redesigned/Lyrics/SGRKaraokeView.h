@@ -1,6 +1,7 @@
-// The redesign's Apple Music style lyrics view, over Spotify's full screen lyrics page (KaraokePage.x)
-// and, compact, over the card under the redesigned player (Redesigned/Player/KaraokeCard.x). The
-// lines and the clock are Shared/Lyrics/Lyrics.h's.
+// The redesign's Apple Music style lyrics view, always on, over Spotify's full screen lyrics page
+// (KaraokePage.x) and, compact, over the card under the redesigned player (Redesigned/Player/KaraokeCard.x).
+// A track without synced lyrics keeps Spotify's own lines. The lines and the clock are
+// Shared/Lyrics/Lyrics.h's.
 #import <UIKit/UIKit.h>
 #import "Shared/Lyrics/Lyrics.h"
 
