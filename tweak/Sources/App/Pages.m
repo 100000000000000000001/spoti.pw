@@ -12,6 +12,7 @@
 #import "Native/Player/NowPlaying.h"
 #import "Redesigned/Haptics/Haptics.h"
 #import "Redesigned/Navbar/Navbar.h"
+#import "Redesigned/NowPlayingBar/NowPlayingBar.h"
 #import "Redesigned/Kit/SGRAccent.h"
 
 NSString *const SGRedesignedUIInfo = @"Replaces Spotify's own look with the mod's redesign, built in Liquid Glass: the glass tab bar, search field and now playing bar, the full screen player with the lyrics under it, Spotify's own glass bars and sheets, and every screen redesigned later.\n\nThe redesign starts from a clean sheet: it is black throughout, it has an accent colour of its own, and the switches that change Spotify's own screens (the player, Home, playlists, albums, artists, AMOLED) are put away while it is on, and none of them runs. What works the same with either look stays: ads and privacy, lyrics sources, gestures, blocked artists.\n\nChanges apply after you restart Spotify.";
@@ -74,6 +75,8 @@ UIViewController *SGPlayerSettingsPage(void) {
     if (native) {
         [pages addObject:SGWithSymbol(SGPageRow(@"Now playing bar", ^UIViewController *{ return SGNowPlayingBarSettingsPage(); }), @"rectangle.bottomthird.inset.filled")];
         [pages addObject:SGWithSymbol(SGPageRow(@"Queue & devices", ^UIViewController *{ return SGQueueSettingsPage(); }), @"text.line.first.and.arrowtriangle.forward")];
+    } else {
+        [pages addObject:SGWithSymbol(SGPageRow(@"Now playing", ^UIViewController *{ return SGRNowPlayingBarSettingsPage(); }), @"rectangle.bottomthird.inset.filled")];
     }
     [pages addObject:SGWithSymbol(SGPageRow(@"Lock screen widget", ^UIViewController *{ return SGLockScreenWidgetPage(); }), @"lock")];
     [sections addObject:SGSection(nil, pages)];

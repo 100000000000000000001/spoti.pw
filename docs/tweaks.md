@@ -105,7 +105,8 @@ Redesigned:
                   Spotify's own glass design), its repaint hook (SGRRepaint.x), soft top edge, AMOLED black (always on,
                   SGRAmoled.x) and its own accent colour (SGRAccent.x, stored apart from the native look's)
     Navbar/       the glass tab bar (TabBar.x) over its own composition (Navbar.x, NavbarLayout.m) and editor, the glass search field
-    NowPlayingBar/ the glass now playing bar
+    NowPlayingBar/ the glass now playing bar (NowPlayingBar.x), with Spotify's device button on it hidden on request
+                  (BarConnect.x, its own key and its own Now playing page, apart from the native look's)
     Player/       the redesigned full screen player (Player.h lists its files)
     Lyrics/       the full screen lyrics page on glass with Apple Music style lyrics over it, always on (SGRKaraokeView,
                   which the player shows in itself too, Player/PlayerLyrics.x)
@@ -182,7 +183,7 @@ naming the source in the redesign, the lock screen, and glass lyrics in the nati
 in the native look also Now playing bar (its device button and its flags), Queue & devices, and
 Spotify's own player screen (artwork background, glass header buttons, Disable Canvas and the sheet,
 header, slider and sticky header flags, the cards under the player and the lyrics preview and player
-buttons to hide); in the redesign instead Vibrations, Controls (on until switched off) and Music Haptics
+buttons to hide); in the redesign instead Now playing (its device button), Vibrations, Controls (on until switched off) and Music Haptics
 (off until switched on, with an ⓘ saying it follows the sound this iPhone plays while Spotify is open), both
 applying straight away. Home & Library, in the native look only:
 the Gradient page (the wash behind the top of Home in one of eight colours, at three strengths and
