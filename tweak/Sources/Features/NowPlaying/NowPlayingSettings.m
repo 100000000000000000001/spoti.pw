@@ -49,10 +49,6 @@ static UIViewController *lyricsPage(void) {
             SGOptionRow(@"Lyrics for every track", @"Offers the lyrics card on tracks Spotify has no lyrics for; needs a source above", SGKeyLyricsAllTracks),
             SGOptionRow(@"Name the source", @"Reads out which source the lines on the full screen page came from", SGKeyLyricsCredit),
         ], @"With no source on, Spotify's own lyrics are left alone."),
-        SGSection(@"Hide in the player", @[
-            SGHideRow(@"Lyrics card", @"The lyrics card below the player", SGHideLyricsCard),
-            SGHideRow(@"Lyrics preview", @"The lyric lines shown under the artwork", SGHideLyricsInline),
-        ]),
         SGSection(@"Spotify's flags", @[
             SGFlagRow(@"Translations in the player", @"ios-feature-lyrics.enable_lyrics_multilanguage_npv"),
             SGFlagRow(@"Translations full screen", @"ios-feature-lyrics.enable_lyrics_multilanguage_fullscreen"),
@@ -101,10 +97,10 @@ static UIViewController *lockScreenPage(void) {
     ] footer:nil];
 }
 
-// The player screen is one of two, picked with the tabs at the top of the page: Spotify's own player
-// with the switches of Player.x and Declutter.x on it, or the redesigned one of Redesign/Player, which
-// those switches don't reach. Each tab holds only its own player's rows; the pages above the player
-// screen itself (gestures, lyrics, the bar, the queue) belong to both and follow the tabs.
+// The player screen is one of two, picked with the tabs: Spotify's own player with the switches of
+// Player.x and Declutter.x on it, or the redesigned one of Redesign/Player, which those switches don't
+// reach. Everything above the tabs (gestures, lyrics, blocked artists, the bar, the queue, the lock
+// screen) works the same with either player, so it sits above them and the tabs never hide it.
 UIViewController *SGNowPlayingSettingsPage(void) {
     SGModRow *blocked = SGPageRow(@"Blocked artists", ^UIViewController *{ return SGArtistBlockSettingsPage(); });
     blocked.value = ^NSString *{
@@ -112,7 +108,7 @@ UIViewController *SGNowPlayingSettingsPage(void) {
     };
 
     SGModTab *native = SGTab(@"Native player", @"Spotify's own player, with the switches below on it.", @[
-        SGNotedSection(@"Player screen", @[
+        SGNotedSection(@"Look", @[
             SGOptionRow(@"Artwork background", @"The cover blurred and dimmed behind the player instead of the flat album colour", SGKeyPlayerBackdrop),
             SGOptionRow(@"Glass header buttons", nil, SGKeyPlayer),
             bare(SGKillRow(@"Disable Canvas", @"ios-feature-canvas.canvas_enabled")),
@@ -121,7 +117,8 @@ UIViewController *SGNowPlayingSettingsPage(void) {
             bare(SGFlagRow(@"New progress slider", @"ios-feature-encoreexperiments.new_npv_slider_enabled")),
             bare(SGFlagRow(@"Expand the sticky header on tap", @"ios-feature-nowplaying.expand_sticky_header_on_tap")),
         ], @"Liquid Glass UI turns the first two on or off with it, and locks the sheet, header and slider on."),
-        SGNotedSection(@"Hide cards below the player", @[
+        SGSection(@"Hide cards below the player", @[
+            SGHideRow(@"Lyrics", nil, SGHideLyricsCard),
             SGHideRow(@"About the artist", nil, SGHideAboutArtist),
             SGHideRow(@"Related videos", nil, SGHideRelatedVideos),
             SGHideRow(@"SongDNA", nil, SGHideSongDNA),
@@ -130,8 +127,9 @@ UIViewController *SGNowPlayingSettingsPage(void) {
             SGHideRow(@"Credits", nil, SGHideCredits),
             SGHideRow(@"Merch", nil, SGHideMerch),
             SGHideRow(@"Recommendations", nil, SGHideRecommendations),
-        ], @"The lyrics card is hidden from the Lyrics page."),
-        SGSection(@"Hide player buttons", @[
+        ]),
+        SGSection(@"Hide on the player", @[
+            SGHideRow(@"Lyrics preview", @"The lyric lines shown under the artwork", SGHideLyricsInline),
             SGHideRow(@"Shuffle", nil, SGHideShuffle),
             SGHideRow(@"Repeat", nil, SGHideRepeat),
             SGHideRow(@"Add to playlist", nil, SGHideAddTo),
@@ -142,16 +140,13 @@ UIViewController *SGNowPlayingSettingsPage(void) {
     ]);
 
     SGModTab *redesigned = SGTab(@"Redesigned player", @"The cover's own colour behind the whole player, glass behind the header buttons, bare playback controls, and nothing under the player but lyrics.", @[
-        SGSection(@"Player screen", @[
-            SGSwitchRow(@"Lyrics under the player", @"The lyrics card below the player; every other card is left out", SGKeyRedesignPlayerLyricsCard),
+        SGSection(@"Below the player", @[
+            SGSwitchRow(@"Lyrics", @"The lyrics card below the player; every other card is left out", SGKeyRedesignPlayerLyricsCard),
         ]),
     ]);
 
     return [[SGModPage alloc] initWithTitle:@"Player"
                                       intro:@"Changes apply after you restart Spotify. Gestures and Blocked artists apply straight away."
-                                    tabsKey:SGKeyRedesignPlayer
-                                       tabs:@[native, redesigned]
-                                   fallback:0
                                    sections:@[
         SGSection(nil, @[
             SGWithSymbol(SGPageRow(@"Gestures", ^UIViewController *{ return SGGesturesSettingsPage(); }), @"hand.tap"),
@@ -163,5 +158,10 @@ UIViewController *SGNowPlayingSettingsPage(void) {
             SGWithSymbol(SGPageRow(@"Queue & devices", ^UIViewController *{ return queuePage(); }), @"text.line.first.and.arrowtriangle.forward"),
             SGWithSymbol(SGPageRow(@"Lock screen widget", ^UIViewController *{ return lockScreenPage(); }), @"lock"),
         ]),
-    ] footer:nil];
+    ]
+                                  tabsTitle:@"Player screen"
+                                    tabsKey:SGKeyRedesignPlayer
+                                       tabs:@[native, redesigned]
+                                   fallback:0
+                                     footer:nil];
 }

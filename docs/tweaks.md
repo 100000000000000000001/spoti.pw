@@ -99,13 +99,14 @@ one page, the mod's own rows first and Spotify's flags below them or on a sub pa
 they change. It opens on the Appearance card, the three switches that style the whole app: Liquid
 Glass UI, AMOLED and the accent colour (Spotify's green is offered from the colour row once a colour
 is set). Then a card of parts. Navbar: the glass tab bar and search field, then the tab editor.
-Player: tabs at the top pick the player screen, Native player (Spotify's own, with the switches of
-Player.x and Declutter.x) or Redesigned player (Redesign/Player, which those switches don't reach), each
-tab showing only its own player's rows; the pages below belong to both. Then Gestures, Lyrics (Apple Music style, glass lyrics, the ordered list of lyrics sources, lyrics
-for every track, naming the source, hiding the lyrics card and preview, the lyrics flags), Blocked artists (with the count on the row) and Now playing bar (its glass, its device
-button and its flags) as pages; then the player screen (artwork background, glass header buttons,
-Disable Canvas and the sheet, header, slider and sticky header flags), the cards under the player and
-the player buttons to hide, and Queue & devices and Lock screen widget as flag pages. Home & Library:
+Player: Gestures, Lyrics (Apple Music style, glass lyrics, the ordered list of lyrics sources, lyrics
+for every track, naming the source, the lyrics flags), Blocked artists (with the count on the row), Now
+playing bar (its glass, its device button and its flags), and Queue & devices and Lock screen widget as
+flag pages; these work with either player. Under them, tabs pick the player screen: Native player,
+Spotify's own with the switches of Player.x and Declutter.x (artwork background, glass header buttons,
+Disable Canvas and the sheet, header, slider and sticky header flags, the cards under the player and the
+lyrics preview and player buttons to hide), or Redesigned player (Redesign/Player, which those switches
+don't reach, with the lyrics card as its one row). Each tab shows only its own player's rows. Home & Library:
 the Gradient page (the wash behind the top of Home in one of eight colours, at three strengths and
 four heights) and the Home flags, the parts of Home to hide including the DJ button and badge, the
 playlist header, buttons and pills to hide, and the Library flags. Then Premium, ads & privacy

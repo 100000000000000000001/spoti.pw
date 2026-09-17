@@ -24,8 +24,15 @@ static const CGFloat kSkipGlyphSize = 32, kPlayGlyphSize = 44;
 // A spinner that is still up this long after a state change is buffering, not a track starting.
 static const NSTimeInterval kSpinnerCheck = 0.6;
 
+// After a tap the glyph shows what the tap asked for, and a state still saying the opposite is taken for
+// one sent before the player caught up, for this long; after it the player's word is final.
+static const NSTimeInterval kTapTrust = 1.2;
+
 static char kPreviousKey, kNextKey, kPlayKey, kGlyphKey, kTakeKey, kRemainingKey;
+static __weak UIView *sg_playView;
 static __weak UIButton *sg_playButton;
+static CFTimeInterval sg_tappedUntil;
+static BOOL sg_tappedPaused;
 static __weak SGRGlyphView *sg_playGlyph;
 static __weak UIView *sg_controlsHost;
 
@@ -94,12 +101,33 @@ static BOOL spinnerShowing(UIButton *button) {
     return NO;
 }
 
+static NSString *symbolFor(BOOL paused) {
+    return paused ? @"play.fill" : @"pause.fill";
+}
+
 static void refreshPlayGlyph(BOOL animated) {
     SGRGlyphView *glyph = sg_playGlyph;
     SPTPlayerState *state = SGRPlayerState();
     if (!glyph || !state) return;
-    [glyph setSymbol:state.isPaused ? @"play.fill" : @"pause.fill" animated:animated];
     glyph.alpha = spinnerShowing(sg_playButton) ? 0 : 1;
+    CFTimeInterval now = CACurrentMediaTime();
+    if (now < sg_tappedUntil) {
+        if (state.isPaused != sg_tappedPaused) return;
+        sg_tappedUntil = 0;
+    }
+    [glyph setSymbol:symbolFor(state.isPaused) animated:animated];
+}
+
+// The player's state reaches the glyph a beat after the tap (the request goes through the player core
+// and comes back as a state), which read as a slow button; Spotify's own disc turns at the touch. So the
+// glyph turns at the touch too, to the opposite of what it shows, and the state settles it after.
+static void playTapped(void) {
+    SGRGlyphView *glyph = sg_playGlyph;
+    if (!glyph || glyph.alpha == 0) return;
+    sg_tappedPaused = ![glyph.symbol isEqualToString:@"play.fill"];
+    sg_tappedUntil = CACurrentMediaTime() + kTapTrust;
+    [glyph setSymbol:symbolFor(sg_tappedPaused) animated:YES];
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(kTapTrust * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ refreshPlayGlyph(YES); });
 }
 
 static void playGlyph(UIView *host) {
@@ -133,8 +161,9 @@ static void playGlyph(UIView *host) {
     }
 
     // Inside the button, over the disc it replaces, so it follows the button's own press.
-    SGRGlyphView *glyph = glyphFor(play, state.isPaused ? @"play.fill" : @"pause.fill", kPlayGlyphSize);
+    SGRGlyphView *glyph = glyphFor(play, symbolFor(state.isPaused), kPlayGlyphSize);
     keepOnTop(glyph, button);
+    sg_playView = play;
     sg_playButton = button;
     sg_playGlyph = glyph;
     refreshPlayGlyph(NO);
@@ -185,6 +214,19 @@ static UILabel *monospaced(UIView *host, NSString *identifier, const void *findK
     SGRMonospacedDigits(label);
     return label;
 }
+
+// The action the play button's own UIButton sends (objc-methods.txt: -[PlayButtonView uiButtonTapped]).
+// Only the player's button turns the glyph: the sticky header and every page with a play button of
+// its own use the same class.
+%hook _TtC28EncoreConsumerMobile_BaseKit14PlayButtonView
+- (void)uiButtonTapped {
+    %orig;
+    if ((UIView *)self != sg_playView) return;
+    playTapped();
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{ SGLog(@"redesign player: play glyph turned at the tap"); });
+}
+%end
 
 %hook _TtC20NowPlaying_ModesImpl19DurationElementUnit
 - (void)viewDidLayoutSubviews {

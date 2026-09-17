@@ -42,10 +42,11 @@ SGModTab *SGTab(NSString *title, NSString *note, NSArray<SGModSection *> *sectio
 @interface SGModPage : SGPage
 - (instancetype)initWithTitle:(NSString *)title intro:(NSString *)intro sections:(NSArray<SGModSection *> *)sections footer:(NSString *)footer;
 // A page whose tabs pick one of several ways of doing the same thing, the Player page's native and
-// redesigned player: a segmented control leads the page, the picked tab's sections follow it, then
-// `sections`, which every tab shows. The pick is stored under `key` as the tab's index, `fallback`
-// until there is one, and picking another swaps the sections in place.
-- (instancetype)initWithTitle:(NSString *)title intro:(NSString *)intro tabsKey:(NSString *)key tabs:(NSArray<SGModTab *> *)tabs fallback:(NSInteger)fallback sections:(NSArray<SGModSection *> *)sections footer:(NSString *)footer;
+// redesigned player: `sections`, which have nothing to do with the pick, come first, then the segmented
+// control under the heading `tabsTitle`, then the picked tab's sections, so that everything under the
+// control belongs to it. The pick is stored under `key` as the tab's index, `fallback` until there is
+// one, and picking another swaps the sections in place.
+- (instancetype)initWithTitle:(NSString *)title intro:(NSString *)intro sections:(NSArray<SGModSection *> *)sections tabsTitle:(NSString *)tabsTitle tabsKey:(NSString *)key tabs:(NSArray<SGModTab *> *)tabs fallback:(NSInteger)fallback footer:(NSString *)footer;
 @end
 
 // The intro of every page whose switches the hooks read at launch.

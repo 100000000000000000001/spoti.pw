@@ -264,6 +264,7 @@ static BOOL lockedRowOn(SGModRow *row) {
     NSArray<SGModSection *> *_shared;
     NSArray<SGModTab *> *_tabs;
     NSString *_tabsKey;
+    NSString *_tabsTitle;
     NSInteger _tabsFallback;
     UIView *_intro;
     UIView *_footer;
@@ -281,11 +282,12 @@ static BOOL lockedRowOn(SGModRow *row) {
     return self;
 }
 
-- (instancetype)initWithTitle:(NSString *)title intro:(NSString *)intro tabsKey:(NSString *)key tabs:(NSArray<SGModTab *> *)tabs fallback:(NSInteger)fallback sections:(NSArray<SGModSection *> *)sections footer:(NSString *)footer {
+- (instancetype)initWithTitle:(NSString *)title intro:(NSString *)intro sections:(NSArray<SGModSection *> *)sections tabsTitle:(NSString *)tabsTitle tabsKey:(NSString *)key tabs:(NSArray<SGModTab *> *)tabs fallback:(NSInteger)fallback footer:(NSString *)footer {
     if (!(self = [self initWithTitle:title intro:intro sections:sections footer:footer])) return nil;
     _shared = sections;
     _tabs = tabs;
     _tabsKey = key;
+    _tabsTitle = [tabsTitle copy];
     _tabsFallback = fallback;
     [self layOutTabs];
     return self;
@@ -303,12 +305,12 @@ static BOOL lockedRowOn(SGModRow *row) {
     return index >= 0 && index < (NSInteger)_tabs.count ? index : 0;
 }
 
-// The control's own section, footed by what the picked tab means, then the tab's sections, then the
-// ones every tab shares.
+// The sections the pick has nothing to do with, then the control's own section, headed and footed by
+// what the picked tab means, then the tab's sections.
 - (void)layOutTabs {
     SGModTab *tab = _tabs[(NSUInteger)[self pickedTab]];
-    SGModSection *control = SGNotedSection(nil, @[[SGTabsRow new]], tab.note);
-    _sections = [[@[control] arrayByAddingObjectsFromArray:tab.sections ?: @[]] arrayByAddingObjectsFromArray:_shared ?: @[]];
+    SGModSection *control = SGNotedSection(_tabsTitle, @[[SGTabsRow new]], tab.note);
+    _sections = [[(_shared ?: @[]) arrayByAddingObject:control] arrayByAddingObjectsFromArray:tab.sections ?: @[]];
     [self noteLiveRows];
 }
 
