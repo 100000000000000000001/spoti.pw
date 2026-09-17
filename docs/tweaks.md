@@ -114,6 +114,10 @@ Redesigned:
                   edge, the shelves' headings at the Music app's size, each shortcut tile's cover run across it blurred
                   (SGRPalette's extension), continuous corners on the covers, and in FLEX builds a meter of each scroll's
                   frames and the hooks' time (Home.h lists its files)
+    Search/       the Browse page decluttered to its category cards (an allow list of the list's cells: the watch feed
+                  carousels and promos collapse, and the cards move up by the spacing they leave), the header the way Home
+                  has it without the camera, and each card as Liquid Glass tinted by its own colour, read off the Box's
+                  shape layer (Search.h lists its files)
     Haptics/      Vibrations (Haptics.h lists its files): a tap of UIKit's feedback generators for the player's and the now
                   playing bar's controls, the scrubber's tenths and ends, cover swipes, gestures and the lyrics page's tap to
                   seek (ControlHaptics.x, SGRFeedback.m); and Music Haptics, Core Haptics playing along with the song:
