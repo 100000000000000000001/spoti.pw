@@ -11,6 +11,9 @@
                                 the row that opens it from Spotify's settings)
     tweak/Sources/Features/     one directory per feature, see below
     tweak/Sources/Diagnostics/  screen dumps and the tree server of FLEX builds
+    tweak/Sources/Redesign/     screens rebuilt in Liquid Glass instead of tweaked: Kit/ (the artwork field, glass inside
+                                Spotify's controls, glyphs, restyle helpers, player and link bridges, the switch per
+                                screen and the flags a screen forces) and Player/, the redesigned full screen player
     scripts/                    pipeline.sh (build + inject), install.sh (sign + install), record-trees.py,
                                 record-session.py, dump-log.sh, extract-flags.py, publish.sh (release: version bump,
                                 site release.json)
@@ -96,7 +99,9 @@ one page, the mod's own rows first and Spotify's flags below them or on a sub pa
 they change. It opens on the Appearance card, the three switches that style the whole app: Liquid
 Glass UI, AMOLED and the accent colour (Spotify's green is offered from the colour row once a colour
 is set). Then a card of parts. Navbar: the glass tab bar and search field, then the tab editor.
-Player: Gestures, Lyrics (Apple Music style, glass lyrics, the ordered list of lyrics sources, lyrics
+Player: tabs at the top pick the player screen, Native player (Spotify's own, with the switches of
+Player.x and Declutter.x) or Redesigned player (Redesign/Player, which those switches don't reach), each
+tab showing only its own player's rows; the pages below belong to both. Then Gestures, Lyrics (Apple Music style, glass lyrics, the ordered list of lyrics sources, lyrics
 for every track, naming the source, hiding the lyrics card and preview, the lyrics flags), Blocked artists (with the count on the row) and Now playing bar (its glass, its device
 button and its flags) as pages; then the player screen (artwork background, glass header buttons,
 Disable Canvas and the sheet, header, slider and sticky header flags), the cards under the player and

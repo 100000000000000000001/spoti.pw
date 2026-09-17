@@ -8,6 +8,7 @@
 #import "Features/LockScreenLyrics/LockScreenLyrics.h"
 #import "Features/LyricsSources/LyricsSources.h"
 #import "Redesign/Kit/SGRedesign.h"
+#import "Redesign/Player/Player.h"
 
 static UIViewController *nowPlayingBarPage(void) {
     return [[SGModPage alloc] initWithTitle:@"Now playing bar" intro:SGRestartNote sections:@[
@@ -100,23 +101,17 @@ static UIViewController *lockScreenPage(void) {
     ] footer:nil];
 }
 
+// The player screen is one of two, picked with the tabs at the top of the page: Spotify's own player
+// with the switches of Player.x and Declutter.x on it, or the redesigned one of Redesign/Player, which
+// those switches don't reach. Each tab holds only its own player's rows; the pages above the player
+// screen itself (gestures, lyrics, the bar, the queue) belong to both and follow the tabs.
 UIViewController *SGNowPlayingSettingsPage(void) {
     SGModRow *blocked = SGPageRow(@"Blocked artists", ^UIViewController *{ return SGArtistBlockSettingsPage(); });
     blocked.value = ^NSString *{
         return SGFlag(SGKeyArtistBlock, NO) ? @(SGBlockedArtists().count).stringValue : @"Off";
     };
 
-    NSArray<SGModSection *> *sections = @[
-        SGSection(nil, @[
-            SGWithSymbol(SGPageRow(@"Gestures", ^UIViewController *{ return SGGesturesSettingsPage(); }), @"hand.tap"),
-            SGWithSymbol(SGPageRow(@"Lyrics", ^UIViewController *{ return lyricsPage(); }), @"quote.bubble"),
-            SGWithSymbol(blocked, @"person.crop.circle.badge.xmark"),
-        ]),
-        SGSection(nil, @[
-            SGWithSymbol(SGPageRow(@"Now playing bar", ^UIViewController *{ return nowPlayingBarPage(); }), @"rectangle.bottomthird.inset.filled"),
-            SGWithSymbol(SGPageRow(@"Queue & devices", ^UIViewController *{ return queuePage(); }), @"text.line.first.and.arrowtriangle.forward"),
-            SGWithSymbol(SGPageRow(@"Lock screen widget", ^UIViewController *{ return lockScreenPage(); }), @"lock"),
-        ]),
+    SGModTab *native = SGTab(@"Native player", @"Spotify's own player, with the switches below on it.", @[
         SGNotedSection(@"Player screen", @[
             SGOptionRow(@"Artwork background", @"The cover blurred and dimmed behind the player instead of the flat album colour", SGKeyPlayerBackdrop),
             SGOptionRow(@"Glass header buttons", nil, SGKeyPlayer),
@@ -144,9 +139,29 @@ UIViewController *SGNowPlayingSettingsPage(void) {
             SGHideRow(@"Share", nil, SGHideShare),
             SGHideRow(@"Connect to a device", nil, SGHideConnect),
         ]),
-    ];
-    // While the player is redesigned the player screen, card and button rows below don't apply.
-    SGModSection *note = SGRedesignNoteSection(@"player");
-    if (note) sections = [@[note] arrayByAddingObjectsFromArray:sections];
-    return [[SGModPage alloc] initWithTitle:@"Player" intro:@"Changes apply after you restart Spotify. Gestures and Blocked artists apply straight away." sections:sections footer:nil];
+    ]);
+
+    SGModTab *redesigned = SGTab(@"Redesigned player", @"The cover's own colour behind the whole player, glass behind the header buttons, bare playback controls, and nothing under the player but lyrics.", @[
+        SGSection(@"Player screen", @[
+            SGSwitchRow(@"Lyrics under the player", @"The lyrics card below the player; every other card is left out", SGKeyRedesignPlayerLyricsCard),
+        ]),
+    ]);
+
+    return [[SGModPage alloc] initWithTitle:@"Player"
+                                      intro:@"Changes apply after you restart Spotify. Gestures and Blocked artists apply straight away."
+                                    tabsKey:SGKeyRedesignPlayer
+                                       tabs:@[native, redesigned]
+                                   fallback:0
+                                   sections:@[
+        SGSection(nil, @[
+            SGWithSymbol(SGPageRow(@"Gestures", ^UIViewController *{ return SGGesturesSettingsPage(); }), @"hand.tap"),
+            SGWithSymbol(SGPageRow(@"Lyrics", ^UIViewController *{ return lyricsPage(); }), @"quote.bubble"),
+            SGWithSymbol(blocked, @"person.crop.circle.badge.xmark"),
+        ]),
+        SGSection(nil, @[
+            SGWithSymbol(SGPageRow(@"Now playing bar", ^UIViewController *{ return nowPlayingBarPage(); }), @"rectangle.bottomthird.inset.filled"),
+            SGWithSymbol(SGPageRow(@"Queue & devices", ^UIViewController *{ return queuePage(); }), @"text.line.first.and.arrowtriangle.forward"),
+            SGWithSymbol(SGPageRow(@"Lock screen widget", ^UIViewController *{ return lockScreenPage(); }), @"lock"),
+        ]),
+    ] footer:nil];
 }

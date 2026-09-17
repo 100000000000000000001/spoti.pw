@@ -170,10 +170,6 @@ static SGRPlayerCoverWatcher *sg_coverWatcher;
         flags[[@"ios-feature-nowplaying." stringByAppendingString:egg]] = @NO;
     }
     SGRedesignForceFlags(@"player", flags);
-    SGRedesignRegisterRows(@"player", ^NSArray<SGModRow *> *{
-        return @[SGSwitchRow(@"Lyrics under the player", @"The lyrics card below the player; every other card is left out", SGKeyRedesignPlayerLyricsCard)];
-    });
-
     if (!SGRedesignOn(@"player")) return;
     %init;
     sg_coverWatcher = [SGRPlayerCoverWatcher new];

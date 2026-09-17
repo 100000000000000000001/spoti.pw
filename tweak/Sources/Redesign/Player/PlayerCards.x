@@ -127,7 +127,7 @@ static UIView *cellAround(UIView *view) {
     if (cell.bounds.size.height >= kLivingHeight) {
         objc_setAssociatedObject(cell, &kRevalidatedKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         SGRArtworkField *field = SGRPlayerField();
-        // Made only with the player's own field to follow; the artist page has a field of its own.
+        // Made only once the player has a field of its own for the surface to follow.
         if (field && surfaceWanted()) SGRCardSurface(cell, field);
         return;
     }

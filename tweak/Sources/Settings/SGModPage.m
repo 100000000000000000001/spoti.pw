@@ -199,6 +199,25 @@ SGModRow *SGWithSymbol(SGModRow *row, NSString *symbol) {
     return row;
 }
 
+@implementation SGModTab
+@end
+
+SGModTab *SGTab(NSString *title, NSString *note, NSArray<SGModSection *> *sections) {
+    SGModTab *tab = [SGModTab new];
+    tab.title = title;
+    tab.note = note;
+    tab.sections = sections;
+    return tab;
+}
+
+// The row the tabs are drawn in: no key, no page, no action, so nothing else in the page mistakes it
+// for a row of its own kind.
+@interface SGTabsRow : SGModRow
+@end
+
+@implementation SGTabsRow
+@end
+
 // What a page row carrying a value shows on the right: the value, then the chevron, the same
 // distance apart as Spotify's own rows keep them.
 static UIView *valueAndChevron(NSString *text) {
@@ -242,6 +261,10 @@ static BOOL lockedRowOn(SGModRow *row) {
 
 @implementation SGModPage {
     NSArray<SGModSection *> *_sections;
+    NSArray<SGModSection *> *_shared;
+    NSArray<SGModTab *> *_tabs;
+    NSString *_tabsKey;
+    NSInteger _tabsFallback;
     UIView *_intro;
     UIView *_footer;
     NSTimer *_ticker;
@@ -254,10 +277,81 @@ static BOOL lockedRowOn(SGModRow *row) {
     _sections = sections;
     _intro = intro ? SGNote(intro) : nil;
     _footer = footer ? SGNote(footer) : nil;
-    // A page row reads its value out when the page appears rather than on the ticker, so only the
-    // rows whose numbers climb on their own keep one running.
-    for (SGModSection *s in sections) for (SGModRow *row in s.rows) _live |= row.value && !row.page;
+    [self noteLiveRows];
     return self;
+}
+
+- (instancetype)initWithTitle:(NSString *)title intro:(NSString *)intro tabsKey:(NSString *)key tabs:(NSArray<SGModTab *> *)tabs fallback:(NSInteger)fallback sections:(NSArray<SGModSection *> *)sections footer:(NSString *)footer {
+    if (!(self = [self initWithTitle:title intro:intro sections:sections footer:footer])) return nil;
+    _shared = sections;
+    _tabs = tabs;
+    _tabsKey = key;
+    _tabsFallback = fallback;
+    [self layOutTabs];
+    return self;
+}
+
+// A page row reads its value out when the page appears rather than on the ticker, so only the rows
+// whose numbers climb on their own keep one running.
+- (void)noteLiveRows {
+    _live = NO;
+    for (SGModSection *s in _sections) for (SGModRow *row in s.rows) _live |= row.value && !row.page;
+}
+
+- (NSInteger)pickedTab {
+    NSInteger index = SGInt(_tabsKey, _tabsFallback);
+    return index >= 0 && index < (NSInteger)_tabs.count ? index : 0;
+}
+
+// The control's own section, footed by what the picked tab means, then the tab's sections, then the
+// ones every tab shares.
+- (void)layOutTabs {
+    SGModTab *tab = _tabs[(NSUInteger)[self pickedTab]];
+    SGModSection *control = SGNotedSection(nil, @[[SGTabsRow new]], tab.note);
+    _sections = [[@[control] arrayByAddingObjectsFromArray:tab.sections ?: @[]] arrayByAddingObjectsFromArray:_shared ?: @[]];
+    [self noteLiveRows];
+}
+
+- (void)tabPicked:(UISegmentedControl *)control {
+    if (control.selectedSegmentIndex == [self pickedTab]) return;
+    SGSetInt(_tabsKey, control.selectedSegmentIndex);
+    [self layOutTabs];
+    [UIView transitionWithView:self.tableView duration:0.2 options:UIViewAnimationOptionTransitionCrossDissolve | UIViewAnimationOptionAllowUserInteraction animations:^{
+        [self.tableView reloadData];
+    } completion:nil];
+}
+
+// The control on the page itself rather than on a card, full width, the picked tab's name in white on
+// the selection and the other names in the grey of a subtitle.
+- (UITableViewCell *)tabsCellIn:(UITableView *)table {
+    UITableViewCell *cell = [table dequeueReusableCellWithIdentifier:@"tabs"];
+    UISegmentedControl *control = (UISegmentedControl *)[cell.contentView viewWithTag:1];
+    if (!cell) {
+        cell = [[UITableViewCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"tabs"];
+        cell.backgroundConfiguration = [UIBackgroundConfiguration clearConfiguration];
+        cell.selectionStyle = UITableViewCellSelectionStyleNone;
+        control = [UISegmentedControl new];
+        control.tag = 1;
+        control.translatesAutoresizingMaskIntoConstraints = NO;
+        UIFont *font = [UIFont systemFontOfSize:14 weight:UIFontWeightSemibold];
+        [control setTitleTextAttributes:@{NSFontAttributeName: font, NSForegroundColorAttributeName: SGGrey()} forState:UIControlStateNormal];
+        [control setTitleTextAttributes:@{NSFontAttributeName: font, NSForegroundColorAttributeName: UIColor.whiteColor} forState:UIControlStateSelected];
+        [control addTarget:self action:@selector(tabPicked:) forControlEvents:UIControlEventValueChanged];
+        [cell.contentView addSubview:control];
+        [NSLayoutConstraint activateConstraints:@[
+            [control.leadingAnchor constraintEqualToAnchor:cell.contentView.leadingAnchor],
+            [control.trailingAnchor constraintEqualToAnchor:cell.contentView.trailingAnchor],
+            [control.topAnchor constraintEqualToAnchor:cell.contentView.topAnchor],
+            [control.bottomAnchor constraintEqualToAnchor:cell.contentView.bottomAnchor],
+            [control.heightAnchor constraintEqualToConstant:40],
+        ]];
+    }
+    if (control.numberOfSegments != _tabs.count) {
+        [control removeAllSegments];
+        for (NSUInteger i = 0; i < _tabs.count; i++) [control insertSegmentWithTitle:_tabs[i].title atIndex:i animated:NO];
+    }
+    control.selectedSegmentIndex = [self pickedTab];
+    return cell;
 }
 
 - (void)viewDidLoad {
@@ -339,8 +433,9 @@ static BOOL lockedRowOn(SGModRow *row) {
 }
 
 - (UITableViewCell *)tableView:(UITableView *)table cellForRowAtIndexPath:(NSIndexPath *)path {
-    UITableViewCell *cell = SGDequeueCell(table, @"row");
     SGModRow *row = [self rowAt:path];
+    if ([row isKindOfClass:SGTabsRow.class]) return [self tabsCellIn:table];
+    UITableViewCell *cell = SGDequeueCell(table, @"row");
     SGFillCell(cell, row.title, row.subtitle, row.color, row.symbol);
     UIListContentConfiguration *content = (UIListContentConfiguration *)cell.contentConfiguration;
     if (row.color) content.secondaryTextProperties.color = row.color;

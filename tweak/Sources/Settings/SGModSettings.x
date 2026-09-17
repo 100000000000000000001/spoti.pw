@@ -1,5 +1,5 @@
 // Settings: a Mod Settings row at the end of Spotify's settings list opens the mod's own page: the
-// Appearance card that styles the whole app, the Redesign row under it (Redesign/Kit), then a page per part of Spotify, each holding that
+// Appearance card that styles the whole app, then a page per part of Spotify, each holding that
 // part's glass, hide switches and flags (Navbar, Player, Home & Library), Premium, ads & privacy
 // and Labs, All flags, a searchable list of every flag with an override per flag, and Mod, the
 // build, its updates and links. The same row leads the side drawer's list (trees/test6.txt), above
@@ -22,7 +22,6 @@
 #import "Features/AdBlock/AdBlock.h"
 #import "Features/Flags/Flags.h"
 #import "Features/About/About.h"
-#import "Redesign/Kit/SGRedesign.h"
 
 static const CGFloat kRowHeight = 56;
 static char kRowKey, kInsetKey;
@@ -43,7 +42,6 @@ static UIViewController *modSettingsPage(void) {
     mod.value = ^NSString *{ return @(SG_VERSION); };
     [sections addObjectsFromArray:@[
         SGAppearanceSection(),
-        SGRedesignSection(),
         SGSection(nil, @[
             pageRow(@"Navbar", @"dock.rectangle", ^UIViewController *{ return SGNavbarSettingsPage(); }),
             pageRow(@"Player", @"play.circle", ^UIViewController *{ return SGNowPlayingSettingsPage(); }),

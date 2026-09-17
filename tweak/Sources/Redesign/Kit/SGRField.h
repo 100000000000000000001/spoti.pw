@@ -1,7 +1,6 @@
 // The artwork field: one continuous colour taken from the artwork's bottom edge (SGRPalette.h) behind
 // a whole redesigned page, with no card and no seam anywhere. The player's field also carries the
-// artwork itself at the top, blurred and dimmed and dissolving into the colour (showsBackdrop); the
-// artist page's hero draws its own photo (SGRHero.h), so its field is the colour alone.
+// artwork itself at the top, blurred and dimmed and dissolving into the colour (showsBackdrop).
 //
 // Nothing is blurred live and nothing is masked: the view draws a solid colour layer, a black
 // gradient layer under AMOLED and at most one bitmap layer rendered off the main thread, so it costs

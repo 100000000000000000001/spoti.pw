@@ -1,12 +1,12 @@
-// The switches of the redesigned screens and the flags they force. The rows of the Redesign page are
-// in SGRedesignSettings.m.
+// The switches of the redesigned screens and the flags they force. A screen's switch is the tab its
+// part's settings page picks it with (the Player page's Native player and Redesigned player).
 #import <os/lock.h>
 #import "Core/SGCore.h"
 #import "SGRedesign.h"
 
-// A screen added later needs its name here and its title in SGRedesignSettings.m.
+// A screen added later needs its name here and a way to pick it on its part's settings page.
 NSArray<NSString *> *SGRedesignScreens(void) {
-    return @[@"player", @"artist"];
+    return @[@"player"];
 }
 
 static NSString *keyFor(NSString *screen) {
