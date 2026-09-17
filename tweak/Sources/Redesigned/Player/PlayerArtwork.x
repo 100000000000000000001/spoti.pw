@@ -61,6 +61,48 @@ static void scaleCover(UIView *tilt, CGFloat scale) {
     plate.transform = transform;
 }
 
+#pragma mark - where the cover is
+
+// The tilt view of the cover on screen: the queue is a cover per cell and the cells out of view are
+// kept hidden (player/02.txt:521), so the one showing is the one in a window with nothing hidden over it.
+static UIView *showingTilt(void) {
+    for (UIView *tilt in sg_tilts) {
+        if (!tilt.window) continue;
+        BOOL hidden = NO;
+        for (UIView *v = tilt; v && !hidden; v = v.superview) hidden = v.hidden;
+        if (!hidden) return tilt;
+    }
+    return nil;
+}
+
+UIView *SGRPlayerCoverList(void) {
+    for (UIView *v = showingTilt(); v; v = v.superview) {
+        if ([v isKindOfClass:UICollectionView.class]) return v;
+    }
+    return nil;
+}
+
+CGRect SGRPlayerCoverFrameIn(UIView *host) {
+    UIView *tilt = showingTilt();
+    UIView *cover = coverIn(tilt);
+    // The cover's own transform is the paused shrink, which is what the eye sees it at.
+    return cover && host ? [host convertRect:cover.bounds fromView:cover] : CGRectNull;
+}
+
+CGRect SGRPlayerArtworkAreaIn(UIView *host) {
+    UIView *tilt = showingTilt();
+    if (!tilt || !host) return CGRectNull;
+    // The band is the first view over the cover as wide as the player: the cover sits inset inside it
+    // (01.txt:33-36, CoverArtCellImpl > UIView {0, 110, 402, 466.67} > UIView {24, 8, ...} > the tilt view).
+    for (UIView *v = tilt.superview; v; v = v.superview) {
+        if (v == host) break;
+        if (v.bounds.size.width >= host.bounds.size.width - 1) return [host convertRect:v.bounds fromView:v];
+    }
+    return CGRectNull;
+}
+
+#pragma mark - the paused shrink
+
 static void scaleEveryCover(BOOL animated) {
     CGFloat scale = currentScale();
     NSArray<UIView *> *tilts = sg_tilts.allObjects;

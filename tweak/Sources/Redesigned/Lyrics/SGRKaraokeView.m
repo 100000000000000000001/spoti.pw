@@ -7,10 +7,6 @@
 #import "Redesigned/Haptics/Haptics.h"
 
 static const CGFloat kFontSize = 30, kMargin = 24, kLineGap = 24, kRowTighten = 2;
-// The card under the player is a seventh of the page's height, so it gets Spotify's own card type
-// size and the spacing its rows sit on, and no blur: at that size the dimming does the work, and a
-// blur filter on every line in sight, under the card's glass, made the player stutter as it opened.
-static const CGFloat kCardFontSize = 21, kCardMargin = 0, kCardLineGap = 16;
 static const CGFloat kDimAlpha = 0.3, kFillEdge = 22, kLift = 2.5, kDimScale = 0.97;
 static const CGFloat kAnchor = 0.28;   // where the sung line rests, as a share of the height
 static const CGFloat kEdgeFade = 0.1;  // the lines fade out over this share at the top and bottom
@@ -23,10 +19,9 @@ static const NSTimeInterval kBrowseHold = 3;   // after scrolling by hand, how l
 static const double kFloatMinMs = 700, kFloatLeadMs = 80;   // a short word still floats up this slowly
 static const double kClockSnapMs = 250, kClockPull = 0.08;
 // Lines get views this far outside the visible part, in screen heights: half a screen above it
-// and below, and a quarter more before a view is let go. The card under the player is in the tree
-// for every open and close of the player, and every view it holds is one more for the window to
-// take in and let go; a line comes into view about once in three seconds, and a page flung by
-// hand fills in at a few lines a frame.
+// and below, and a quarter more before a view is let go. Every view held is one more for the window
+// to take in and let go when the lyrics come up; a line comes into view about once in three seconds,
+// and a page flung by hand fills in at a few lines a frame.
 static const CGFloat kSightBehind = 0.5, kSightAhead = 0.5, kSightSlack = 0.25;
 static const NSTimeInterval kTransitionSlack = 0.05;   // after the player's animation, before the link is back
 static NSString *const kBlurPath = @"filters.gaussianBlur.inputRadius";
@@ -371,7 +366,6 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
     CAGradientLayer *_fade;
     UILabel *_credit;
     CGFloat _fontSize, _margin, _lineGap, _blurPerLine, _maxBlur;
-    BOOL _compact;
     BOOL _crediting;   // the switch is read once: the page asks for the source on every frame until it has one
     double _clock;
     NSInteger _reported;
@@ -379,20 +373,15 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
 }
 
 - (instancetype)initWithFrame:(CGRect)frame {
-    return [self initWithFrame:frame compact:NO];
-}
-
-- (instancetype)initWithFrame:(CGRect)frame compact:(BOOL)compact {
     self = [super initWithFrame:frame];
     if (!self) return nil;
     self.hidden = YES;
     _active = -1;
-    _compact = compact;
-    _fontSize = compact ? kCardFontSize : kFontSize;
-    _margin = compact ? kCardMargin : kMargin;
-    _lineGap = compact ? kCardLineGap : kLineGap;
-    _blurPerLine = compact ? 0 : kBlurPerLine;
-    _maxBlur = compact ? 0 : kMaxBlur;
+    _fontSize = kFontSize;
+    _margin = kMargin;
+    _lineGap = kLineGap;
+    _blurPerLine = kBlurPerLine;
+    _maxBlur = kMaxBlur;
     _shown = [NSMutableDictionary dictionary];
     _sightActive = -2;
     _fade = [CAGradientLayer layer];
@@ -412,11 +401,9 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
     _credit.font = [UIFont systemFontOfSize:kCreditSize weight:UIFontWeightSemibold];
     _credit.textColor = [UIColor colorWithWhite:1 alpha:kCreditAlpha];
     _credit.hidden = YES;
-    _crediting = !compact && SGFlag(SGKeyLyricsCredit, NO);   // the card has no room to name a source
+    _crediting = SGFlag(SGKeyLyricsCredit, NO);
     [self addSubview:_credit];
-    // A tap on the card is Spotify's, and opens the full screen page; seeking by tap is the page's.
-    if (compact) self.userInteractionEnabled = NO;
-    else [self addGestureRecognizer:[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(tapped:)]];
+    [self addGestureRecognizer:[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(tapped:)]];
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(playerTransitionChanged:) name:SGPlayerTransitionNotification object:nil];
     [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(playerTransitionChanged:) name:SGPlayerTransitionEndedNotification object:nil];
     return self;
@@ -482,8 +469,8 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
 // for 30 to 60, the range Apple's ProMotion guide says Core Animation gives priority to, those
 // animations ran rough; the player and the lyrics themselves were smooth throughout. The card's
 // link now asks for 60 but takes 120, and is put down for as long as the player animates, which
-// NowPlayingBar.x announces as each animation starts and again as it ends; the card holds still
-// under it, where nobody sees it. The timer is for an end that is never announced.
+// NowPlayingBar.x announces as each animation starts and again as it ends. The timer is for an end
+// that is never announced.
 - (void)scheduleLink {
     [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(startLink) object:nil];
     [_link invalidate];
@@ -497,9 +484,7 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
 - (void)startLink {
     if (!self.window || _link) return;
     _link = [CADisplayLink displayLinkWithTarget:self selector:@selector(tick)];
-    // The card stays in the window behind the full screen page, so both sweep at once; the card is
-    // a few lines tall and is content with 60, the page keeps the high refresh rate.
-    _link.preferredFrameRateRange = _compact ? CAFrameRateRangeMake(30, 120, 60) : CAFrameRateRangeMake(80, 120, 120);
+    _link.preferredFrameRateRange = CAFrameRateRangeMake(80, 120, 120);
     [_link addToRunLoop:NSRunLoop.mainRunLoop forMode:NSRunLoopCommonModes];
 }
 

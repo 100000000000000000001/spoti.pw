@@ -108,7 +108,7 @@ Redesigned:
     NowPlayingBar/ the glass now playing bar
     Player/       the redesigned full screen player (Player.h lists its files)
     Lyrics/       the full screen lyrics page on glass with Apple Music style lyrics over it, always on (SGRKaraokeView,
-                  also over the card under the player, Player/KaraokeCard.x)
+                  which the player shows in itself too, Player/PlayerLyrics.x)
     Home/         Home decluttered to music on black (an allow list of its sections: shortcuts, the DJ without its heading and
                   transcript, the shelves of cards), a large title where the filter pills were with the avatar at the trailing
                   edge, the shelves' headings at the Music app's size, each shortcut tile's cover run across it blurred

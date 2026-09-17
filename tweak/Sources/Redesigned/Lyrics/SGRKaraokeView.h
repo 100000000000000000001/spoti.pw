@@ -1,14 +1,14 @@
 // The redesign's Apple Music style lyrics view, always on, over Spotify's full screen lyrics page
-// (KaraokePage.x) and, compact, over the card under the redesigned player (Redesigned/Player/KaraokeCard.x).
-// A track without synced lyrics keeps Spotify's own lines. The lines and the clock are
-// Shared/Lyrics/Lyrics.h's.
+// (KaraokePage.x) and in the redesigned player itself (Redesigned/Player/PlayerLyrics.x). A track
+// without synced lyrics keeps Spotify's own lines, where there are any next to it. The lines and the
+// clock are Shared/Lyrics/Lyrics.h's.
+//
+// It takes the whole of whatever it is put in and dims every other view in there while it has lines
+// to show, so a host it shares with anything else needs a view of its own for it.
 #import <UIKit/UIKit.h>
 #import "Shared/Lyrics/Lyrics.h"
 
 @interface SGRKaraokeView : UIView
-// Compact is the card under the player: Spotify's own type size, no seeking by tap and no margin of
-// its own, since the card already insets what it holds. initWithFrame: is the full screen page.
-- (instancetype)initWithFrame:(CGRect)frame compact:(BOOL)compact;
 // Hides Spotify's own lyrics next to this view while it has lyrics to show, and brings them back when not.
 - (void)syncSiblings;
 @end

@@ -15,3 +15,4 @@ tweak/packages/
 tweak/Sources/Shared/Flags/SGFlagList.m
 /trees/continuous
 /trees/clean
+harness/*/build/
