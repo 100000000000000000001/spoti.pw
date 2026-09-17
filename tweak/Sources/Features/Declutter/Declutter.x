@@ -10,6 +10,7 @@
 // and the queue; track info ends with the add-to button.
 #import "Core/SGCore.h"
 #import "Declutter.h"
+#import "Redesign/Kit/SGRedesign.h"
 
 #pragma mark - cards and sections
 
@@ -47,8 +48,11 @@ static NSString *hiddenKeyFor(UICollectionViewCell *cell) {
         if ([v isKindOfClass:cell.class]) return nil;
     }
     NSString *names = nil;
+    // The cards under a redesigned player are Redesign/Player/PlayerCards.x's.
+    BOOL playerRedesigned = SGRedesignOn(@"player");
     for (size_t i = 0; i < sizeof(cards) / sizeof(cards[0]); i++) {
         if (!SGHidden(cards[i].key)) continue;
+        if (playerRedesigned && [cards[i].page isEqualToString:@"NowPlaying_ScrollAPI"]) continue;
         if (!names) names = classNamesIn(cell);
         if ([names containsString:cards[i].page] && [names containsString:cards[i].marker]) return cards[i].key;
     }
@@ -68,7 +72,7 @@ static NSString *hiddenKeyFor(UICollectionViewCell *cell) {
 }
 %end
 
-#pragma mark - player buttons
+#pragma mark - player buttons, lyrics under the artwork
 
 static BOOL vanish(UIView *view) {
     if (!view || view.alpha == 0) return NO;
@@ -81,6 +85,10 @@ static BOOL vanish(UIView *view) {
 static void finish(UIViewController *unit, BOOL changed) {
     if (changed) [unit.viewIfLoaded setNeedsLayout];
 }
+
+// The player's buttons and the lyric preview under the artwork, left to the player redesign
+// (Redesign/Player/) while it is on.
+%group PlayerButtons
 
 %hook _TtC20NowPlaying_ModesImpl28PlaybackControlsElementsUnit
 - (void)viewDidLayoutSubviews {
@@ -124,8 +132,6 @@ static void finish(UIViewController *unit, BOOL changed) {
 }
 %end
 
-#pragma mark - lyrics under the artwork, Home filter pills
-
 %hook _TtC22Lyrics_NPVContainerKit19LyricsContainerView
 - (void)setHidden:(BOOL)hidden {
     %orig(SGHidden(SGHideLyricsInline) ? YES : hidden);
@@ -135,6 +141,10 @@ static void finish(UIViewController *unit, BOOL changed) {
     if (SGHidden(SGHideLyricsInline)) ((UIView *)self).hidden = YES;
 }
 %end
+
+%end
+
+#pragma mark - Home filter pills
 
 %hook _TtC14Home_PillUIKit14PillScrollView
 - (void)didMoveToWindow {
@@ -152,6 +162,7 @@ void SGSetPlayerLyricsOnly(BOOL on) {
 
 %ctor {
     %init;
+    if (!SGRedesignOn(@"player")) %init(PlayerButtons);
     SGRequireClasses(@[
         @"_TtC12Element_List18CollectionViewCell",
         @"_TtC20NowPlaying_ModesImpl28PlaybackControlsElementsUnit",

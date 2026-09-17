@@ -16,6 +16,7 @@
 // front of whatever that view still fills itself with, rather than behind the whole page.
 #import "Core/SGCore.h"
 #import "NowPlaying.h"
+#import "Redesign/Kit/SGRedesign.h"
 
 static const CGFloat kCardRadius = 16;
 static char kCardGlassKey, kPageGlassKey;
@@ -30,6 +31,10 @@ static UIView *cellAround(UIView *view) {
     }
     return nil;
 }
+
+// The card is a content surface of the player redesign's own (Redesign/Player/PlayerCards.x) while it
+// is on, so its glass stands aside; the page below is not the player's and keeps it.
+%group Card
 
 %hook _TtC22Lyrics_CardElementImpl8CardView
 - (void)layoutSubviews {
@@ -47,6 +52,8 @@ static UIView *cellAround(UIView *view) {
     glass.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     SGShapeGlass(glass, kCardRadius, NO);
 }
+%end
+
 %end
 
 #pragma mark - the expanded page
@@ -90,6 +97,7 @@ static UIView *clearAncestors(UIView *view) {
 
 %ctor {
     %init;
+    if (!SGRedesignOn(@"player")) %init(Card);
     SGRequireClasses(@[
         @"_TtC22Lyrics_CardElementImpl8CardView",
         @"_TtC12Element_List18CollectionViewCell",

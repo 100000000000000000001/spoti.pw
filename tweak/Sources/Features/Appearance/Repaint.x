@@ -2,10 +2,12 @@
 // view is the now playing card from the album-colour paint.
 #import "Core/SGCore.h"
 #import "Appearance.h"
+#import "Redesign/Kit/SGRRestyle.h"
 
 %hook CALayer
 - (void)setBackgroundColor:(CGColorRef)color {
-    if (color && (sg_nowPlayingRoot || sg_tabBarRoot || sg_lyricsCardRoot || sg_lyricsPageRoot || sg_homeRoot || sg_npvBackdropRoot)) {
+    if (color && (sg_nowPlayingRoot || sg_tabBarRoot || sg_lyricsCardRoot || sg_lyricsPageRoot || sg_homeRoot || sg_npvBackdropRoot
+                  || SGRHasClearRoots())) {
         UIView *view = (UIView *)self.delegate;
         if ([view isKindOfClass:UIView.class] && view.layer == self && !SGKeepsColor(view)) {
             if (SGIsInside(view, sg_nowPlayingRoot)) {
@@ -26,6 +28,9 @@
             } else if (SGIsBaseSurface(color) && SGIsInside(view, sg_homeRoot)) {
                 // Home keeps its cards and its placeholders; only the base surface the gradient
                 // of Home/HomeGradient.x sits behind goes.
+                color = NULL;
+            } else if (SGRHasClearRoots() && SGIsBaseSurface(color) && SGRInsideClearRoot(view)) {
+                // A redesigned page paints its own field behind Spotify's surfaces (Redesign/Kit/SGRRestyle.h).
                 color = NULL;
             }
         }

@@ -9,9 +9,13 @@
 // Only the heading names the section, so the list remembers the heading above every cell it sizes
 // and a hidden section's cells all answer height 0, down to the next heading. The headings are
 // told apart by their English titles.
+//
+// While the artist page is redesigned (Redesign/Artist/) none of these hooks is installed, so the two
+// never fight over the same views; with the redesign off they behave as they always did.
 #import <objc/runtime.h>
 #import <CoreImage/CoreImage.h>
 #import "Core/SGCore.h"
+#import "Redesign/Kit/SGRedesign.h"
 #import "Artist.h"
 
 static BOOL onArtistPage(UIView *view) {
@@ -177,6 +181,8 @@ static void applyPhotoFade(UIView *header) {
     [CATransaction commit];
 }
 
+%group SGArtistLegacy
+
 %hook _TtC35CreativeWorkPlatform_ImageHeaderKit15ImageHeaderView
 - (void)layoutSubviews {
     %orig;
@@ -328,8 +334,11 @@ static BOOL collapsed(UICollectionViewCell *cell, NSIndexPath *path) {
 }
 %end
 
+%end
+
 %ctor {
-    %init;
+    if (SGRedesignOn(@"artist")) return;
+    %init(SGArtistLegacy);
     SGRequireClasses(@[
         @"_TtC35CreativeWorkPlatform_ImageHeaderKit15ImageHeaderView",
         @"_TtC12Element_List18CollectionViewCell",

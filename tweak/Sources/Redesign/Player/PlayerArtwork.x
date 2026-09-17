@@ -1,0 +1,159 @@
+// Player redesign: the cover sits on the field with continuous corners and a soft shadow, and shrinks
+// back while playback is paused, the way the Music app's does; the lyric preview under it is gone.
+//
+// Tree (trees/clean/player/01.txt:36-43): CoverArtCellImpl > ... > CoverArtTiltView 354x354 > an
+// ElementView the same size > ImageViewProxy > Encore.ImageView (clips) > UIImageView, with
+// Lyrics_NPVContainerKit.LyricsContainerView under the tilt view. The ElementView is what gets the
+// corners and the scale: the tilt view's own transform is left to the tilt Spotify gives it when the
+// cover is inspected. The image clips, so the shadow is a plate of the Kit's behind it.
+//
+// The scale is identity while the player opens or closes: the bar morphs into a 354pt stand-in
+// (NowPlaying_ECMKit.MaskView, 01.txt:86) and the cover under it has to match where it lands. Once
+// the transition is over a paused cover springs down.
+#import "Core/SGCore.h"
+#import "Redesign/Kit/SGRKit.h"
+#import "Player.h"
+
+static const CGFloat kPausedScale = 0.84, kPausedScaleReduceMotion = 0.92;
+// The bar's 40pt cover lives in a tilt view of its own; the player's is 354.
+static const CGFloat kCoverMinWidth = 200;
+
+static char kPlateKey;
+static NSHashTable<UIView *> *sg_tilts;
+// The cover of each tilt view once found. A frame Spotify sets on a scaled view becomes its scaled
+// size, leaving bounds that no longer match the tilt view's, so the cover is not looked for by size again.
+static NSMapTable<UIView *, UIView *> *sg_covers;
+
+static CGFloat currentScale(void) {
+    SPTPlayerState *state = SGRPlayerState();
+    if (!state.isPaused || SGRPlayerIsTransitioning()) return 1;
+    return SGRReduceMotion() ? kPausedScaleReduceMotion : kPausedScale;
+}
+
+// The child of the tilt view the size of the cover.
+static UIView *coverIn(UIView *tilt) {
+    UIView *cover = [sg_covers objectForKey:tilt];
+    if (cover.superview == tilt) return cover;
+    for (UIView *sub in tilt.subviews) {
+        if (![sub isKindOfClass:SGRShadowPlate.class] && CGSizeEqualToSize(sub.bounds.size, tilt.bounds.size)) {
+            [sg_covers setObject:sub forKey:tilt];
+            return sub;
+        }
+    }
+    return nil;
+}
+
+static BOOL inCoverCell(UIView *tilt) {
+    static Class cell;
+    if (!cell) cell = NSClassFromString(@"_TtC28NowPlaying_ContentLayersImpl16CoverArtCellImpl");
+    for (UIView *v = tilt.superview; v; v = v.superview) {
+        if ([v isKindOfClass:cell]) return YES;
+    }
+    return NO;
+}
+
+static void scaleCover(UIView *tilt, CGFloat scale) {
+    UIView *cover = coverIn(tilt);
+    if (!cover) return;
+    SGRShadowPlate *plate = SGRShadowPlateIn(tilt, &kPlateKey);
+    CGAffineTransform transform = CGAffineTransformMakeScale(scale, scale);
+    cover.transform = transform;
+    plate.transform = transform;
+}
+
+static void scaleEveryCover(BOOL animated) {
+    CGFloat scale = currentScale();
+    NSArray<UIView *> *tilts = sg_tilts.allObjects;
+    void (^apply)(void) = ^{
+        for (UIView *tilt in tilts) scaleCover(tilt, scale);
+    };
+    if (animated) SGRAnimate(SGRMotionLayout, apply, nil);
+    else apply();
+}
+
+%hook _TtC35CreativeWorkCommons_CoverArtTiltKit16CoverArtTiltView
+- (void)layoutSubviews {
+    %orig;
+    UIView *tilt = (UIView *)self;
+    if (tilt.bounds.size.width < kCoverMinWidth || !inCoverCell(tilt)) return;
+    UIView *cover = coverIn(tilt);
+    if (!cover) return;
+    [sg_tilts addObject:tilt];
+    // The cover fills the tilt view (01.txt:37); bounds and center, unlike a frame, hold under the scale.
+    CGRect bounds = tilt.bounds;
+    CGPoint middle = CGPointMake(CGRectGetMidX(bounds), CGRectGetMidY(bounds));
+    if (!CGSizeEqualToSize(cover.bounds.size, bounds.size)) cover.bounds = (CGRect){cover.bounds.origin, bounds.size};
+    if (!CGPointEqualToPoint(cover.center, middle)) cover.center = middle;
+
+    cover.layer.cornerRadius = SGRRadiusArtwork;
+    cover.layer.cornerCurve = kCACornerCurveContinuous;
+    cover.clipsToBounds = YES;
+    SGRShadowPlate *plate = SGRShadowPlateIn(tilt, &kPlateKey);
+    plate.bounds = cover.bounds;
+    plate.center = cover.center;
+    // The same value an animation in flight is heading to, so a layout pass never cuts one short.
+    scaleCover(tilt, currentScale());
+
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{ SGLog(@"redesign player: cover %@ rounded %.0f with a shadow plate, scale %.2f", NSStringFromClass(cover.class), SGRRadiusArtwork, currentScale()); });
+}
+%end
+
+// Spotify shows and hides the preview as lyrics come and go; it stays hidden, the way
+// Declutter/Declutter.x has shipped it (its parent is a plain view, 01.txt:35, not a stack).
+%hook _TtC22Lyrics_NPVContainerKit19LyricsContainerView
+- (void)setHidden:(BOOL)hidden {
+    %orig(YES);
+}
+- (void)didMoveToWindow {
+    %orig;
+    ((UIView *)self).hidden = YES;
+}
+%end
+
+@interface SGRPlayerArtworkWatcher : NSObject <SGRPlayerStateObserver>
+@end
+
+@implementation SGRPlayerArtworkWatcher {
+    NSInteger _paused;
+}
+
+- (instancetype)init {
+    if (!(self = [super init])) return nil;
+    _paused = -1;
+    return self;
+}
+
+- (void)playerStateDidChange:(SPTPlayerState *)state {
+    NSInteger paused = state.isPaused ? 1 : 0;
+    if (paused == _paused) return;
+    _paused = paused;
+    scaleEveryCover(YES);
+    static NSUInteger logged;
+    if (logged++ < 3) SGLog(@"redesign player: state paused=%d loading=%d, %lu covers scaled", state.isPaused, state.isLoading, (unsigned long)sg_tilts.count);
+}
+
+@end
+
+static SGRPlayerArtworkWatcher *sg_artworkWatcher;
+
+%ctor {
+    if (!SGRedesignOn(@"player")) return;
+    %init;
+    sg_tilts = [NSHashTable weakObjectsHashTable];
+    sg_covers = [NSMapTable weakToWeakObjectsMapTable];
+    sg_artworkWatcher = [SGRPlayerArtworkWatcher new];
+    SGRAddPlayerStateObserver(sg_artworkWatcher);
+    SGRObservePlayerTransition(sg_artworkWatcher, ^(id owner) {
+        scaleEveryCover(YES);
+    }, ^(id owner) {
+        scaleEveryCover(YES);
+        static dispatch_once_t once;
+        dispatch_once(&once, ^{ SGLog(@"redesign player: transition over, cover scale %.2f", currentScale()); });
+    });
+    SGRequireClasses(@[
+        @"_TtC35CreativeWorkCommons_CoverArtTiltKit16CoverArtTiltView",
+        @"_TtC28NowPlaying_ContentLayersImpl16CoverArtCellImpl",
+        @"_TtC22Lyrics_NPVContainerKit19LyricsContainerView",
+    ]);
+}

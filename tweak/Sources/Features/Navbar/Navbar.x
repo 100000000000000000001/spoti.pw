@@ -16,7 +16,7 @@
 #import "Core/SGCore.h"
 #import "Navbar.h"
 #import "Headers/SPTEncoreIconView.h"
-#import "Headers/SPTLinkDispatcherImplementation.h"
+#import "Redesign/Kit/SGRBridges.h"
 #import <objc/message.h>
 
 static const CGFloat kIconSize = 24;
@@ -31,7 +31,6 @@ static char kCustomKey, kOrderKey;
 static CGRect sg_iconBox = {{0, kIconTop}, {kIconSize, kIconSize}};
 static CGRect sg_labelBox = {{0, kLabelTop}, {0, kLabelHeight}};
 
-static __weak SPTLinkDispatcherImplementation *sg_linkDispatcher;
 static __weak UIView *sg_navbarRoot;
 // The bar's row of items, given its frames by placeRow after each of its own passes.
 static __weak UIStackView *sg_row;
@@ -126,14 +125,10 @@ static UIView *iconView(NSString *name) {
     self.alpha = highlighted ? 0.5 : 1;
 }
 
+// Through the link dispatcher the Kit keeps (Redesign/Kit/SGRBridges.x).
 - (void)open {
     NSURL *url = self.uri.length ? [NSURL URLWithString:self.uri] : nil;
-    SPTLinkDispatcherImplementation *dispatcher = sg_linkDispatcher;
-    if (!url || ![dispatcher respondsToSelector:@selector(navigateToURI:options:interactionID:)]) {
-        SGLog(@"navbar: cannot open %@, dispatcher %@", self.uri, dispatcher);
-        return;
-    }
-    [dispatcher navigateToURI:url options:0 interactionID:nil];
+    if (!SGROpenURI(url)) SGLog(@"navbar: cannot open %@, dispatcher %@", self.uri, SGRLinkDispatcher());
 }
 
 @end
@@ -367,18 +362,9 @@ void SGLogTabBarRow(UIView *tabBar) {
 }
 %end
 
-// The dispatcher is a singleton the app builds at startup; this is the last call of its setup.
-%hook SPTLinkDispatcherImplementation
-- (void)setMainUILoaded:(BOOL)loaded {
-    %orig;
-    sg_linkDispatcher = (SPTLinkDispatcherImplementation *)self;
-}
-%end
-
 %ctor {
     %init;
     SGRequireClasses(@[
-        @"SPTLinkDispatcherImplementation",
         @"SPTEncoreIcon",
         @"SPTEncoreIconView",
         @"SPTEncoreLabel",

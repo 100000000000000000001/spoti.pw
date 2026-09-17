@@ -11,9 +11,17 @@
 @property (nonatomic, readonly) NSDictionary<NSString *, NSString *> *metadata;
 @end
 
+@interface SPTPlayerOptions : NSObject
+@property (nonatomic, readonly) BOOL shufflingContext;
+@end
+
 @interface SPTPlayerState : NSObject
 @property (nonatomic, readonly) SPTPlayerTrack *track;
+@property (nonatomic, readonly) id contextURI;
+@property (nonatomic, readonly) SPTPlayerOptions *options;
 @property (nonatomic, readonly) BOOL isPaused;
+@property (nonatomic, readonly) BOOL isPlaying;
+@property (nonatomic, readonly) BOOL isLoading;
 // Seconds. position runs on from positionAsOfTimestamp by the time elapsed since the state was made.
 @property (nonatomic, readonly) double position;
 @property (nonatomic, readonly) double positionAsOfTimestamp;
@@ -24,6 +32,7 @@
 
 @protocol SPTPlayer <NSObject>
 @property (nonatomic, readonly) SPTPlayerState *state;
+- (void)addPlayerObserver:(id)observer;
 - (void)skipToNextTrack;
 - (void)seekTo:(double)seconds;
 @end

@@ -4,6 +4,7 @@
 #import "Features/Flags/Flags.h"
 #import "Features/About/About.h"
 #import "Features/AdBlock/AdBlock.h"
+#import "Redesign/Kit/SGRedesign.h"
 
 NSString *const SGRestartNote = @"Changes apply after you restart Spotify.";
 
@@ -223,11 +224,20 @@ static BOOL flagRowOn(SGModRow *row) {
     return value && [value boolValue] != row.forceOff;
 }
 
-// A flag the Liquid Glass UI switch owns: its row shows what that switch forces and
-// takes no touch, so the flag has one place to change. An override from All flags still wins.
+// A flag the Liquid Glass UI switch or a redesigned screen owns: its row shows what that switch
+// forces and takes no touch, so the flag has one place to change. An override from All flags still wins.
 static BOOL flagRowLocked(SGModRow *row) {
     if (!row.flag) return NO;
-    return (SGGlassOwnsFlag(row.key) && SGFlag(SGKeySpotifyGlass, NO)) || (row.forceOff && SGAdBlockForcesFlagOff(row.key));
+    return (SGGlassOwnsFlag(row.key) && SGFlag(SGKeySpotifyGlass, NO)) || (row.forceOff && SGAdBlockForcesFlagOff(row.key))
+        || SGRedesignOwnedFlag(row.key);
+}
+
+// What a locked row shows: the value its owner forces, read the row's way, so a Disable Canvas row
+// reads on while a redesign forces Canvas off. Liquid Glass UI and the ad blocking only ever force a
+// flag the way its row would.
+static BOOL lockedRowOn(SGModRow *row) {
+    id owned = SGRedesignOwnedFlag(row.key);
+    return owned ? [owned boolValue] != row.forceOff : YES;
 }
 
 @implementation SGModPage {
@@ -343,7 +353,7 @@ static BOOL flagRowLocked(SGModRow *row) {
         UISwitch *toggle = [UISwitch new];
         toggle.onTintColor = SGGreen();
         BOOL locked = flagRowLocked(row);
-        toggle.on = row.flag ? (locked && !SGFlagOverride(row.key) ? YES : flagRowOn(row)) : SGFlag(row.key, row.defaultOn);
+        toggle.on = row.flag ? (locked && !SGFlagOverride(row.key) ? lockedRowOn(row) : flagRowOn(row)) : SGFlag(row.key, row.defaultOn);
         toggle.enabled = !locked;
         // A disabled switch would swallow the tap; letting it through is what gets the row asked.
         toggle.userInteractionEnabled = !locked;

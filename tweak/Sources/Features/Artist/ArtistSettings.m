@@ -1,5 +1,6 @@
 #import "Core/SGCore.h"
 #import "Settings/SGModPage.h"
+#import "Redesign/Kit/SGRedesign.h"
 #import "Artist.h"
 
 UIViewController *SGArtistSettingsPage(void) {
@@ -37,5 +38,8 @@ UIViewController *SGArtistSettingsPage(void) {
             SGFlagRow(@"Top collaborators", @"ios-creator-impl.is_top_collaborators_enabled"),
             SGFlagRow(@"Artist facts", @"ios-creator-impl.is_artist_facts_enabled"),        ]),
     ];
+    // While the redesign has the page, these switches stand aside; the note says so and opens its page.
+    SGModSection *note = SGRedesignNoteSection(@"artist");
+    if (note) sections = [@[note] arrayByAddingObjectsFromArray:sections];
     return [[SGModPage alloc] initWithTitle:@"Artist" intro:nil sections:sections footer:nil];
 }

@@ -23,6 +23,7 @@
 #import "Core/SGCore.h"
 #import "NowPlaying.h"
 #import "Features/Appearance/Appearance.h"
+#import "Redesign/Kit/SGRedesign.h"
 
 static const CGFloat kButtonMin = 36, kButtonMax = 48;
 static const CGFloat kArtRadius = 12;
@@ -192,6 +193,8 @@ static UIFont *timeFont(void) {
 %end
 
 %ctor {
+    // The player redesign (Redesign/Player/) owns this screen while it is on.
+    if (SGRedesignOn(@"player")) return;
     %init;
     SGRequireClasses(@[
         @"_TtC20NowPlaying_ModesImpl18HeaderElementsUnit",

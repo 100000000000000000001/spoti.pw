@@ -7,6 +7,7 @@
 #import "Features/Karaoke/Karaoke.h"
 #import "Features/LockScreenLyrics/LockScreenLyrics.h"
 #import "Features/LyricsSources/LyricsSources.h"
+#import "Redesign/Kit/SGRedesign.h"
 
 static UIViewController *nowPlayingBarPage(void) {
     return [[SGModPage alloc] initWithTitle:@"Now playing bar" intro:SGRestartNote sections:@[
@@ -105,7 +106,7 @@ UIViewController *SGNowPlayingSettingsPage(void) {
         return SGFlag(SGKeyArtistBlock, NO) ? @(SGBlockedArtists().count).stringValue : @"Off";
     };
 
-    return [[SGModPage alloc] initWithTitle:@"Player" intro:@"Changes apply after you restart Spotify. Gestures and Blocked artists apply straight away." sections:@[
+    NSArray<SGModSection *> *sections = @[
         SGSection(nil, @[
             SGWithSymbol(SGPageRow(@"Gestures", ^UIViewController *{ return SGGesturesSettingsPage(); }), @"hand.tap"),
             SGWithSymbol(SGPageRow(@"Lyrics", ^UIViewController *{ return lyricsPage(); }), @"quote.bubble"),
@@ -143,5 +144,9 @@ UIViewController *SGNowPlayingSettingsPage(void) {
             SGHideRow(@"Share", nil, SGHideShare),
             SGHideRow(@"Connect to a device", nil, SGHideConnect),
         ]),
-    ] footer:nil];
+    ];
+    // While the player is redesigned the player screen, card and button rows below don't apply.
+    SGModSection *note = SGRedesignNoteSection(@"player");
+    if (note) sections = [@[note] arrayByAddingObjectsFromArray:sections];
+    return [[SGModPage alloc] initWithTitle:@"Player" intro:@"Changes apply after you restart Spotify. Gestures and Blocked artists apply straight away." sections:sections footer:nil];
 }
