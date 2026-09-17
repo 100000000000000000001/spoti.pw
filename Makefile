@@ -12,7 +12,7 @@ FLEX_ARG := $(if $(filter 0,$(FLEX)),--no-flex,)
 DEV_NAME ?= spoti.dev
 DEV_ICON ?= docs/icon.png
 
-.PHONY: build release install publish push trees log flags
+.PHONY: build release install publish push trees session log flags
 build:    ## FLEX + glass IPA into out/
 	./scripts/pipeline.sh $(IPA)
 release:  ## glass only, no FLEX
@@ -25,7 +25,9 @@ push:     ## commit and push the staged release in both repos
 	./scripts/publish.sh push
 trees:    ## record per-screen view trees into trees/ (needs a FLEX build on the phone)
 	./scripts/record-trees.py
-log:      ## stream the tweak's log lines from the phone
+session:  ## record clean trees screen by screen into trees/clean/, Enter per snapshot, n for the next screen (SCREENS="playlist artist" for some)
+	./scripts/record-session.py $(SCREENS)
+log:     ## stream the tweak's log lines from the phone
 	./scripts/dump-log.sh
 flags:    ## regenerate tweak/Sources/Features/Flags/SGFlagList.m, Spotify's remote-config flags, from the IPA
 	./scripts/extract-flags.py $(IPA)

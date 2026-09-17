@@ -43,6 +43,36 @@ BOOL SGIsDebugBuild(void) {
     return NSClassFromString(@"FLEXManager") != nil;
 }
 
+// What the mod has set, so a recorded tree says whether it shows Spotify as it came or a screen some
+// switch has already changed: the stock marker Reset all settings leaves, then every key of the mod's
+// with its value. The counters, the update check, the signing warning, the tour and the Musixmatch
+// token belong to the install rather than to a choice, as in About/Backup.m, and are left out.
+// scripts/record-session.py reads this section to call a snapshot clean or not.
+static NSString *describeValue(id value) {
+    if ([value isKindOfClass:NSArray.class] || [value isKindOfClass:NSDictionary.class]) {
+        return [NSString stringWithFormat:@"%@%lu", [value isKindOfClass:NSArray.class] ? @"list:" : @"map:", (unsigned long)[value count]];
+    }
+    if ([value isKindOfClass:NSString.class]) {
+        NSString *text = value;
+        return [NSString stringWithFormat:@"\"%@\"", text.length > 40 ? [[text substringToIndex:40] stringByAppendingString:@"…"] : text];
+    }
+    return [value description];
+}
+
+static void appendModState(NSMutableString *out) {
+    NSDictionary *stored = [NSUserDefaults.standardUserDefaults persistentDomainForName:NSBundle.mainBundle.bundleIdentifier] ?: @{};
+    [out appendFormat:@"== mod\nstock %@\n", [stored[SGKeyStock] boolValue] ? @"yes" : @"no"];
+    NSArray<NSString *> *local = @[@"spotifyglass.adblock.counts", @"spotifyglass.privacy.counts", @"spotifyglass.update.",
+                                   @"spotifyglass.signing.", @"spotifyglass.onboarding.", @"spotifyglass.navbar.stock",
+                                   @"spotifyglass.musixmatch.token"];
+    for (NSString *key in [stored.allKeys sortedArrayUsingSelector:@selector(compare:)]) {
+        if (![key hasPrefix:@"spotifyglass."] || [key isEqualToString:SGKeyStock]) continue;
+        BOOL skip = NO;
+        for (NSString *prefix in local) skip |= [key hasPrefix:prefix];
+        if (!skip) [out appendFormat:@"%@ = %@\n", key, describeValue(stored[key])];
+    }
+}
+
 NSString *SGScreenTree(void) {
     NSMutableString *out = [NSMutableString string];
     UIViewController *root = nil;
@@ -58,6 +88,7 @@ NSString *SGScreenTree(void) {
     if ([root respondsToSelector:@selector(_printHierarchy)]) {
         [out appendFormat:@"== view controllers\n%@\n", [root _printHierarchy]];
     }
+    appendModState(out);
     return out;
 }
 

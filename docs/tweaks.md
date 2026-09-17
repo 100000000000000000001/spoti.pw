@@ -12,8 +12,10 @@
     tweak/Sources/Features/     one directory per feature, see below
     tweak/Sources/Diagnostics/  screen dumps and the tree server of FLEX builds
     scripts/                    pipeline.sh (build + inject), install.sh (sign + install), record-trees.py,
-                                dump-log.sh, extract-flags.py, publish.sh (release: version bump, site release.json)
-    trees/                      recorded view trees, one per screen; the input for every new hook
+                                record-session.py, dump-log.sh, extract-flags.py, publish.sh (release: version bump,
+                                site release.json)
+    trees/                      recorded view trees, one per screen; the input for every new hook. trees/clean/ holds
+                                the numbered snapshots per screen of record-session.py, taken of Spotify as it came
     plist/                      Info.plist overrides merged into the app (turns UIDesignRequiresCompatibility off)
     vendor/                     AutoFLEX deb
     ipa/, out/                  decrypted Spotify IPA in, built IPAs out (both gitignored)
@@ -80,6 +82,8 @@ out again, as are the Home gradient's colour, strength and height, but not the s
     make install    # build without FLEX, sign with your certificate, install over USB
     make install FLEX=1   # the same with FLEX, which is what make trees reads through
     make trees      # record view trees screen by screen (FLEX build open on the phone, USB)
+    make session    # clean trees, as many snapshots per screen as you like: Enter saves, n goes to the next screen
+                    # (SCREENS="playlist artist" for some); every snapshot says whether the mod was at stock
     make log        # stream [spotifyglass] log lines from the phone
     make flags      # regenerate the flag table from the IPA
 
