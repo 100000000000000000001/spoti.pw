@@ -1,6 +1,6 @@
 #import "SGPageStyle.h"
 #import "Core/SGCore.h"
-#import "Features/Appearance/Appearance.h"
+#import "Native/Appearance/Appearance.h"
 
 static UIFont *sg_titleFont, *sg_subtitleFont;
 

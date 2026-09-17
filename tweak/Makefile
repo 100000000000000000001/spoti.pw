@@ -8,7 +8,7 @@ TWEAK_NAME := spotifyglass
 
 SG_VERSION := $(shell sed -n 's/^Version: //p' control)
 
-# Every source under Sources/, so a new feature needs no Makefile edit. Features/Flags/SGFlagList.m
+# Every source under Sources/, so a new feature needs no Makefile edit. Shared/Flags/SGFlagList.m
 # is generated from the IPA by scripts/extract-flags.py.
 spotifyglass_FILES := $(shell find Sources -name '*.m' -o -name '*.x' -o -name '*.swift' | sort)
 spotifyglass_CFLAGS := -fobjc-arc -ISources -DSG_VERSION=\"$(SG_VERSION)\"

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Write tweak/Sources/Features/Flags/SGFlagList.m, the table of Spotify's remote-config flags, from a decrypted IPA.
+"""Write tweak/Sources/Shared/Flags/SGFlagList.m, the table of Spotify's remote-config flags, from a decrypted IPA.
 
 Every generated SPT*ImplProperties class reads its flags in initWithConfigurationProvider: through
 boolValueForId:defaultValue:, intValueForId:lower:upper:defaultValue: or
@@ -252,7 +252,7 @@ def main():
         kind, value, lower, upper = flags[key]
         lines.append(f'    {{"{key}", SGFlag{kind}, {signed(value)}, {signed(lower)}, {signed(upper)}}},')
     lines += ['};', 'const NSUInteger SGFlagCount = sizeof(SGFlagTable) / sizeof(*SGFlagTable);', '']
-    out = ROOT / 'tweak/Sources/Features/Flags/SGFlagList.m'
+    out = ROOT / 'tweak/Sources/Shared/Flags/SGFlagList.m'
     out.write_text('\n'.join(lines))
     typed = sum(1 for f in flags.values() if f[0] != 'Unknown')
     print(f'{out.relative_to(ROOT)}: {len(flags)} flags, {typed} with a type and default')

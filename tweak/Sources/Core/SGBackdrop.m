@@ -1,4 +1,4 @@
-#import "Core/SGBackdrop.h"
+#import "SGBackdrop.h"
 
 // Small enough that no shape of the cover survives the scaling back up, large enough to keep the
 // colours where they were in it.

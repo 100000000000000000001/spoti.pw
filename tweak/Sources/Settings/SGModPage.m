@@ -2,10 +2,10 @@
 #import "SGPageStyle.h"
 #import "SGGlowSwitch.h"
 #import "Core/SGCore.h"
-#import "Features/Flags/Flags.h"
-#import "Features/About/About.h"
-#import "Features/AdBlock/AdBlock.h"
-#import "Redesign/Kit/SGRedesign.h"
+#import "Shared/Flags/Flags.h"
+#import "Shared/About/About.h"
+#import "Shared/AdBlock/AdBlock.h"
+#import "Redesigned/Kit/SGRedesign.h"
 
 NSString *const SGRestartNote = @"Changes apply after you restart Spotify.";
 
