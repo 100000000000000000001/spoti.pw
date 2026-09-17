@@ -11,7 +11,7 @@
 // underneath and comes back the moment a track has no synced lyrics. It takes no touches, so the
 // tap that opens the full screen page is still Spotify's to answer.
 #import "Core/SGCore.h"
-#import "Shared/Lyrics/Lyrics.h"
+#import "Native/Lyrics/KaraokeView.h"
 
 // Below this the card is collapsed, by Declutter or while it is still being laid out.
 static const CGFloat kLivingHeight = 40;
@@ -37,7 +37,7 @@ static char kKaraokeKey;
 %end
 
 %ctor {
-    if (!SGFlag(SGKeyKaraokeLyrics, NO)) return;
+    if (!SGNativeUI() || !SGFlag(SGKeyKaraokeLyrics, NO)) return;
     %init;
     SGRequireClasses(@[@"_TtC22Lyrics_CardElementImpl15CardContentView"]);
 }

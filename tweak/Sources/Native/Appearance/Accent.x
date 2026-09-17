@@ -165,6 +165,7 @@ static id swappedValue(id value) {
 %end
 
 %ctor {
+    if (!SGNativeUI()) return;
     sg_accent = chosen();
     if (sg_accent >= 0) %init;
 }

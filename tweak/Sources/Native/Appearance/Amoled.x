@@ -63,7 +63,7 @@ static CGColorRef copyBlack(CGColorRef color) {
 %end
 
 %ctor {
-    if (SGFlag(SGKeyAmoled, NO)) {
+    if (SGNativeUI() && SGFlag(SGKeyAmoled, NO)) {
         %init;
     }
 }

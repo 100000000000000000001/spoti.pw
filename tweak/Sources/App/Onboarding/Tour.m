@@ -1,15 +1,16 @@
 #import "Core/SGCore.h"
 #import "Settings/SGPageStyle.h"
 #import "Onboarding.h"
-#import "Shared/About/About.h"
+#import "App/About/About.h"
 #import "Shared/AdBlock/AdBlock.h"
 #import "Native/Appearance/Appearance.h"
 #import "Shared/Flags/Flags.h"
 #import "Native/Home/Home.h"
-#import "Native/Player/Declutter.h"
+#import "Native/Player/NowPlaying.h"
 #import "Native/Navbar/Navbar.h"
+#import "Redesigned/Navbar/Navbar.h"
 #import "Shared/Privacy/Privacy.h"
-#import "Redesigned/Kit/SGRedesign.h"
+#import "App/Pages.h"
 
 static const CGFloat kMargin = 24;
 static const CGFloat kCardRadius = 22;
@@ -325,7 +326,7 @@ static SGTourRow *actionRow(NSString *symbol, NSString *title, NSString *subtitl
 // controller of its own so Add a tab has somewhere to push.
 - (SGTourPage *)navbarPage {
     SGTourPage *page = [self pageWithSymbol:@"dock.rectangle" heading:@"Your tabs." body:@"Drag to reorder, tap to hide, add any Spotify link as a tab of its own. The bar follows straight away." rows:@[]];
-    UIViewController *editor = SGNavbarEditorPage();
+    UIViewController *editor = SGRedesignedUIStored() ? SGRNavbarEditorPage() : SGNavbarEditorPage();
     editor.view.backgroundColor = UIColor.clearColor;
     UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:editor];
     nav.navigationBarHidden = YES;

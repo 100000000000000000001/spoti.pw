@@ -4,6 +4,13 @@
 
 #define SGKeyHomeGradient @"spotifyglass.homeGradient"
 
+// Parts of Home to hide, one switch each (HomeDeclutter.x). An unset switch is off.
+#define SGHideHomeShortcuts @"spotifyglass.hide.homeShortcuts"
+#define SGHideHomePills @"spotifyglass.hide.homePills"
+#define SGHideHomePromo @"spotifyglass.hide.homePromo"
+#define SGHideHomePreviews @"spotifyglass.hide.homePreviews"
+#define SGHideHomeDJ @"spotifyglass.hide.homeDJ"
+
 // Every setting the gradient is shaped by. One entry per setting in HomeGradientChoices.m holds the
 // names the Gradient page offers, the key it is stored under and the one it falls back to, so a
 // name and what it does cannot drift apart.

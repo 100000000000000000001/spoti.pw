@@ -1,5 +1,5 @@
 // What the redesigned screens read from Spotify and ask of it, through one hook each, so no screen
-// hooks the player or the link dispatcher a second time.
+// hooks the player a second time.
 //
 // Player state: -[_TtC23NowPlaying_PlatformImpl28StatefulPlayerImplementation player:stateDidChange:]
 // (objc-methods.txt:60654), the now playing platform's own player observer, and until that has reported,
@@ -8,8 +8,6 @@
 // Artwork: the now playing bar's 40pt cover (trees/clean/artist/01.txt: id=SPTNowPlayingBar > Encore.ImageView >
 // UIImageView 40x40), read after the bar's layout and after a track change; installed while the player
 // is redesigned. Screens publish better copies of their own (the player's cover).
-// Links: -[SPTLinkDispatcherImplementation setMainUILoaded:] (:38809), the last call of the singleton's
-// setup, always installed: the Navbar's own tabs open through it too.
 //
 // Threading: everything here is main thread only; the player's reports are moved onto it.
 #import <UIKit/UIKit.h>
@@ -43,16 +41,9 @@ void SGRSetNowPlayingArtwork(UIImage *image, NSString *trackURI, SGRArtworkQuali
 // -[SGRArtworkField setArtwork:identity:animated:]) are filled when asked for.
 UIImage *SGRNowPlayingArtwork(NSString **trackURI, NSString **identity);
 
-#pragma mark - links
-
-// Opens a spotify: URI the way the app opens a link of its own. NO before the dispatcher is set up or
-// for a nil URI.
-BOOL SGROpenURI(NSURL *uri);
-id SGRLinkDispatcher(void);   // SPTLinkDispatcherImplementation, nil until it is set up
-
 #pragma mark - the player's open and close
 
-// While the full screen player opens or closes (NowPlaying/NowPlayingBar.x announces it).
+// While the full screen player opens or closes (Shared/Player/PlayerEvents.x announces it).
 BOOL SGRPlayerIsTransitioning(void);
 // SGPlayerTransitionNotification and SGPlayerTransitionEndedNotification as blocks, for as long as
 // `owner` lives. The blocks are handed the owner so they need not capture it.

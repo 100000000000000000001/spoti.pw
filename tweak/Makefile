@@ -17,3 +17,8 @@ spotifyglass_FRAMEWORKS := UIKit QuartzCore UniformTypeIdentifiers MediaPlayer C
 spotifyglass_LOGOS_DEFAULT_GENERATOR := internal
 
 include $(THEOS_MAKE_PATH)/tweak.mk
+
+# The layers of Sources/ stay apart (scripts/check-layers.sh): an import across them fails the build.
+# A copy of tweak/ made without the scripts beside it builds unchecked.
+before-all::
+	@if [ -x ../scripts/check-layers.sh ]; then ../scripts/check-layers.sh Sources; fi

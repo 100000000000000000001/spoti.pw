@@ -4,9 +4,7 @@
 #import <UIKit/UIKit.h>
 #import "Settings/SGModPage.h"
 
-extern NSString *const SGSiteURL;
-extern NSString *const SGRepoURL;
-extern NSString *const SGUpdateURL;
+extern NSString *const SGUpdateURL;   // the site and the repo are in Settings/SGPageStyle.h
 NSString *SGUpdateVersion(void);  // nil unless the site has one newer than this build
 NSString *SGUpdateNotes(void);
 NSString *SGUpdateStatus(void);

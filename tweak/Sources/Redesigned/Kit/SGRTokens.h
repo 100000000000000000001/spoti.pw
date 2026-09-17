@@ -27,7 +27,7 @@ UIColor *SGRPrimary(void);      // white
 UIColor *SGRSecondary(void);    // white 65%, 80% with Increase Contrast
 UIColor *SGRTertiary(void);     // white 40%, 60% with Increase Contrast
 UIColor *SGRAccent(void);       // the accent colour of Appearance, else Spotify's green
-UIColor *SGRNeutralField(void); // #121212, the field before a colour arrives; AMOLED turns it black
+UIColor *SGRNeutralField(void); // #121212, the field before a colour arrives
 // Where glass cannot be (Reduce Transparency), the shape it would have had: white 16% over the field.
 UIColor *SGRSolidGlassFill(void);
 // A content surface on the field (a card), a step lighter than the field it sits on.

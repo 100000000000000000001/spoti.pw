@@ -1,12 +1,17 @@
-// Apple Music style lyrics on the full screen lyrics page: the line being sung lights up word by
-// word, the rest dim and blur with distance. Spotify only times whole lines, so the words inside a
-// line are timed by an estimate (KaraokeTiming.m), unless a source of the mod's times them. The
-// lines are read from the color-lyrics response as it arrives, or handed over by
-// Features/LyricsSources, and the position from the player's state (KaraokeSource.x); a track
-// without synced lyrics keeps Spotify's own page.
+// Apple Music style lyrics, the engine both looks draw from: the line being sung lights up word by
+// word. Spotify only times whole lines, so the words inside a line are timed by an estimate
+// (KaraokeTiming.m), unless a source of the mod's times them. The lines are read from the color-lyrics
+// response as it arrives, or handed over by Shared/LyricsSources, and the position from the player's
+// state (KaraokeSource.x); a track without synced lyrics keeps Spotify's own page. What draws them is
+// each look's own: Native/Lyrics/KaraokeView.h and Redesigned/Lyrics/SGRKaraokeView.h.
 #import <UIKit/UIKit.h>
 
 #define SGKeyKaraokeLyrics @"spotifyglass.karaokeLyrics"
+
+@class SGModRow, SGModSection;
+// LyricsSettings.m: the Lyrics page's rows for either look.
+NSArray<SGModRow *> *SGLyricsLookRows(void);
+NSArray<SGModSection *> *SGLyricsSourceSections(void);
 
 // Which edge a line is laid against. Apple Music puts a duet's second voice against the far one, so
 // the two sides of the song read apart; a track sung by one voice stays leading throughout.
@@ -64,11 +69,3 @@ id SGKaraokePlayer(void);                // SPTEsperantoPlayer, nil before the a
 SPTPlayerTrack *SGKaraokeTrackFor(NSString *trackID);
 // Keeps a track seen elsewhere, so a source can name it before the player has reported it.
 void SGKaraokeRememberTrack(SPTPlayerTrack *track);
-
-@interface SGKaraokeView : UIView
-// Compact is the card under the player: Spotify's own type size, no seeking by tap and no margin of
-// its own, since the card already insets what it holds. initWithFrame: is the full screen page.
-- (instancetype)initWithFrame:(CGRect)frame compact:(BOOL)compact;
-// Hides Spotify's own lyrics next to this view while it has lyrics to show, and brings them back when not.
-- (void)syncSiblings;
-@end

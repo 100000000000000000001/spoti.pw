@@ -1,6 +1,6 @@
 // Settings: a Mod Settings row at the end of Spotify's settings list opens the mod's own page: the
-// Appearance card that styles the whole app, then a page per part of Spotify, each holding that
-// part's glass, hide switches and flags (Navbar, Player, Home & Library), Premium, ads & privacy
+// Appearance card with Redesigned UI, then a page per part of Spotify, each holding what that part
+// offers in the stored look (App/Pages.m: Navbar, Player, and Home & Library for the native look), Premium, ads & privacy
 // and Labs, All flags, a searchable list of every flag with an override per flag, and Mod, the
 // build, its updates and links. The same row leads the side drawer's list (trees/test6.txt), above
 // Your plan, so the page is a tap from Home, and holding Home on the tab bar opens it too. The tweaks read the switches when they run, so a change
@@ -15,13 +15,11 @@
 #import "Settings/SGPage.h"
 #import "Settings/SGPageStyle.h"
 #import "Settings/SGModPage.h"
-#import "Native/Appearance/Appearance.h"
-#import "Native/Navbar/Navbar.h"
 #import "Native/Home/Home.h"
-#import "Native/Player/NowPlaying.h"
 #import "Shared/AdBlock/AdBlock.h"
 #import "Shared/Flags/Flags.h"
-#import "Shared/About/About.h"
+#import "App/About/About.h"
+#import "Pages.h"
 
 static const CGFloat kRowHeight = 56;
 static char kRowKey, kInsetKey;
@@ -40,13 +38,15 @@ static UIViewController *modSettingsPage(void) {
     if (signing) [sections addObject:SGSection(nil, @[signing])];
     SGModRow *mod = pageRow(@"Mod", @"info.circle", ^UIViewController *{ return SGAboutPage(); });
     mod.value = ^NSString *{ return @(SG_VERSION); };
+    // Home & Library holds only the native look's switches, so the redesign has no such page.
+    NSMutableArray<SGModRow *> *parts = [NSMutableArray arrayWithArray:@[
+        pageRow(@"Navbar", @"dock.rectangle", ^UIViewController *{ return SGNavbarPage(); }),
+        pageRow(@"Player", @"play.circle", ^UIViewController *{ return SGPlayerSettingsPage(); }),
+    ]];
+    if (!SGRedesignedUIStored()) [parts addObject:pageRow(@"Home & Library", @"house", ^UIViewController *{ return SGHomeSettingsPage(); })];
     [sections addObjectsFromArray:@[
         SGAppearanceSection(),
-        SGSection(nil, @[
-            pageRow(@"Navbar", @"dock.rectangle", ^UIViewController *{ return SGNavbarSettingsPage(); }),
-            pageRow(@"Player", @"play.circle", ^UIViewController *{ return SGNowPlayingSettingsPage(); }),
-            pageRow(@"Home & Library", @"house", ^UIViewController *{ return SGHomeSettingsPage(); }),
-        ]),
+        SGSection(nil, parts),
         SGSection(nil, @[
             pageRow(@"Premium, ads & privacy", @"crown", ^UIViewController *{ return SGAdsSettingsPage(); }),
             pageRow(@"Labs", @"testtube.2", ^UIViewController *{ return SGLabsPage(); }),

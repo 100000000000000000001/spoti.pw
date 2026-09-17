@@ -59,7 +59,7 @@ static void glassInside(UIViewController *unit, NSArray<NSString *> *identifiers
 %end
 
 %ctor {
-    if (!SGRedesignOn(@"player")) return;
+    if (!SGRedesignedUI()) return;
     %init;
     SGRequireClasses(@[@"_TtC20NowPlaying_ModesImpl18HeaderElementsUnit"]);
 }

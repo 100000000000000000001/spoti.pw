@@ -1,8 +1,6 @@
-// A double tap on the player, read against the grid Settings draws.
-//
-// Tree (trees/now-playing.txt): the artwork sits in AccessibleCollectionView, a full screen list of
-// the queue scrolled sideways, so the recognizer goes on that and the grid is the screen. Spotify's
-// controls are sibling units rather than children of it, so a tap on a button never reaches here.
+// A double tap on the player, read against the grid Settings draws: the recognizer, what each cell does
+// and the playback controller it does it with. Which view of the player it goes on is each look's own
+// hookup (Native/Player/PlayerGestures.x, Redesigned/Player/PlayerGestures.x), which call SGGestureAttach.
 //
 // The player already answers a sideways swipe with the next track and a vertical drag with the
 // cards below, which leaves the double tap as the one gesture free to take.
@@ -101,7 +99,8 @@ static NSUInteger tapsAbove(UIView *host) {
     return count;
 }
 
-static void attachTap(UIView *host) {
+void SGGestureAttach(UIView *host) {
+    if (!host || !SGFlag(SGKeyGestures, NO)) return;
     UITapGestureRecognizer *tap = objc_getAssociatedObject(host, &kTapKey);
     if (!tap) {
         tap = [[UITapGestureRecognizer alloc] initWithTarget:target() action:@selector(doubleTapped:)];
@@ -129,25 +128,7 @@ static void attachTap(UIView *host) {
 // A single tap on the cover is Spotify's way into the tilt mode, the artwork alone in 3D. That is
 // the half of a double tap that misses, so while the zones are on it would open on the way to every
 // gesture; the tap goes back to Spotify with the switch.
-%hook _TtC35CreativeWorkCommons_CoverArtTiltKit16CoverArtTiltView
-- (void)handleTap {
-    if (SGFlag(SGKeyGestures, NO)) return;
-    %orig;
-}
-%end
-
-%hook _TtC35NowPlaying_ContentLayerPlatformImpl24AccessibleCollectionView
-- (void)layoutSubviews {
-    %orig;
-    if (SGFlag(SGKeyGestures, NO)) attachTap((UIView *)self);
-}
-%end
-
 %ctor {
     %init;
-    SGRequireClasses(@[
-        @"SPTNowPlayingPlaybackControllerImplementation",
-        @"_TtC35NowPlaying_ContentLayerPlatformImpl24AccessibleCollectionView",
-        @"_TtC35CreativeWorkCommons_CoverArtTiltKit16CoverArtTiltView",
-    ]);
+    SGRequireClasses(@[@"SPTNowPlayingPlaybackControllerImplementation"]);
 }

@@ -243,7 +243,7 @@ static UILabel *monospaced(UIView *host, NSString *identifier, const void *findK
 %end
 
 %ctor {
-    if (!SGRedesignOn(@"player")) return;
+    if (!SGRedesignedUI()) return;
     %init;
     sg_controlsWatcher = [SGRPlayerControlsWatcher new];
     SGRAddPlayerStateObserver(sg_controlsWatcher);

@@ -1,39 +1,13 @@
 // Spotify reads every remote-config flag once at startup through the configuration provider,
-// keyed "component.property". While Redesigned UI is on, the flags its screens are built on come first
-// (Redesign/Kit/SGRedesign.h), so an override left from Spotify's own screens cannot pull a redesigned
-// one apart; then an override from the Flags page, then the flags of Spotify's own newer design, which
-// it ships switched off and Redesigned UI turns on.
+// keyed "component.property". The value handed back is Core/SGFlagForce.h's: what the redesign forces
+// (Redesigned/Kit/SGRedesign.h), which comes before an override so one left from Spotify's own screens
+// cannot pull a redesigned one apart, then an override from the Flags page, then what the ad blocking
+// and the lyrics sources force.
 #import "Core/SGCore.h"
 #import "Flags.h"
-#import "Shared/AdBlock/AdBlock.h"
-#import "Shared/LyricsSources/LyricsSources.h"
-#import "Redesigned/Kit/SGRedesign.h"
-
-BOOL SGGlassOwnsFlag(NSString *key) {
-    static NSSet<NSString *> *owned;
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{
-        owned = [NSSet setWithArray:@[
-            @"ios-reprise-liquid-glass-properties.context_menu_in_navigation_bar_enabled",
-            @"ios-feature-encoreexperiments.new_npv_slider_enabled",
-            @"ios-feature-nowplaying.sheet_style_npv",
-            @"ios-feature-nowplaying.bottom_sheet_queue_enabled",
-            @"ios-feature-nowplaying.new_redesign_header_with_context_menu_enabled",
-            @"ios-feature-nowplaying-elements.enable_connect_bottom_sheet",
-            @"ios-playbackcontrol-audiovideoswitcher-impl.enable_connect_bottom_sheet",
-            @"ios-feature-sleeptimer.use_options_sheet",
-        ]];
-    });
-    return [owned containsObject:key];
-}
 
 static id forced(NSString *key) {
-    id value = SGRedesignForcedFlag(key);
-    if (!value) value = SGFlagOverride(key);
-    if (!value && SGFlag(SGKeySpotifyGlass, NO) && SGGlassOwnsFlag(key)) value = @YES;
-    if (!value && SGAdBlockForcesFlagOff(key)) value = @NO;
-    if (!value) value = SGLyricsForcedFlag(key);
-    return value;
+    return SGForcedFlagValue(key);
 }
 
 static BOOL boolFor(NSString *key, BOOL orig) {
@@ -82,17 +56,10 @@ static id enumFor(NSString *key, id orig) {
 }
 %end
 
-%hook SPTHubViewController
-- (BOOL)prefersLiquidGlassNavigationBar {
-    return SGFlag(SGKeySpotifyGlass, NO) ? YES : %orig;
-}
-%end
-
 %ctor {
     %init;
     SGRequireClasses(@[
         @"_TtC22RemoteConfigurationSDK25ConfigurationProviderImpl",
         @"_TtC22RemoteConfigurationSDK35ObservableConfigurationProviderImpl",
-        @"SPTHubViewController",
     ]);
 }

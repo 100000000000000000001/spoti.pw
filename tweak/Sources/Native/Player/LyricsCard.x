@@ -1,25 +1,15 @@
-// The lyrics card under the player and the page it expands into, both on glass.
+// The lyrics card under the player on glass ("Glass lyrics" on the Lyrics page).
 //
 // Card (trees/now-playing.txt): a Lyrics_CardElementImpl.CardView inside an
 // Element_List.CollectionViewCell 370x316. The cell is the painted surface with the 16pt corners,
-// so the pane fills it and the cell's own clipping cuts the corners.
-//
-// Page (trees/lyrics.txt): a page of its own, presented over the player by a
-// _UIOverFullscreenPresentationController, which is why the card's glass stops at the card's edge.
-// Tome_PageTemplateImpl paints the template view #121212 and FullscreenView paints itself the
-// album colour on top, both opaque; clearing them lets the player's blurred artwork through, so
-// the card reads as having grown to the screen.
-//
-// The album colour is the stubborn one: it arrives per track, after the page has laid out, and it
-// comes back through a path Appearance/Repaint.x never sees, so a sweep at layout time loses the race.
-// FullscreenView is asked not to keep it at all instead. The pane goes inside FullscreenView, in
-// front of whatever that view still fills itself with, rather than behind the whole page.
+// so the pane fills it and the cell's own clipping cuts the corners. The page the card expands into
+// is Native/Lyrics/LyricsPage.x's.
 #import "Core/SGCore.h"
 #import "NowPlaying.h"
-#import "Redesigned/Kit/SGRedesign.h"
+#import "Native/Appearance/Repaint.h"
 
 static const CGFloat kCardRadius = 16;
-static char kCardGlassKey, kPageGlassKey;
+static char kCardGlassKey;
 
 #pragma mark - the card in the player's scroll list
 
@@ -32,19 +22,15 @@ static UIView *cellAround(UIView *view) {
     return nil;
 }
 
-// The card is a content surface of the player redesign's own (Redesign/Player/PlayerCards.x) while it
-// is on, so its glass stands aside; the page below is not the player's and keeps it.
-%group Card
-
 %hook _TtC22Lyrics_CardElementImpl8CardView
 - (void)layoutSubviews {
     %orig;
     if (!SGFlag(SGKeyLyricsCard, NO)) return;
     UIView *cell = cellAround((UIView *)self);
-    // A card Declutter/Declutter.x collapsed reports no height; leave it alone.
+    // A card PlayerDeclutter.x collapsed reports no height; leave it alone.
     if (!cell || cell.bounds.size.height < 40) return;
     // Spotify repaints the card with the album colour when the track changes, which is no layout
-    // pass of its own; Appearance/Repaint.x keeps it clear in between.
+    // pass of its own; Native/Appearance/Repaint.x keeps it clear in between.
     sg_lyricsCardRoot = cell;
     SGStripBackgrounds(cell);
     UIVisualEffectView *glass = SGGlassFor(cell, &kCardGlassKey);
@@ -54,53 +40,11 @@ static UIView *cellAround(UIView *view) {
 }
 %end
 
-%end
-
-#pragma mark - the expanded page
-
-// Up to the presentation: the template views in between paint themselves opaque once, at setup.
-// Only the chain is cleared, not the subtree -- nothing else on the page is painted.
-static UIView *clearAncestors(UIView *view) {
-    UIView *top = view;
-    for (UIView *v = view; v && ![v isKindOfClass:UIWindow.class]
-            && ![NSStringFromClass(v.class) hasPrefix:@"UITransition"]; v = v.superview) {
-        v.layer.backgroundColor = NULL;
-        top = v;
-    }
-    return top;
-}
-
-%hook _TtC32Lyrics_FullscreenElementPageImpl14FullscreenView
-// A colour kept here is re-applied whenever UIKit feels like it, so it is refused outright.
-- (void)setBackgroundColor:(UIColor *)color {
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{ SGLog(@"lyrics page paints itself %@ through UIView", color); });
-    %orig(SGFlag(SGKeyLyricsCard, NO) ? nil : color);
-}
-
-- (void)layoutSubviews {
-    %orig;
-    if (!SGFlag(SGKeyLyricsCard, NO)) return;
-    UIView *page = (UIView *)self;
-    if (page.bounds.size.height < 200) return;
-
-    page.layer.backgroundColor = NULL;
-    sg_lyricsPageRoot = clearAncestors(page);
-
-    UIVisualEffectView *glass = SGGlassFor(page, &kPageGlassKey);
-    glass.frame = page.bounds;
-    glass.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    // Full bleed, so the shape is spelled out: a fresh pane does not promise square corners.
-    SGShapeGlass(glass, 0, NO);
-}
-%end
-
 %ctor {
+    if (!SGNativeUI()) return;
     %init;
-    if (!SGRedesignOn(@"player")) %init(Card);
     SGRequireClasses(@[
         @"_TtC22Lyrics_CardElementImpl8CardView",
         @"_TtC12Element_List18CollectionViewCell",
-        @"_TtC32Lyrics_FullscreenElementPageImpl14FullscreenView",
     ]);
 }

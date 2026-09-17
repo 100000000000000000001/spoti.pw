@@ -234,6 +234,7 @@ static void applyBackdrop(UIView *layout) {
 %end
 
 %ctor {
+    if (!SGNativeUI()) return;
     %init;
     SGRequireClasses(@[
         @"_TtC28EncoreConsumerMobile_BaseKit19HeaderContentLayout",

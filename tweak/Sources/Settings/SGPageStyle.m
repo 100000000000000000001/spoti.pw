@@ -1,6 +1,5 @@
 #import "SGPageStyle.h"
 #import "Core/SGCore.h"
-#import "Native/Appearance/Appearance.h"
 
 static UIFont *sg_titleFont, *sg_subtitleFont;
 
@@ -68,11 +67,27 @@ void SGInsetForBars(UITableView *table) {
     table.verticalScrollIndicatorInsets = inset;
 }
 
-UIColor *SGGreen(void) { return SGAccentColor() ?: [UIColor colorWithRed:0x1E / 255.0 green:0xD7 / 255.0 blue:0x60 / 255.0 alpha:1]; }
+// The pages follow the native look's AMOLED and accent switches (Native/Appearance), read here by their
+// keys so the page framework depends on no layer. Under Redesigned UI those switches are put away, and
+// the pages keep Spotify's own colours.
+static NSString *const kAmoledKey = @"spotifyglass.amoled";
+static NSString *const kAccentKey = @"spotifyglass.accent";
+
+static UIColor *nativeAccent(void) {
+    NSInteger rgb = SGNativeUI() ? SGInt(kAccentKey, -1) : -1;
+    if (rgb < 0 || rgb > 0xFFFFFF) return nil;
+    return [UIColor colorWithRed:((rgb >> 16) & 0xFF) / 255.0 green:((rgb >> 8) & 0xFF) / 255.0 blue:(rgb & 0xFF) / 255.0 alpha:1];
+}
+
+static BOOL nativeAmoled(void) {
+    return SGNativeUI() && SGFlag(kAmoledKey, NO);
+}
+
+UIColor *SGGreen(void) { return nativeAccent() ?: [UIColor colorWithRed:0x1E / 255.0 green:0xD7 / 255.0 blue:0x60 / 255.0 alpha:1]; }
 UIColor *SGRed(void) { return [UIColor colorWithRed:0xF1 / 255.0 green:0x5E / 255.0 blue:0x6B / 255.0 alpha:1]; }
-UIColor *SGPageBackground(void) { return SGFlag(SGKeyAmoled, NO) ? UIColor.blackColor : [UIColor colorWithWhite:0x12 / 255.0 alpha:1]; }
+UIColor *SGPageBackground(void) { return nativeAmoled() ? UIColor.blackColor : [UIColor colorWithWhite:0x12 / 255.0 alpha:1]; }
 // Spotify's own elevated grey on its dark grey; iOS's own card grey on the AMOLED black.
-UIColor *SGCardBackground(void) { return [UIColor colorWithWhite:(SGFlag(SGKeyAmoled, NO) ? 0x1C : 0x2A) / 255.0 alpha:1]; }
+UIColor *SGCardBackground(void) { return [UIColor colorWithWhite:(nativeAmoled() ? 0x1C : 0x2A) / 255.0 alpha:1]; }
 
 UIImage *SGTileImage(NSString *symbol) {
     UIImageSymbolConfiguration *config = [UIImageSymbolConfiguration configurationWithPointSize:14 weight:UIImageSymbolWeightMedium];
@@ -188,6 +203,9 @@ UIViewController *SGTopController(void) {
     while (top.presentedViewController) top = top.presentedViewController;
     return top;
 }
+
+NSString *const SGSiteURL = @"https://spoti.pw";
+NSString *const SGRepoURL = @"https://github.com/skopevoj/spoti.pw";
 
 void SGOpenURL(NSString *url) {
     NSURL *target = url ? [NSURL URLWithString:url] : nil;

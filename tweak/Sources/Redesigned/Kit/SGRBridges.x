@@ -1,8 +1,8 @@
-// The Kit's bridges into Spotify: the player's state, the now playing artwork and the link dispatcher.
+// The Kit's bridges into Spotify: the player's state and the now playing artwork. Links and the
+// player's open and close are Shared's (Shared/Navigation/Links.h, Shared/Player/PlayerEvents.h).
 // SGRBridges.h names the hooks and why they are the ones.
 #import "Core/SGCore.h"
-#import "Headers/SPTLinkDispatcherImplementation.h"
-#import "Native/Player/NowPlaying.h"
+#import "Shared/Player/PlayerEvents.h"
 #import "SGRBridges.h"
 #import "SGRedesign.h"
 #import "SGRRestyle.h"
@@ -189,29 +189,6 @@ static SGRBarArtworkWatcher *sg_barWatcher;
 %end
 %end
 
-#pragma mark - links
-
-static __weak SPTLinkDispatcherImplementation *sg_linkDispatcher;
-
-id SGRLinkDispatcher(void) {
-    return sg_linkDispatcher;
-}
-
-BOOL SGROpenURI(NSURL *uri) {
-    SPTLinkDispatcherImplementation *dispatcher = sg_linkDispatcher;
-    if (!uri || ![dispatcher respondsToSelector:@selector(navigateToURI:options:interactionID:)]) return NO;
-    [dispatcher navigateToURI:uri options:0 interactionID:nil];
-    return YES;
-}
-
-// The dispatcher is a singleton the app builds at startup; this is the last call of its setup.
-%hook SPTLinkDispatcherImplementation
-- (void)setMainUILoaded:(BOOL)loaded {
-    %orig;
-    sg_linkDispatcher = (SPTLinkDispatcherImplementation *)self;
-}
-%end
-
 #pragma mark - the player's open and close
 
 BOOL SGRPlayerIsTransitioning(void) {
@@ -258,12 +235,9 @@ void SGRObservePlayerTransition(id owner, void (^began)(id owner), void (^ended)
 }
 
 %ctor {
-    %init;
-    SGRequireClasses(@[@"SPTLinkDispatcherImplementation"]);
-    if (!SGRedesignAnyOn()) return;
+    if (!SGRedesignedUI()) return;
     %init(SGRPlayerStateHooks);
     SGRequireClasses(@[@"_TtC23NowPlaying_PlatformImpl28StatefulPlayerImplementation", @"SPTEsperantoPlayer", @"SPTPlayerState"]);
-    if (!SGRedesignOn(@"player")) return;
     sg_barWatcher = [SGRBarArtworkWatcher new];
     SGRAddPlayerStateObserver(sg_barWatcher);
     %init(SGRBarArtworkHooks);

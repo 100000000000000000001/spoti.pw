@@ -30,3 +30,8 @@ static void soften(UIScrollView *scrollView) {
     if (self.window) soften(self);
 }
 %end
+
+%ctor {
+    if (!SGNativeUI()) return;
+    %init;
+}

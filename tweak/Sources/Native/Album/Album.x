@@ -190,6 +190,7 @@ static BOOL collapsed(UICollectionViewCell *cell, NSIndexPath *path) {
 %end
 
 %ctor {
+    if (!SGNativeUI()) return;
     %init;
     SGRequireClasses(@[
         @"_TtC28CreativeWorkPlatform_PageKit24CreativeWorkTemplateView",

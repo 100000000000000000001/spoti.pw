@@ -1,25 +1,6 @@
 #import "SGGlass.h"
 #import "SGRuntime.h"
 
-__weak UIView *sg_nowPlayingRoot = nil;
-__weak UIView *sg_tabBarRoot = nil;
-__weak UIView *sg_nowPlayingCard = nil;
-__weak UIView *sg_lyricsCardRoot = nil;
-__weak UIView *sg_lyricsPageRoot = nil;
-__weak UIView *sg_homeRoot = nil;
-__weak UIView *sg_npvBackdropRoot = nil;
-
-BOOL sg_nowPlayingStock = NO;
-CGColorRef sg_nowPlayingCardColor = NULL;
-
-// Only the main thread writes it, so the read in NowPlayingBar.x cannot see a released colour.
-void SGRememberCardColor(CGColorRef color) {
-    if (!NSThread.isMainThread || color == sg_nowPlayingCardColor) return;
-    CGColorRef kept = color ? CGColorRetain(color) : NULL;
-    CGColorRelease(sg_nowPlayingCardColor);
-    sg_nowPlayingCardColor = kept;
-}
-
 // +effectWithStyle: is the only initialiser UIGlassEffect has; a bare -init leaves the material
 // unresolved and the pane renders as a plain blur, while the capsule shape, which is the view's
 // own property, still comes out right. Spotify's own Reprise glass builds its effect the same way.

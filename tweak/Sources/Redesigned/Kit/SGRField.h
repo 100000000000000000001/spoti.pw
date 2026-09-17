@@ -2,9 +2,8 @@
 // a whole redesigned page, with no card and no seam anywhere. The player's field also carries the
 // artwork itself at the top, blurred and dimmed and dissolving into the colour (showsBackdrop).
 //
-// Nothing is blurred live and nothing is masked: the view draws a solid colour layer, a black
-// gradient layer under AMOLED and at most one bitmap layer rendered off the main thread, so it costs
-// one composited layer or two while the page moves. A new colour or bitmap crossfades over
+// Nothing is blurred live and nothing is masked: the view draws a solid colour layer and at most one
+// bitmap layer rendered off the main thread, so it costs one composited layer or two while the page moves. A new colour or bitmap crossfades over
 // SGRCrossfade; the same image again is a no-op.
 //
 // Ownership: the screen that installs a field owns it (usually retained by its superview and an
@@ -17,15 +16,12 @@
 extern NSNotificationName const SGRFieldColorDidChangeNotification;
 
 @interface SGRArtworkField : UIView
-// Where the colour, the AMOLED fade and the backdrop reach past the bounds (overscroll, a plane
+// Where the colour and the backdrop reach past the bounds (overscroll, a plane
 // that does not clip): positive values draw outside. The field never clips.
 @property (nonatomic) UIEdgeInsets bleed;
 @property (nonatomic) BOOL showsBackdrop;
 // The backdrop's height in points from the top of the bounds; 0 is the window's height.
 @property (nonatomic) CGFloat backdropHeight;
-// With AMOLED on: where the colour starts fading to black and where it is black, in points from the
-// top of the bounds; 0 is 55% and 100% of the window's height.
-@property (nonatomic) CGFloat amoledFadeFrom, amoledFadeTo;
 // SGRNeutralField until a colour arrives.
 @property (nonatomic, readonly) UIColor *fieldColor;
 

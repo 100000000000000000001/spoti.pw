@@ -2,10 +2,6 @@
 #import "SGPageStyle.h"
 #import "SGGlowSwitch.h"
 #import "Core/SGCore.h"
-#import "Shared/Flags/Flags.h"
-#import "Shared/About/About.h"
-#import "Shared/AdBlock/AdBlock.h"
-#import "Redesigned/Kit/SGRedesign.h"
 
 NSString *const SGRestartNote = @"Changes apply after you restart Spotify.";
 
@@ -225,20 +221,17 @@ static BOOL flagRowOn(SGModRow *row) {
     return value && [value boolValue] != row.forceOff;
 }
 
-// A flag Redesigned UI owns, for Spotify's newer design or for a redesigned screen: its row shows what
-// the switch forces and takes no touch, so the flag has one place to change.
+// A flag something of the mod's forces (Core/SGFlagForce.h: the redesign, the ad blocking): its row
+// shows what is forced and takes no touch, so the flag has one place to change.
 static BOOL flagRowLocked(SGModRow *row) {
-    if (!row.flag) return NO;
-    return (SGGlassOwnsFlag(row.key) && SGFlag(SGKeySpotifyGlass, NO)) || (row.forceOff && SGAdBlockForcesFlagOff(row.key))
-        || SGRedesignOwnedFlag(row.key);
+    return row.flag && SGLockedFlagValue(row.key, NULL) != nil;
 }
 
-// What a locked row shows: the value its owner forces, read the row's way, so a Disable Canvas row
-// reads on while the redesign forces Canvas off. The glass flags and the ad blocking only ever force a
-// flag the way its row would.
+// What a locked row shows: the forced value, read the row's way, so a Disable Canvas row reads on
+// while Canvas is forced off.
 static BOOL lockedRowOn(SGModRow *row) {
-    id owned = SGRedesignOwnedFlag(row.key);
-    return owned ? [owned boolValue] != row.forceOff : YES;
+    id value = SGLockedFlagValue(row.key, NULL);
+    return value ? [value boolValue] != row.forceOff : YES;
 }
 
 @implementation SGModPage {
@@ -352,8 +345,10 @@ static BOOL lockedRowOn(SGModRow *row) {
 
     if (row.key) {
         BOOL locked = flagRowLocked(row);
-        // The redesign's own flags win over an override; the others' lock gives way to one.
-        BOOL showsLock = locked && (SGRedesignOwnedFlag(row.key) || !SGFlagOverride(row.key));
+        // A lock that beats an override shows over one; the others give way to it.
+        BOOL beats = NO;
+        if (locked) SGLockedFlagValue(row.key, &beats);
+        BOOL showsLock = locked && (beats || !SGFlagOverride(row.key));
         BOOL on = row.flag ? (showsLock ? lockedRowOn(row) : flagRowOn(row)) : SGFlag(row.key, row.defaultOn);
         UIControl *toggle;
         if (row.glows) {

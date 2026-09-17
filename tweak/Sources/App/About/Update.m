@@ -4,8 +4,6 @@
 #import "Core/SGCore.h"
 #import "About.h"
 
-NSString *const SGSiteURL = @"https://spoti.pw";
-NSString *const SGRepoURL = @"https://github.com/skopevoj/spoti.pw";
 NSString *const SGUpdateURL = @"https://spoti.pw/version.json";
 
 static NSString *const kChecked = @"spotifyglass.update.checked";

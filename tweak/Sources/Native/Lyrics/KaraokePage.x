@@ -3,7 +3,7 @@
 // header, close button and controls stay working. It is laid over rather than swapped in: Spotify's
 // list keeps running underneath and comes back the moment a track has no synced lyrics.
 #import "Core/SGCore.h"
-#import "Shared/Lyrics/Lyrics.h"
+#import "Native/Lyrics/KaraokeView.h"
 
 static char kKaraokeKey;
 
@@ -25,7 +25,7 @@ static char kKaraokeKey;
 %end
 
 %ctor {
-    if (!SGFlag(SGKeyKaraokeLyrics, NO)) return;
+    if (!SGNativeUI() || !SGFlag(SGKeyKaraokeLyrics, NO)) return;
     %init;
     SGRequireClasses(@[@"_TtC32Lyrics_FullscreenElementPageImpl10LyricsView"]);
 }

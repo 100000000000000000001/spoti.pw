@@ -19,7 +19,7 @@ NSInteger SGInt(NSString *key, NSInteger fallback);
 void SGSetInt(NSString *key, NSInteger value);
 
 // Overrides of Spotify's remote-config flags, stored under SGFlagOverridePrefix + flag key;
-// nil keeps Spotify's value. Features/Flags reads them, the All flags page and flag rows write them.
+// nil keeps Spotify's value. Shared/Flags reads them, the All flags page and flag rows write them.
 extern NSString *const SGFlagOverridePrefix;
 id SGFlagOverride(NSString *key);
 void SGSetFlagOverride(NSString *key, id value);

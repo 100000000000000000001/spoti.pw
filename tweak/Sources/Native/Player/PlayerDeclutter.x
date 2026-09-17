@@ -1,37 +1,31 @@
-// Declutter: hides parts of the full screen player and of Home, one switch each in Mod Settings.
-// Cards under the player and sections on Home are Element_List cells; a hidden one reports zero
-// height when the list sizes it, so the list closes up around it (the 24pt gap between cards
-// stays). Player buttons go invisible but keep their place, so their row stays centred.
+// Player declutter: hides parts of the full screen player, one switch each on the Player page. Cards
+// under the player are Element_List cells; a hidden one reports zero height when the list sizes it,
+// so the list closes up around it (the 24pt gap between cards stays). Player buttons go invisible but
+// keep their place, so their row stays centred.
 //
-// Trees (trees/now-playing*.txt, trees/home*.txt): every card is a CollectionViewCell whose
-// content view names the page (NowPlaying_ScrollAPI, Home_EvoPageImpl) and whose subtree names
-// the card. Player rows are the UIStackView of each NowPlaying_ModesImpl unit: playback controls
+// Trees (trees/now-playing*.txt): every card is a CollectionViewCell whose content view names the
+// page (NowPlaying_ScrollAPI) and whose subtree names the card. Player rows are the UIStackView of each NowPlaying_ModesImpl unit: playback controls
 // hold shuffle, previous, play, next, repeat; the footer holds connect, a hidden button, share
 // and the queue; track info ends with the add-to button.
 #import "Core/SGCore.h"
-#import "Declutter.h"
-#import "Redesigned/Kit/SGRedesign.h"
+#import "NowPlaying.h"
 
 #pragma mark - cards and sections
 
-static const struct { __unsafe_unretained NSString *page, *marker, *key; } cards[] = {
-    {@"NowPlaying_ScrollAPI", @"Lyrics_CardElementImpl", SGHideLyricsCard},
-    {@"NowPlaying_ScrollAPI", @"CreatorBiography", SGHideAboutArtist},
-    {@"NowPlaying_ScrollAPI", @"VideoRecommendations", SGHideRelatedVideos},
-    {@"NowPlaying_ScrollAPI", @"SongDNA_", SGHideSongDNA},
-    {@"NowPlaying_ScrollAPI", @"LiveEvents_", SGHideLiveEvents},
-    {@"NowPlaying_ScrollAPI", @"WatchFeed_", SGHideExploreArtist},
-    {@"NowPlaying_ScrollAPI", @"Creator_Credits", SGHideCredits},
-    {@"NowPlaying_ScrollAPI", @"Merch_", SGHideMerch},
-    {@"NowPlaying_ScrollAPI", @"RelatedContentRecommendations", SGHideRecommendations},
-    {@"Home_EvoPageImpl", @"Home_AnchorsAndShortcutsKit", SGHideHomeShortcuts},
-    {@"Home_EvoPageImpl", @"Discovery_PromoElement", SGHideHomePromo},
-    {@"Home_EvoPageImpl", @"Discovery_PreviewElement", SGHideHomePreviews},
-    {@"Home_EvoPageImpl", @"Discovery_DJElement", SGHideHomeDJ},
+static const struct { __unsafe_unretained NSString *marker, *key; } cards[] = {
+    {@"Lyrics_CardElementImpl", SGHideLyricsCard},
+    {@"CreatorBiography", SGHideAboutArtist},
+    {@"VideoRecommendations", SGHideRelatedVideos},
+    {@"SongDNA_", SGHideSongDNA},
+    {@"LiveEvents_", SGHideLiveEvents},
+    {@"WatchFeed_", SGHideExploreArtist},
+    {@"Creator_Credits", SGHideCredits},
+    {@"Merch_", SGHideMerch},
+    {@"RelatedContentRecommendations", SGHideRecommendations},
 };
 
 // Class names of everything in the cell. Lists nested in the cell are laid out first so the
-// cells that name the card (shortcut tiles, video cards) exist.
+// cells that name the card (video cards) exist.
 static NSString *classNamesIn(UIView *cell) {
     NSMutableString *names = [NSMutableString string];
     SGForEachView(cell, ^(UIView *v) {
@@ -48,13 +42,10 @@ static NSString *hiddenKeyFor(UICollectionViewCell *cell) {
         if ([v isKindOfClass:cell.class]) return nil;
     }
     NSString *names = nil;
-    // The cards under a redesigned player are Redesign/Player/PlayerCards.x's.
-    BOOL playerRedesigned = SGRedesignOn(@"player");
     for (size_t i = 0; i < sizeof(cards) / sizeof(cards[0]); i++) {
         if (!SGHidden(cards[i].key)) continue;
-        if (playerRedesigned && [cards[i].page isEqualToString:@"NowPlaying_ScrollAPI"]) continue;
         if (!names) names = classNamesIn(cell);
-        if ([names containsString:cards[i].page] && [names containsString:cards[i].marker]) return cards[i].key;
+        if ([names containsString:@"NowPlaying_ScrollAPI"] && [names containsString:cards[i].marker]) return cards[i].key;
     }
     return nil;
 }
@@ -81,14 +72,10 @@ static BOOL vanish(UIView *view) {
     return YES;
 }
 
-// Re-layout once something went invisible, so the glass panes of NowPlaying/Player.x follow.
+// Re-layout once something went invisible, so the glass panes of Player.x follow.
 static void finish(UIViewController *unit, BOOL changed) {
     if (changed) [unit.viewIfLoaded setNeedsLayout];
 }
-
-// The player's buttons and the lyric preview under the artwork, left to the player redesign
-// (Redesign/Player/) while it is on.
-%group PlayerButtons
 
 %hook _TtC20NowPlaying_ModesImpl28PlaybackControlsElementsUnit
 - (void)viewDidLayoutSubviews {
@@ -142,17 +129,6 @@ static void finish(UIViewController *unit, BOOL changed) {
 }
 %end
 
-%end
-
-#pragma mark - Home filter pills
-
-%hook _TtC14Home_PillUIKit14PillScrollView
-- (void)didMoveToWindow {
-    %orig;
-    if (SGHidden(SGHideHomePills)) ((UIView *)self).hidden = YES;
-}
-%end
-
 void SGSetPlayerLyricsOnly(BOOL on) {
     for (NSString *key in @[SGHideAboutArtist, SGHideRelatedVideos, SGHideSongDNA, SGHideLiveEvents,
                             SGHideExploreArtist, SGHideCredits, SGHideMerch, SGHideRecommendations]) {
@@ -161,14 +137,13 @@ void SGSetPlayerLyricsOnly(BOOL on) {
 }
 
 %ctor {
+    if (!SGNativeUI()) return;
     %init;
-    if (!SGRedesignOn(@"player")) %init(PlayerButtons);
     SGRequireClasses(@[
         @"_TtC12Element_List18CollectionViewCell",
         @"_TtC20NowPlaying_ModesImpl28PlaybackControlsElementsUnit",
         @"_TtC20NowPlaying_ModesImpl18FooterElementsUnit",
         @"_TtC20NowPlaying_ModesImpl23InformationElementsUnit",
         @"_TtC22Lyrics_NPVContainerKit19LyricsContainerView",
-        @"_TtC14Home_PillUIKit14PillScrollView",
     ]);
 }

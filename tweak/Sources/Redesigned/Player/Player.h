@@ -9,9 +9,11 @@
 //     PlayerHeader.x     glass behind the close and more buttons
 //     PlayerControls.x   previous, play and next as bare glyphs, monospaced times
 //     PlayerFooter.x     share gone, lyrics, Connect and queue as one row of three glyphs
-//     PlayerCards.x      the lyrics card kept on a content surface, every other card collapsed
+//     PlayerCards.x      the lyrics card kept, clear on the field, every other card collapsed
+//     KaraokeCard.x      Apple Music style lyrics on that card
+//     PlayerGestures.x   the gestures' hookup
 //
-// Every hook installs only while SGRedesignOn(@"player"); the legacy player hooks stand aside then.
+// Every hook installs only while Redesigned UI is on (SGRedesignedUI); the native look's do not then.
 // Threading: main thread only.
 #import <UIKit/UIKit.h>
 

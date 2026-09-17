@@ -1,4 +1,4 @@
-// Search page: the white search field becomes a glass capsule with white text.
+// The redesign's search page: the white search field becomes a glass capsule with white text.
 //
 // Tree (trees/search.txt): SearchHeaderFind.SearchBar, a 370x48 Encore tertiary button painted
 // white, r=6, holding SearchHeaderFind.SearchBarIcon and the placeholder label. The button class is
@@ -12,7 +12,6 @@
 // layout pass that styled it: both are then invisible on the glass until the next pass, a second or
 // so later. So the two setters are refused for as long as the field is a capsule.
 #import "Core/SGCore.h"
-#import "Native/Appearance/Appearance.h"
 #import "Diagnostics/Diagnostics.h"
 
 // Spotify's glyph view, resolved at runtime; declared on UIView so the call and the hook below
@@ -95,7 +94,6 @@ static void traceFieldArriving(UIView *button) {
 }
 
 static void styleSearchField(UIView *button) {
-    if (!SGFlag(SGKeySearchField, NO)) return;
     CGSize size = button.bounds.size;
     if (size.width < 200 || size.height < 40 || size.height > 60) return;
     BOOL styled = [objc_getAssociatedObject(button, &kStyledKey) boolValue];
@@ -150,6 +148,7 @@ static void styleSearchField(UIView *button) {
 %end
 
 %ctor {
+    if (!SGRedesignedUI()) return;
     %init;
     SGRequireClasses(@[@"_TtCCE16Encore_ButtonKitO16EncoreFoundation6Encore6Button8Tertiary", @"SPTEncoreIconView"]);
 }

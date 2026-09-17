@@ -4,14 +4,14 @@
 // its frame, so the page insets and the now playing bar stay where Spotify puts them.
 //
 // A tab picked on the system bar is passed on as a tap on the hidden Spotify item it mirrors, and the
-// system bar's selection follows whichever Spotify label is painted white. Navbar/Navbar.x still
-// composes the hidden row, so its order, hidden tabs and tabs of the mod's own carry over.
+// system bar's selection follows whichever Spotify label is painted white. Navbar.x composes the
+// hidden row, so its order, hidden tabs and tabs of the mod's own carry over. Always on in the redesign.
 //
 // Tree (trees/home.txt): NavigationUI_TabBarImpl.TabBarView > TabBarCompactView > UIStackView of
 //   ElementContentView<TabBarItemElement>, each with an SPTEncoreIconView and an SPTEncoreLabel.
 #import "Core/SGCore.h"
-#import "Native/Navbar/Navbar.h"
-#import "Native/Appearance/Appearance.h"
+#import "Navbar.h"
+#import "Redesigned/Kit/SGRTokens.h"
 #import "Settings/SGPage.h"
 #import "Headers/SPTEncoreIconView.h"
 #import <objc/message.h>
@@ -19,7 +19,7 @@
 static char kBarKey;
 static __weak UIView *sg_stockBar;
 
-@interface SGSystemTabBar : UITabBar <UITabBarDelegate, UIGestureRecognizerDelegate>
+@interface SGRSystemTabBar : UITabBar <UITabBarDelegate, UIGestureRecognizerDelegate>
 @property (nonatomic, weak) UIView *stockBar;
 @property (nonatomic, copy) NSArray<UIView *> *sources;
 @property (nonatomic, weak) UILongPressGestureRecognizer *hold;
@@ -177,7 +177,7 @@ static void forwardTap(UIView *item) {
 
 #pragma mark - the system bar
 
-@implementation SGSystemTabBar
+@implementation SGRSystemTabBar
 
 - (void)tabBar:(UITabBar *)tabBar didSelectItem:(UITabBarItem *)item {
     NSUInteger index = [self.items indexOfObject:item];
@@ -235,11 +235,11 @@ static void forwardTap(UIView *item) {
 
 @end
 
-@interface SGHomeHold : UILongPressGestureRecognizer
+@interface SGRHomeHold : UILongPressGestureRecognizer
 @end
 
-@implementation SGHomeHold
-+ (void)held:(SGHomeHold *)hold {
+@implementation SGRHomeHold
++ (void)held:(SGRHomeHold *)hold {
     if (hold.state == UIGestureRecognizerStateBegan) SGOpenModSettings(hold.view);
 }
 @end
@@ -249,20 +249,9 @@ static void holdHome(UIView *stockBar) {
     UIView *home = SGRowIn(stockBar).arrangedSubviews.firstObject;
     if (!home) return;
     for (UIGestureRecognizer *recognizer in home.gestureRecognizers) {
-        if ([recognizer isKindOfClass:SGHomeHold.class]) return;
+        if ([recognizer isKindOfClass:SGRHomeHold.class]) return;
     }
-    [home addGestureRecognizer:[[SGHomeHold alloc] initWithTarget:SGHomeHold.class action:@selector(held:)]];
-}
-
-static void removeBar(UIView *stockBar) {
-    UIView *bar = objc_getAssociatedObject(stockBar, &kBarKey);
-    if (!bar) return;
-    [bar removeFromSuperview];
-    objc_setAssociatedObject(stockBar, &kBarKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    for (UIView *sub in stockBar.subviews) {
-        sub.alpha = 1;
-        sub.userInteractionEnabled = YES;
-    }
+    [home addGestureRecognizer:[[SGRHomeHold alloc] initWithTarget:SGRHomeHold.class action:@selector(held:)]];
 }
 
 static void logBarOnce(UITabBar *bar) {
@@ -275,15 +264,11 @@ static void logBarOnce(UITabBar *bar) {
 }
 
 static void syncBar(UIView *stockBar) {
-    if (!SGFlag(SGKeyTabBar, NO)) {
-        removeBar(stockBar);
-        return;
-    }
     sg_stockBar = stockBar;
 
-    SGSystemTabBar *bar = objc_getAssociatedObject(stockBar, &kBarKey);
+    SGRSystemTabBar *bar = objc_getAssociatedObject(stockBar, &kBarKey);
     if (!bar) {
-        bar = [[SGSystemTabBar alloc] initWithFrame:stockBar.bounds];
+        bar = [[SGRSystemTabBar alloc] initWithFrame:stockBar.bounds];
         bar.delegate = bar;
         bar.stockBar = stockBar;
         UILongPressGestureRecognizer *hold = [[UILongPressGestureRecognizer alloc] initWithTarget:bar action:@selector(held:)];
@@ -292,7 +277,7 @@ static void syncBar(UIView *stockBar) {
         bar.hold = hold;
         objc_setAssociatedObject(stockBar, &kBarKey, bar, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
-    bar.tintColor = SGAccentColor() ?: [UIColor colorWithRed:0x1E / 255.0 green:0xD7 / 255.0 blue:0x60 / 255.0 alpha:1];
+    bar.tintColor = SGRAccent();
 
     for (UIView *sub in stockBar.subviews) {
         if (sub == bar) continue;
@@ -362,13 +347,13 @@ static UIView *tabBarOf(UIView *item) {
 %hook _TtC23NavigationUI_TabBarImpl10TabBarView
 - (void)layoutSubviews {
     %orig;
-    SGComposeTabBar((UIView *)self);
+    SGRComposeTabBar((UIView *)self);
     for (UIView *sub in ((UIView *)self).subviews) {
-        if (![sub isKindOfClass:SGSystemTabBar.class]) [sub layoutIfNeeded];
+        if (![sub isKindOfClass:SGRSystemTabBar.class]) [sub layoutIfNeeded];
     }
     holdHome((UIView *)self);
     syncBar((UIView *)self);
-    SGLogTabBarRow((UIView *)self);
+    SGRLogTabBarRow((UIView *)self);
 }
 %end
 
@@ -376,10 +361,10 @@ static UIView *tabBarOf(UIView *item) {
 static void itemDidLayOut(UIView *item) {
     UIView *bar = tabBarOf(item);
     if (!bar) return;
-    SGComposeTabBar(bar);
+    SGRComposeTabBar(bar);
     holdHome(bar);
     syncBar(bar);
-    SGLogTabBarRow(bar);
+    SGRLogTabBarRow(bar);
 }
 
 %hook _TtC23NavigationUI_TabBarImpl21TabBarItemElementView
@@ -408,6 +393,7 @@ static void itemDidLayOut(UIView *item) {
 %end
 
 %ctor {
+    if (!SGRedesignedUI()) return;
     %init;
     SGRequireClasses(@[
         @"_TtC23NavigationUI_TabBarImpl10TabBarView",

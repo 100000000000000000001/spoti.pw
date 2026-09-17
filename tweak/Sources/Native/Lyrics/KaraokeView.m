@@ -1,7 +1,7 @@
 #import "Core/SGCore.h"
-#import "Shared/Lyrics/Lyrics.h"
+#import "Native/Lyrics/KaraokeView.h"
 #import "Shared/LyricsSources/LyricsSources.h"
-#import "Native/Player/NowPlaying.h"
+#import "Shared/Player/PlayerEvents.h"
 
 static const CGFloat kFontSize = 30, kMargin = 24, kLineGap = 24, kRowTighten = 2;
 // The card under the player is a seventh of the page's height, so it gets Spotify's own card type

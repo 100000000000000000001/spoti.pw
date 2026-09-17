@@ -6,7 +6,7 @@
 // shuffle, repeat, previous, next and the footer (connect, share, queue) are bare glyphs over the
 // artwork next to Spotify's white play disc: a pane each turned both rows into a strip of glass
 // discs sampling one another, which is the one thing the material cannot do. The cards below the
-// player are surfaces rather than controls; the lyrics one is in NowPlaying/Lyrics.x.
+// player are surfaces rather than controls; the lyrics one is in LyricsCard.x.
 //
 // Tree (trees/now-playing.txt): NowPlaying_ModesImpl units, each a child controller whose view
 // holds one UIStackView row; the header row is chevron 48x48, playlist name 110x48, more 48x48.
@@ -21,9 +21,9 @@
 // on the field rather than being pasted onto it, the lyric under it drops behind the title in
 // contrast, and the timestamps take monospaced digits so they stop twitching every second.
 #import "Core/SGCore.h"
+#import "Native/Appearance/Repaint.h"
 #import "NowPlaying.h"
 #import "Native/Appearance/Appearance.h"
-#import "Redesigned/Kit/SGRedesign.h"
 
 static const CGFloat kButtonMin = 36, kButtonMax = 48;
 static const CGFloat kArtRadius = 12;
@@ -36,7 +36,7 @@ static BOOL backdropOn(void) {
 
 // A glass circle per round button in the unit's row: children about as wide as they are tall.
 // The playlist name is 110 wide against 48 tall, so it keeps no pane, and neither do the children
-// Declutter/Declutter.x made invisible.
+// PlayerDeclutter.x made invisible.
 static void glassBehindRoundButtons(UIViewController *unit) {
     if (!SGFlag(SGKeyPlayer, NO)) return;
     UIView *host = unit.viewIfLoaded;
@@ -165,7 +165,7 @@ static UIView *backdropIn(UIView *plane) {
 - (void)layoutSubviews {
     %orig;
     // White at full strength, and alone in the space under the artwork, the line reads louder than
-    // the title it sits above. Declutter/Declutter.x hides the same view outright.
+    // the title it sits above. PlayerDeclutter.x hides the same view outright.
     if (backdropOn()) ((UIView *)self).alpha = 0.72;
 }
 %end
@@ -193,8 +193,7 @@ static UIFont *timeFont(void) {
 %end
 
 %ctor {
-    // The player redesign (Redesign/Player/) owns this screen while it is on.
-    if (SGRedesignOn(@"player")) return;
+    if (!SGNativeUI()) return;
     %init;
     SGRequireClasses(@[
         @"_TtC20NowPlaying_ModesImpl18HeaderElementsUnit",

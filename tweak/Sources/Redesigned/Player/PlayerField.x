@@ -6,7 +6,7 @@
 // scrolls (874 at rest, 1495 and 2144 further down, 02.txt:757, 03.txt:861), so a field inside it
 // scrolls with the cards and is laid out again on every scroll frame: the hook only compares a frame.
 // The field goes on top of the plane's own subviews, so Spotify's gradients are covered rather than
-// fought over, and nothing depends on Appearance/Repaint.x.
+// fought over, and nothing depends on a repaint hook.
 //
 // The picture comes from the Kit's now playing artwork: the now playing bar's 40pt cover, published by
 // the Kit, and the player's own 354pt cover, published here from the cell in the middle of the
@@ -170,7 +170,7 @@ static SGRPlayerCoverWatcher *sg_coverWatcher;
         flags[[@"ios-feature-nowplaying." stringByAppendingString:egg]] = @NO;
     }
     SGRedesignForceFlags(@"player", flags);
-    if (!SGRedesignOn(@"player")) return;
+    if (!SGRedesignedUI()) return;
     %init;
     sg_coverWatcher = [SGRPlayerCoverWatcher new];
     SGRAddPlayerStateObserver(sg_coverWatcher);

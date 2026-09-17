@@ -16,7 +16,7 @@
 #import "Core/SGCore.h"
 #import "Navbar.h"
 #import "Headers/SPTEncoreIconView.h"
-#import "Redesigned/Kit/SGRBridges.h"
+#import "Shared/Navigation/Links.h"
 #import <objc/message.h>
 
 static const CGFloat kIconSize = 24;
@@ -25,9 +25,8 @@ static const CGFloat kLabelTop = 35;
 static const CGFloat kLabelHeight = 14;
 static char kCustomKey, kOrderKey;
 
-// Where Spotify's own items keep their icon and label, read off one of them every pass. Navbar/TabBar.x
-// moves the icons when the glass bar is on, and this follows a pass later, so an item of the mod's
-// own sits on the same line as its neighbours either way.
+// Where Spotify's own items keep their icon and label, read off one of them every pass, so an item of
+// the mod's own sits on the same line as its neighbours.
 static CGRect sg_iconBox = {{0, kIconTop}, {kIconSize, kIconSize}};
 static CGRect sg_labelBox = {{0, kLabelTop}, {0, kLabelHeight}};
 
@@ -102,12 +101,11 @@ static UIView *iconView(NSString *name) {
     [self addSubview:_icon];
 }
 
-// Both boxes come off a neighbour, so whatever Spotify or Navbar/TabBar.x does to the row's line-up
-// is copied rather than guessed at; only the horizontal centring is the item's own.
+// Both boxes come off a neighbour, so whatever Spotify does to the row's line-up is copied rather than
+// guessed at; only the horizontal centring is the item's own.
 - (void)layoutSubviews {
     [super layoutSubviews];
     CGFloat width = self.bounds.size.width;
-    _title.hidden = SGFlag(SGKeyTabBar, NO);
     _title.font = sg_tabFont ?: [UIFont systemFontOfSize:10];
     _title.frame = CGRectMake(0, CGRectGetMinY(sg_labelBox), width, CGRectGetHeight(sg_labelBox));
     _icon.frame = CGRectMake((width - CGRectGetWidth(sg_iconBox)) / 2, CGRectGetMinY(sg_iconBox),
@@ -125,10 +123,10 @@ static UIView *iconView(NSString *name) {
     self.alpha = highlighted ? 0.5 : 1;
 }
 
-// Through the link dispatcher the Kit keeps (Redesign/Kit/SGRBridges.x).
+// Through the app's own link dispatcher (Shared/Navigation/Links.h).
 - (void)open {
     NSURL *url = self.uri.length ? [NSURL URLWithString:self.uri] : nil;
-    if (!SGROpenURI(url)) SGLog(@"navbar: cannot open %@, dispatcher %@", self.uri, SGRLinkDispatcher());
+    if (!SGOpenSpotifyURI(url)) SGLog(@"navbar: cannot open %@, dispatcher %@", self.uri, SGLinkDispatcher());
 }
 
 @end
@@ -363,6 +361,7 @@ void SGLogTabBarRow(UIView *tabBar) {
 %end
 
 %ctor {
+    if (!SGNativeUI()) return;
     %init;
     SGRequireClasses(@[
         @"SPTEncoreIcon",

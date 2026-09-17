@@ -100,7 +100,7 @@ static void scaleEveryCover(BOOL animated) {
 %end
 
 // Spotify shows and hides the preview as lyrics come and go; it stays hidden, the way
-// Declutter/Declutter.x has shipped it (its parent is a plain view, 01.txt:35, not a stack).
+// Native/Player/PlayerDeclutter.x has shipped it (its parent is a plain view, 01.txt:35, not a stack).
 %hook _TtC22Lyrics_NPVContainerKit19LyricsContainerView
 - (void)setHidden:(BOOL)hidden {
     %orig(YES);
@@ -138,7 +138,7 @@ static void scaleEveryCover(BOOL animated) {
 static SGRPlayerArtworkWatcher *sg_artworkWatcher;
 
 %ctor {
-    if (!SGRedesignOn(@"player")) return;
+    if (!SGRedesignedUI()) return;
     %init;
     sg_tilts = [NSHashTable weakObjectsHashTable];
     sg_covers = [NSMapTable weakToWeakObjectsMapTable];

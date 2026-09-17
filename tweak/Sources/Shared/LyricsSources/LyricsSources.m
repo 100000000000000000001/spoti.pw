@@ -419,6 +419,11 @@ id SGLyricsForcedFlag(NSString *key) {
     return nil;
 }
 
+// After an override; no row shows the timeout, so nothing is locked.
+__attribute__((constructor)) static void registerForcer(void) {
+    SGRegisterFlagForcer(NO, ^id(NSString *key) { return SGLyricsForcedFlag(key); }, nil);
+}
+
 NSString *SGLyricsCreditFor(NSString *trackID) {
     setUp();
     @synchronized (sg_credits) { return trackID ? sg_credits[trackID] : nil; }

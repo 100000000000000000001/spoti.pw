@@ -58,6 +58,12 @@ BOOL SGAdBlockForcesFlagOff(NSString *key) {
     return SGHidden(SGKeyHideUpsells) && listed(key, upsellFlags, sizeof(upsellFlags) / sizeof(upsellFlags[0]));
 }
 
+// After an override from the All flags page, and locking the rows that would turn the same flag off.
+__attribute__((constructor)) static void registerForcer(void) {
+    SGFlagForcer off = ^id(NSString *key) { return SGAdBlockForcesFlagOff(key) ? @NO : nil; };
+    SGRegisterFlagForcer(NO, off, off);
+}
+
 #pragma mark - counters
 
 static NSString *const kCounts = @"spotifyglass.adblock.counts";

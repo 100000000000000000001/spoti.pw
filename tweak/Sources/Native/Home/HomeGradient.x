@@ -1,7 +1,7 @@
 // Home gradient: a wash behind the top of the Home tab, strongest under the avatar and the pills
 // and out by the second shelf, like the gradient Spotify's own Home used to have. The wash is a
 // layer inside the page's scroll view, under its content, so it scrolls away with the shelves; the
-// base grey the page and the shelves paint over it goes clear in Appearance/Repaint.x, and
+// base grey the page and the shelves paint over it goes clear in Native/Appearance/Repaint.x, and
 // Spotify's own scrim behind the header goes with it, since it would only mute the colour.
 //
 // Which colour it fades, how strong it is and how far down it reaches come from the choice tables
@@ -15,6 +15,7 @@
 // top for the header, painted #121212; the shelves inside it are collection views of their own,
 // painted #121212 as well.
 #import "Core/SGCore.h"
+#import "Native/Appearance/Repaint.h"
 #import "Home.h"
 
 // Colour level behind the header before it starts to go, and colour above the content as well, for
@@ -90,7 +91,7 @@ static uint32_t strengthened(uint32_t rgb, CGFloat factor) {
 @end
 
 // The shelves and the shortcuts grid are lists of their own, each painting the base surface over
-// the wash. A cell paints itself before the page puts it in, where the hook in Appearance/Repaint.x cannot
+// the wash. A cell paints itself before the page puts it in, where the hook in Native/Appearance/Repaint.x cannot
 // see that it belongs to Home, so every cell is stripped once as it turns up; the repaints it
 // takes later, in the page by then, go through the hook. The page's own paint is behind the wash.
 static void stripCells(UIScrollView *list) {
@@ -175,7 +176,7 @@ static UIScrollView *pageList(UIView *view) {
 %end
 
 %ctor {
-    if (!SGFlag(SGKeyHomeGradient, NO)) return;
+    if (!SGNativeUI() || !SGFlag(SGKeyHomeGradient, NO)) return;
     %init;
     SGRequireClasses(@[
         @"_TtC16Home_EvoPageImpl33EvoLoadableResourceViewController",

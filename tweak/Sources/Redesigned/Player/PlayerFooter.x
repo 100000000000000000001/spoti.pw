@@ -17,6 +17,7 @@
 // is a UIButton (trees/clean/lyrics/01.txt:1013, objc-meta-Spotify.txt:216095).
 #import "Core/SGCore.h"
 #import "Redesigned/Kit/SGRKit.h"
+#import "Shared/Navigation/Links.h"
 #import "Player.h"
 
 static const CGFloat kLyricsGlyphSize = 20;
@@ -57,7 +58,7 @@ static void openLyrics(void) {
     UIControl *expand = (UIControl *)SGRFindByIdentifier(card, @"lyrics-expand-button", &kExpandKey);
     NSString *how = @"nothing";
     if ([expand isKindOfClass:UIControl.class] && SGRFire(expand)) how = @"the card's expand button";
-    else if (SGROpenURI([NSURL URLWithString:@"spotify:lyrics:fullscreen"])) how = @"spotify:lyrics:fullscreen";
+    else if (SGOpenSpotifyURI([NSURL URLWithString:@"spotify:lyrics:fullscreen"])) how = @"spotify:lyrics:fullscreen";
     SGLog(@"redesign player: lyrics glyph opened the page by %@", how);
 }
 
@@ -140,7 +141,7 @@ static UIView *connectGlyphIn(UIView *holder) {
 %end
 
 %ctor {
-    if (!SGRedesignOn(@"player")) return;
+    if (!SGRedesignedUI()) return;
     %init;
     SGRequireClasses(@[@"_TtC20NowPlaying_ModesImpl18FooterElementsUnit"]);
 }

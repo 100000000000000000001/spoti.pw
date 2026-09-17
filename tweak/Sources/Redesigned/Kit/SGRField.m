@@ -1,12 +1,10 @@
 #import "Core/SGCore.h"
-#import "Native/Appearance/Appearance.h"
 #import "SGRField.h"
 #import "SGRPalette.h"
 #import "SGRTokens.h"
 
 NSNotificationName const SGRFieldColorDidChangeNotification = @"spotifyglass.redesign.fieldColorDidChange";
 
-static const CGFloat kAmoledFrom = 0.55;
 static const CGFloat kFallbackHeight = 874;   // a window-less field sizes for an iPhone 17 Pro
 
 static CGFloat windowHeight(UIView *view) {
@@ -14,9 +12,8 @@ static CGFloat windowHeight(UIView *view) {
     return height > 0 ? height : kFallbackHeight;
 }
 
-// The field paints on sublayers of its own rather than on the view's layer: Appearance/Repaint.x only
-// clears the paint of a view's own layer, so the neutral colour cannot be taken for Spotify's base
-// surface inside a page registered as a clear root.
+// The field paints on sublayers of its own rather than on the view's layer: a repaint hook only clears
+// the paint of a view's own layer, so the neutral colour cannot be taken for Spotify's base surface.
 static NSDictionary *noActions(void) {
     static NSDictionary *none;
     static dispatch_once_t once;
@@ -29,7 +26,6 @@ static NSDictionary *noActions(void) {
 
 @implementation SGRArtworkField {
     CALayer *_solid;
-    CAGradientLayer *_amoled;
     CALayer *_backdrop;
     UIColor *_color;
     UIImage *_image;
@@ -49,13 +45,6 @@ static NSDictionary *noActions(void) {
     _solid.actions = noActions();
     _solid.backgroundColor = _color.CGColor;
     [self.layer addSublayer:_solid];
-
-    if (SGFlag(SGKeyAmoled, NO)) {
-        _amoled = [CAGradientLayer layer];
-        _amoled.actions = noActions();
-        _amoled.colors = @[(id)[UIColor colorWithWhite:0 alpha:0].CGColor, (id)UIColor.blackColor.CGColor];
-        [self.layer addSublayer:_amoled];
-    }
 
     _backdrop = [CALayer layer];
     _backdrop.actions = noActions();
@@ -91,13 +80,6 @@ static NSDictionary *noActions(void) {
     [CATransaction begin];
     [CATransaction setDisableActions:YES];
     _solid.frame = painted;
-    if (_amoled) {
-        CGFloat height = windowHeight(self), total = MAX(1, painted.size.height);
-        CGFloat from = (_amoledFadeFrom > 0 ? _amoledFadeFrom : height * kAmoledFrom) + bleed.top;
-        CGFloat to = MAX(from + 1, (_amoledFadeTo > 0 ? _amoledFadeTo : height) + bleed.top);
-        _amoled.frame = painted;
-        _amoled.locations = @[@(MIN(1, from / total)), @(MIN(1, to / total))];
-    }
     _backdrop.frame = CGRectMake(0, 0, bounds.size.width, [self backdropHeightNow]);
     [CATransaction commit];
 }
@@ -114,7 +96,6 @@ static NSDictionary *noActions(void) {
     if (animated && from) {
         CABasicAnimation *fade = [CABasicAnimation animationWithKeyPath:@"backgroundColor"];
         fade.fromValue = from;
-        // Read back rather than the colour asked for: Appearance/Amoled.x may have swapped it for black.
         fade.toValue = (__bridge id)_solid.backgroundColor;
         fade.duration = SGRCrossfade;
         fade.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
@@ -133,7 +114,7 @@ static NSDictionary *noActions(void) {
     _image = image;
     _identity = [identity copy];
     NSUInteger generation = ++_generation;
-    SGRPaletteRequest request = {CGSizeZero, NO, _amoled != nil};
+    SGRPaletteRequest request = {CGSizeZero, NO, NO};
     if (_showsBackdrop) request.backdropSize = CGSizeMake(self.bounds.size.width > 0 ? self.bounds.size.width : 402, [self backdropHeightNow]);
     __weak SGRArtworkField *weakSelf = self;
     [SGRPalette paletteForImage:image request:request completion:^(SGRPalette *palette) {

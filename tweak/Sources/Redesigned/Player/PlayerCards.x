@@ -4,7 +4,7 @@
 // adds later) reports no height, so the list closes up around it.
 //
 // An allow list rather than Declutter's block list: the server decides which cards a track gets, and a
-// new kind should not turn up under a redesigned player. The collapse is the one Declutter/Declutter.x
+// new kind should not turn up under a redesigned player. The collapse is the one Native/Player/PlayerDeclutter.x
 // has shipped (the 24pt gaps between cards stay until the card list is filtered at the network, phase 2).
 //
 // Tree (trees/clean/player/01.txt:385, lyrics/01.txt:996-999): every card is an Element_List.CollectionViewCell
@@ -15,6 +15,7 @@
 // their card. The card's share button is id=lyrics-share-button (lyrics/01.txt:1009).
 #import "Core/SGCore.h"
 #import "Redesigned/Kit/SGRKit.h"
+#import "Redesigned/Kit/SGRRepaint.h"
 #import "Shared/Lyrics/Lyrics.h"
 #import "Player.h"
 
@@ -119,9 +120,9 @@ static UIView *cellAround(UIView *view) {
     if (cell.bounds.size.height >= kLivingHeight) {
         objc_setAssociatedObject(cell, &kRevalidatedKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         // Spotify paints the cell the album colour again at every track change, which is no layout pass
-        // of the card's; as the root of the lyrics card, Appearance/Repaint.x keeps it clear in between.
+        // of the card's; as the root of the lyrics card, Redesigned/Kit/SGRRepaint.x keeps it clear in between.
         if (clearWanted()) {
-            sg_lyricsCardRoot = cell;
+            sgr_lyricsCardRoot = cell;
             SGStripBackgrounds(cell);
             static dispatch_once_t once;
             dispatch_once(&once, ^{ SGLog(@"redesign player: lyrics card cleared onto the field"); });
@@ -171,7 +172,7 @@ static UIView *cellAround(UIView *view) {
 static SGRPlayerCardsWatcher *sg_cardsWatcher;
 
 %ctor {
-    if (!SGRedesignOn(@"player")) return;
+    if (!SGRedesignedUI()) return;
     %init;
     sg_cardsWatcher = [SGRPlayerCardsWatcher new];
     SGRAddPlayerStateObserver(sg_cardsWatcher);

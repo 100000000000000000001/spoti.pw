@@ -329,6 +329,7 @@ static BOOL collapsed(UICollectionViewCell *cell, NSIndexPath *path) {
 %end
 
 %ctor {
+    if (!SGNativeUI()) return;
     %init;
     SGRequireClasses(@[
         @"_TtC35CreativeWorkPlatform_ImageHeaderKit15ImageHeaderView",
