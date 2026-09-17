@@ -32,6 +32,9 @@ UIColor *SGRNeutralField(void); // #121212, the field before a colour arrives; S
 UIColor *SGRSolidGlassFill(void);
 // A content surface on the field (a card), a step lighter than the field it sits on.
 UIColor *SGRElevated(UIColor *field);
+// The line between two rows of a list, drawn a pixel thick from the text's leading edge: white 12%, 20% with
+// Increase Contrast. Never a border around anything -- the redesign's surfaces are told apart by their fill.
+UIColor *SGRHairline(void);
 
 // The system font at the size `style` has for the current content size category, but never larger
 // than it has at `largest`, in `weight`. Callers re-ask on traitCollectionDidChange:.

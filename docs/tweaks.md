@@ -118,6 +118,11 @@ Redesigned:
                   carousels and promos collapse, and the cards move up by the spacing they leave), the header the way Home
                   has it without the camera, and each card as Liquid Glass tinted by its own colour, read off the Box's
                   shape layer (Search.h lists its files)
+    Library/      Your Library the way Home and Search have their headers: a large title at the leading edge, the avatar
+                  at the trailing edge with the search and create buttons before it, the filter chips and the header's
+                  scrim gone and the header closed up by the band they leave, each row's artwork at the Kit's radius
+                  with a circular one left round, a hairline between the rows, and the search inside the library on
+                  glass capsules (Library.h lists its files)
     Playlist/     the playlist page (Liked Songs and one's own too, all three being the same page) the way the Music
                   app lays one out: the cover full bleed across the top dissolving into the page's field with no seam,
                   the title, the creator and the length centred under it, one row of glass controls (shuffle, a

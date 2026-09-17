@@ -44,6 +44,10 @@ UIColor *SGRSolidGlassFill(void) {
     return [UIColor colorWithWhite:1 alpha:0.16];
 }
 
+UIColor *SGRHairline(void) {
+    return [UIColor colorWithWhite:1 alpha:SGRIncreaseContrast() ? 0.20 : 0.12];
+}
+
 UIColor *SGRElevated(UIColor *field) {
     CGFloat r = 0, g = 0, b = 0, a = 1;
     if (![field getRed:&r green:&g blue:&b alpha:&a]) return [UIColor colorWithWhite:1 alpha:0.08];
