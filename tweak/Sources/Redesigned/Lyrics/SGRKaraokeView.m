@@ -4,6 +4,7 @@
 #import "SGRKaraokeView.h"
 #import "Shared/LyricsSources/LyricsSources.h"
 #import "Shared/Player/PlayerEvents.h"
+#import "Redesigned/Haptics/Haptics.h"
 
 static const CGFloat kFontSize = 30, kMargin = 24, kLineGap = 24, kRowTighten = 2;
 // The card under the player is a seventh of the page's height, so it gets Spotify's own card type
@@ -430,6 +431,7 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
     for (SGRKaraokeLineView *view in _shown.allValues) {
         if (!CGRectContainsPoint(CGRectInset(view.frame, -_margin, -_lineGap / 2), point)) continue;
         SGKaraokeSeek(view.line.start);
+        SGRPlayFeedback(SGRFeedbackSkip);
         [self followSong];
         return;
     }

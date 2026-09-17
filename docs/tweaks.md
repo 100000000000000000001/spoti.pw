@@ -4,7 +4,8 @@
 
     tweak/                      the Theos project: Makefile, control, the bundle filter plist
     tweak/Sources/Core/         what every file builds on: logging, preferences, view-tree walking, glass panes, the
-                                look this launch runs (SGUIMode.h) and the forced-flag registry (SGFlagForce.h)
+                                look this launch runs (SGUIMode.h), the forced-flag registry (SGFlagForce.h) and C
+                                functions Spotify imports hooked by rebinding its import slots (SGRebind.h)
     tweak/Sources/Headers/      reverse-engineered Spotify classes, one header each, only the selectors used
     tweak/Sources/Settings/     the Mod Settings framework: SGPage (a page on Spotify's stack), SGModPage (sections
                                 of rows), SGPageStyle (Spotify's list look), SGGlowSwitch
@@ -113,6 +114,13 @@ Redesigned:
                   edge, the shelves' headings at the Music app's size, each shortcut tile's cover run across it blurred
                   (SGRPalette's extension), continuous corners on the covers, and in FLEX builds a meter of each scroll's
                   frames and the hooks' time (Home.h lists its files)
+    Haptics/      Vibrations (Haptics.h lists its files): a tap of UIKit's feedback generators for the player's and the now
+                  playing bar's controls, the scrubber's tenths and ends, cover swipes, gestures and the lyrics page's tap to
+                  seek (ControlHaptics.x, SGRFeedback.m); and Music Haptics, Core Haptics playing along with the song:
+                  Spotify's import of AudioOutputUnitStart is rebound so its RemoteIO output unit gets a render notify, the
+                  samples go through a drum and bass analyzer on the render thread (SGRMusicAnalyzer.m, plain C), and a
+                  thread of its own schedules the taps and the rumble for when the sound is heard (MusicHaptics.x). Both
+                  switches apply at once; nothing plays while Spotify is not the active app
 
 App:
 
@@ -127,7 +135,8 @@ which makes every unset switch read off, so a reset is stock Spotify whatever sw
 
 A hook reads its switch when it runs (`SGEnabled`, `SGHidden`, `SGFlag` from Core/SGPrefs.h), so a
 change shows after Spotify restarts; the tab editor on the Navbar page is the exception and applies as soon as the bar lays
-out again, as are the Home gradient's colour, strength and height, but not the switch that turns it on. The root page in `App/ModSettings.x` holds the Appearance card and links the page of each part of Spotify, and only the stored look's.
+out again, as are the Home gradient's colour, strength and height, but not the switch that turns it on, and the redesign's
+Vibrations. The root page in `App/ModSettings.x` holds the Appearance card and links the page of each part of Spotify, and only the stored look's.
 
 ## Make targets
 
@@ -158,7 +167,9 @@ naming the source in the redesign, the lock screen, and glass lyrics in the nati
 in the native look also Now playing bar (its device button and its flags), Queue & devices, and
 Spotify's own player screen (artwork background, glass header buttons, Disable Canvas and the sheet,
 header, slider and sticky header flags, the cards under the player and the lyrics preview and player
-buttons to hide). Home & Library, in the native look only:
+buttons to hide); in the redesign instead Vibrations, Controls (on until switched off) and Music Haptics
+(off until switched on, with an ⓘ saying it follows the sound this iPhone plays while Spotify is open), both
+applying straight away. Home & Library, in the native look only:
 the Gradient page (the wash behind the top of Home in one of eight colours, at three strengths and
 four heights) and the Home flags, the parts of Home to hide including the DJ button and badge, the
 playlist header, buttons and pills to hide, and the Library flags. Then Premium, ads & privacy

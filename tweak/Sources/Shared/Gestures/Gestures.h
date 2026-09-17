@@ -38,6 +38,10 @@ NSInteger SGGestureCellAt(CGPoint point, CGSize size);
 
 UIViewController *SGGesturesSettingsPage(void);
 
+// Told of each action a double tap is about to perform, before the player has acted on it; one observer,
+// for a look that answers the gesture (the redesign's haptics). Main thread.
+void SGGestureSetObserver(void (^observer)(SGGestureAction action));
+
 // Puts the double tap on `host`, the view the player's grid covers, while the switch is on; again on
 // every layout pass of the host, so taps Spotify adds later still wait for it. Main thread.
 void SGGestureAttach(UIView *host);

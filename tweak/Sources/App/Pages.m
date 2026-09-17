@@ -10,6 +10,7 @@
 #import "Native/Navbar/Navbar.h"
 #import "Native/NowPlayingBar/NowPlayingBar.h"
 #import "Native/Player/NowPlaying.h"
+#import "Redesigned/Haptics/Haptics.h"
 #import "Redesigned/Navbar/Navbar.h"
 #import "Redesigned/Kit/SGRAccent.h"
 
@@ -77,9 +78,9 @@ UIViewController *SGPlayerSettingsPage(void) {
     [pages addObject:SGWithSymbol(SGPageRow(@"Lock screen widget", ^UIViewController *{ return SGLockScreenWidgetPage(); }), @"lock")];
     [sections addObject:SGSection(nil, pages)];
     if (native) [sections addObjectsFromArray:SGNativePlayerScreenSections()];
+    else [sections addObject:SGRVibrationsSection()];
 
-    return [[SGModPage alloc] initWithTitle:@"Player"
-                                      intro:@"Changes apply after you restart Spotify. Gestures and Blocked artists apply straight away."
-                                   sections:sections
-                                     footer:nil];
+    NSString *intro = native ? @"Changes apply after you restart Spotify. Gestures and Blocked artists apply straight away."
+                             : @"Changes apply after you restart Spotify. Gestures, Blocked artists and Vibrations apply straight away.";
+    return [[SGModPage alloc] initWithTitle:@"Player" intro:intro sections:sections footer:nil];
 }

@@ -9,12 +9,18 @@
 #import "Headers/SPTNowPlayingPlaybackController.h"
 
 static __weak SPTNowPlayingPlaybackControllerImplementation *sg_player;
+static void (^sg_observer)(SGGestureAction action);
+
+void SGGestureSetObserver(void (^observer)(SGGestureAction action)) {
+    sg_observer = [observer copy];
+}
 
 #pragma mark - what a cell does
 
 static void perform(SGGestureAction action) {
     SPTNowPlayingPlaybackControllerImplementation *player = sg_player;
     if (!player) return;
+    if (action != SGGestureNothing && sg_observer) sg_observer(action);
     switch (action) {
         case SGGestureNothing:
             break;
