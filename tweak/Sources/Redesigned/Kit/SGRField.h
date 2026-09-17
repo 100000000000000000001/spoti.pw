@@ -2,8 +2,9 @@
 // a whole redesigned page, with no card and no seam anywhere. The player's field also carries the
 // artwork itself at the top, blurred and dimmed and dissolving into the colour (showsBackdrop).
 //
-// Nothing is blurred live and nothing is masked: the view draws a solid colour layer and at most one
-// bitmap layer rendered off the main thread, so it costs one composited layer or two while the page moves. A new colour or bitmap crossfades over
+// Nothing is blurred live and nothing is masked: the view draws a solid colour layer, a black gradient
+// layer (the redesign is AMOLED throughout, fading the colour to black down the page) and at most one
+// bitmap layer rendered off the main thread, so it costs a few composited layers while the page moves. A new colour or bitmap crossfades over
 // SGRCrossfade; the same image again is a no-op.
 //
 // Ownership: the screen that installs a field owns it (usually retained by its superview and an
@@ -16,7 +17,7 @@
 extern NSNotificationName const SGRFieldColorDidChangeNotification;
 
 @interface SGRArtworkField : UIView
-// Where the colour and the backdrop reach past the bounds (overscroll, a plane
+// Where the colour, the fade to black and the backdrop reach past the bounds (overscroll, a plane
 // that does not clip): positive values draw outside. The field never clips.
 @property (nonatomic) UIEdgeInsets bleed;
 @property (nonatomic) BOOL showsBackdrop;

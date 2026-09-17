@@ -7,6 +7,10 @@ NSNotificationName const SGRFieldColorDidChangeNotification = @"spotifyglass.red
 
 static const CGFloat kFallbackHeight = 874;   // a window-less field sizes for an iPhone 17 Pro
 
+// Where the colour starts fading to black and where it is black, as shares of the window's height:
+// the redesign is AMOLED throughout (SGRAmoled.x).
+static const CGFloat kBlackFrom = 0.55, kBlackTo = 1;
+
 static CGFloat windowHeight(UIView *view) {
     CGFloat height = view.window.bounds.size.height;
     return height > 0 ? height : kFallbackHeight;
@@ -26,6 +30,7 @@ static NSDictionary *noActions(void) {
 
 @implementation SGRArtworkField {
     CALayer *_solid;
+    CAGradientLayer *_black;
     CALayer *_backdrop;
     UIColor *_color;
     UIImage *_image;
@@ -45,6 +50,11 @@ static NSDictionary *noActions(void) {
     _solid.actions = noActions();
     _solid.backgroundColor = _color.CGColor;
     [self.layer addSublayer:_solid];
+
+    _black = [CAGradientLayer layer];
+    _black.actions = noActions();
+    _black.colors = @[(id)[UIColor colorWithWhite:0 alpha:0].CGColor, (id)UIColor.blackColor.CGColor];
+    [self.layer addSublayer:_black];
 
     _backdrop = [CALayer layer];
     _backdrop.actions = noActions();
@@ -80,6 +90,11 @@ static NSDictionary *noActions(void) {
     [CATransaction begin];
     [CATransaction setDisableActions:YES];
     _solid.frame = painted;
+    CGFloat height = windowHeight(self), total = MAX(1, painted.size.height);
+    CGFloat from = height * kBlackFrom + bleed.top;
+    CGFloat to = MAX(from + 1, height * kBlackTo + bleed.top);
+    _black.frame = painted;
+    _black.locations = @[@(MIN(1, from / total)), @(MIN(1, to / total))];
     _backdrop.frame = CGRectMake(0, 0, bounds.size.width, [self backdropHeightNow]);
     [CATransaction commit];
 }
@@ -96,6 +111,7 @@ static NSDictionary *noActions(void) {
     if (animated && from) {
         CABasicAnimation *fade = [CABasicAnimation animationWithKeyPath:@"backgroundColor"];
         fade.fromValue = from;
+        // Read back rather than the colour asked for: SGRAmoled.x may have swapped it for black.
         fade.toValue = (__bridge id)_solid.backgroundColor;
         fade.duration = SGRCrossfade;
         fade.timingFunction = [CAMediaTimingFunction functionWithName:kCAMediaTimingFunctionEaseInEaseOut];
@@ -114,7 +130,7 @@ static NSDictionary *noActions(void) {
     _image = image;
     _identity = [identity copy];
     NSUInteger generation = ++_generation;
-    SGRPaletteRequest request = {CGSizeZero, NO, NO};
+    SGRPaletteRequest request = {CGSizeZero, NO, YES};
     if (_showsBackdrop) request.backdropSize = CGSizeMake(self.bounds.size.width > 0 ? self.bounds.size.width : 402, [self backdropHeightNow]);
     __weak SGRArtworkField *weakSelf = self;
     [SGRPalette paletteForImage:image request:request completion:^(SGRPalette *palette) {

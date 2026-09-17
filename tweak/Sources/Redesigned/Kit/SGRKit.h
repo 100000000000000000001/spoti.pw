@@ -10,6 +10,7 @@
 //     SGRRestyle.h   keeping Spotify's views restyled: suppress, digits, lookups, shadows, firing controls
 //     SGRBridges.h   player state, now playing artwork, the player's open and close
 //     SGRRepaint.h   the areas the redesign keeps transparent when Spotify repaints them
+//     SGRAccent.h    the redesign's accent colour; its AMOLED black is SGRAmoled.x, always on
 //
 // Every hook file of the redesign starts its %ctor with `if (!SGRedesignedUI()) return;` and every one
 // of Native/ with `if (!SGNativeUI()) return;` (Core/SGUIMode.h), so the two looks never run together.
@@ -22,3 +23,4 @@
 #import "SGRRestyle.h"
 #import "SGRBridges.h"
 #import "SGRRepaint.h"
+#import "SGRAccent.h"

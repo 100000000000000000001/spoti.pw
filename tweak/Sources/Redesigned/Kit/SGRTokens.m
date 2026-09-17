@@ -1,6 +1,7 @@
 #import <CoreText/SFNTLayoutTypes.h>
 #import "Core/SGCore.h"
 #import "SGRTokens.h"
+#import "SGRAccent.h"
 
 const CGFloat SGRSideMargin = 16;
 const CGFloat SGRGrid = 8;
@@ -30,9 +31,9 @@ UIColor *SGRTertiary(void) {
     return [UIColor colorWithWhite:1 alpha:SGRIncreaseContrast() ? 0.60 : 0.40];
 }
 
-// Spotify's green: the accent colour is the native look's.
+// Read per call: the accent is stored as it is picked, and the colour row reads it the same way.
 UIColor *SGRAccent(void) {
-    return [UIColor colorWithRed:0x1E / 255.0 green:0xD7 / 255.0 blue:0x60 / 255.0 alpha:1];
+    return SGRAccentColor() ?: [UIColor colorWithRed:0x1E / 255.0 green:0xD7 / 255.0 blue:0x60 / 255.0 alpha:1];
 }
 
 UIColor *SGRNeutralField(void) {
@@ -46,7 +47,7 @@ UIColor *SGRSolidGlassFill(void) {
 UIColor *SGRElevated(UIColor *field) {
     CGFloat r = 0, g = 0, b = 0, a = 1;
     if (![field getRed:&r green:&g blue:&b alpha:&a]) return [UIColor colorWithWhite:1 alpha:0.08];
-    // 12% towards white keeps a card clear of a dark field.
+    // 12% towards white keeps a card on a black field clear of the greys SGRAmoled.x turns black.
     CGFloat lift = 0.12;
     return [UIColor colorWithRed:r + (1 - r) * lift green:g + (1 - g) * lift blue:b + (1 - b) * lift alpha:1];
 }

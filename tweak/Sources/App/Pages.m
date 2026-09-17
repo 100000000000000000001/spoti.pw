@@ -1,5 +1,6 @@
 #import "Core/SGCore.h"
 #import "Settings/SGModPage.h"
+#import "Settings/SGPageStyle.h"
 #import "Pages.h"
 #import "Shared/ArtistBlock/ArtistBlock.h"
 #import "Shared/Gestures/Gestures.h"
@@ -10,20 +11,35 @@
 #import "Native/NowPlayingBar/NowPlayingBar.h"
 #import "Native/Player/NowPlaying.h"
 #import "Redesigned/Navbar/Navbar.h"
+#import "Redesigned/Kit/SGRAccent.h"
 
-NSString *const SGRedesignedUIInfo = @"Replaces Spotify's own look with the mod's redesign, built in Liquid Glass: the glass tab bar, search field and now playing bar, the full screen player with the lyrics under it, Spotify's own glass bars and sheets, and every screen redesigned later.\n\nThe redesign starts from a clean sheet: the switches that change Spotify's own screens (the player, Home, playlists, albums, artists, AMOLED and the accent colour) are put away while it is on, and none of them runs. What works the same with either look stays: ads and privacy, lyrics sources, gestures, blocked artists.\n\nChanges apply after you restart Spotify.";
+NSString *const SGRedesignedUIInfo = @"Replaces Spotify's own look with the mod's redesign, built in Liquid Glass: the glass tab bar, search field and now playing bar, the full screen player with the lyrics under it, Spotify's own glass bars and sheets, and every screen redesigned later.\n\nThe redesign starts from a clean sheet: it is black throughout, it has an accent colour of its own, and the switches that change Spotify's own screens (the player, Home, playlists, albums, artists, AMOLED) are put away while it is on, and none of them runs. What works the same with either look stays: ads and privacy, lyrics sources, gestures, blocked artists.\n\nChanges apply after you restart Spotify.";
 
 void SGSetRedesignedUI(BOOL on) {
     SGSetEnabled(SGKeyRedesign, on);
+}
+
+// The whole look changes hands at launch, so the switch asks for the restart straight away rather than
+// leaving Spotify half in the old look.
+static void offerRestart(BOOL on) {
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Restart Spotify"
+        message:on ? @"The redesign takes over when Spotify starts again. Spotify closes now; open it again to see it." : @"Spotify's own look comes back when Spotify starts again. Spotify closes now; open it again to see it."
+        preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"Later" style:UIAlertActionStyleCancel handler:nil]];
+    [alert addAction:[UIAlertAction actionWithTitle:@"Restart now" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) { SGRestartSpotify(); }]];
+    [SGTopController() presentViewController:alert animated:YES completion:nil];
 }
 
 SGModSection *SGAppearanceSection(void) {
     SGModRow *redesign = SGOptionRow(@"Redesigned UI", @"The mod's own look in Liquid Glass, from a clean sheet", SGKeyRedesign);
     redesign.glows = YES;
     redesign.info = SGRedesignedUIInfo;
-    redesign.changed = ^(BOOL on) { SGSetRedesignedUI(on); };
+    redesign.changed = ^(BOOL on) {
+        SGSetRedesignedUI(on);
+        offerRestart(on);
+    };
     NSMutableArray<SGModRow *> *rows = [NSMutableArray arrayWithObject:SGWithSymbol(redesign, @"sparkles")];
-    if (!SGRedesignedUIStored()) [rows addObjectsFromArray:SGNativeAppearanceRows()];
+    [rows addObjectsFromArray:SGRedesignedUIStored() ? SGRAppearanceRows() : SGNativeAppearanceRows()];
     return SGNotedSection(@"Appearance", rows, @"Changes apply after you restart Spotify.");
 }
 

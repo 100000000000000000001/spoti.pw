@@ -100,7 +100,8 @@ Native:
 Redesigned:
 
     Kit/          what the redesign builds on (SGRKit.h lists it), the flags it forces (SGRedesign.h, SGRGlassDesign.x for
-                  Spotify's own glass design), its repaint hook (SGRRepaint.x) and soft top edge
+                  Spotify's own glass design), its repaint hook (SGRRepaint.x), soft top edge, AMOLED black (always on,
+                  SGRAmoled.x) and its own accent colour (SGRAccent.x, stored apart from the native look's)
     Navbar/       the glass tab bar (TabBar.x) over its own composition (Navbar.x, NavbarLayout.m) and editor, the glass search field
     NowPlayingBar/ the glass now playing bar
     Player/       the redesigned full screen player (Player.h lists its files)
@@ -139,9 +140,10 @@ Mod Settings, opened by holding Home on the tab bar or from the first row of the
 last row of Spotify's Settings, sorts every
 setting by the part of Spotify it changes, so a part's glass, its hide switches and its flags sit on
 one page, the mod's own rows first and Spotify's flags below them or on a sub page named after what
-they change. It opens on the Appearance card: Redesigned UI, and in the native look AMOLED and the accent colour
-(Spotify's green is offered from the colour row once a colour is set). Redesigned UI is the one switch
-between the two looks (see Layers): it glows (Settings/SGGlowSwitch) and its ⓘ says what it changes.
+they change. It opens on the Appearance card: Redesigned UI, then the stored look's accent colour, and in the native
+look AMOLED (the redesign is always black); Spotify's green is offered from the colour row once a colour
+is set. Redesigned UI is the one switch between the two looks (see Layers): it glows
+(Settings/SGGlowSwitch), its ⓘ says what it changes, and flipping it offers to restart Spotify.
 The pages show only what the stored look has: a page opened after flipping the switch already shows
 what the restart will bring. Then a card of parts. Navbar: the tab editor of the stored look, each with
 its own list of tabs. Player: Gestures, Lyrics (Apple Music style, the lock screen, in the native look
