@@ -154,6 +154,23 @@ static UIView *actionButton(UIView *row, CGRect frame, NSString *identifier, NSS
     return action;
 }
 
+// What the redesign's row shows on Play's right: the label of the Kit's last round button, the trailing one.
+static NSString *trailingLabel(UIView *root) {
+    NSMutableArray<UIView *> *stack = [NSMutableArray arrayWithObject:root];
+    while (stack.count) {
+        UIView *v = stack.lastObject;
+        [stack removeLastObject];
+        if ([NSStringFromClass(v.class) isEqualToString:@"SGRHeaderInfo"]) {
+            UIView *trailing = nil;
+            for (UIView *sub in v.subviews) {
+                if ([NSStringFromClass(sub.class) isEqualToString:@"SGRMirrorButton"]) trailing = sub;
+            }
+            return trailing && !trailing.hidden ? trailing.accessibilityLabel : @"nothing";
+        }
+        [stack addObjectsFromArray:v.subviews];
+    }
+    return @"no header";
+}
 
 // Liked Songs (trees/continuous/1.txt, 2026-09-18): the same page with no cover, a 238pt header, a column of
 // only the title and the count (the count in a stack of its own, 314pt of label and a 56pt spacer), no add or
@@ -381,7 +398,21 @@ static void buildLikedSongs(UIViewController *page, CGFloat W) {
     UIView *rowElement = box(container, _TtGC13Element_UIKit11ElementViewT_P_P__.class, CGRectMake(0, 0, 198, 48), nil);
     UIStackView *actions = (UIStackView *)box(rowElement, UIStackView.class, rowElement.bounds, @"HeaderActionsRow");
     actionButton(actions, CGRectMake(0, 4, 58, 40), @"Components.UI.WatchFeedEntityExplorerButton", @"Explore");
-    actionButton(actions, CGRectMake(58, 0, 48, 48), @"Components.UI.AddToButton", @"Like");
+    // `late` on the launch line: save is not in the row yet, the way a playlist opened for the first time has it,
+    // and arrives at 2.5 s as an arranged subview of the row, which lays out the row and nothing above it.
+    BOOL late = [NSProcessInfo.processInfo.arguments containsObject:@"late"];
+    if (late) {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            [actions insertArrangedSubview:actionButton(actions, CGRectMake(58, 0, 48, 48), @"Components.UI.AddToButton", @"Like")
+                                   atIndex:0];
+            NSLog(@"[harness] late: save arrived in the row");
+        });
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            NSLog(@"[harness] late: Play's right shows \"%@\"", trailingLabel(page.view));
+        });
+    } else {
+        actionButton(actions, CGRectMake(58, 0, 48, 48), @"Components.UI.AddToButton", @"Like");
+    }
     actionButton(actions, CGRectMake(106, 0, 48, 48), @"DownloadButton.Granular.None", @"Download");
     actionButton(actions, CGRectMake(154, 2, 44, 44), @"Components.UI.ContextMenuButton", @"More options");
 

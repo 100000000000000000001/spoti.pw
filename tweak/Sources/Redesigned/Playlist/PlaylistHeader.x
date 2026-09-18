@@ -37,7 +37,7 @@ static const CGFloat kMinHero = 120, kMinCover = 80;
 
 static char kCoverKey, kMetaKey, kPlayKey, kLayoutKey, kToolbarKey, kScrimKey, kBarScrimKey;
 static char kShuffleKey, kAddKey, kDownloadKey, kInfoKey, kBlockHeightKey, kBlockWatchedKey;
-static char kHeroKey, kHeroHeightKey, kCoverWatchedKey;
+static char kHeroKey, kHeroHeightKey, kCoverWatchedKey, kRowKey, kRowWatchedKey;
 
 #pragma mark - finding things
 
@@ -355,6 +355,21 @@ static void showPlaylist(SGRHeaderInfo *info, UIView *block, UIView *root, id mo
     }
 }
 
+static SGRHeaderInfo *applyInfo(UIView *block, UIView *headerRoot, UIViewController *headerVC);
+
+// `view`'s own pass puts the block together again, installed once under `key`.
+static void reapplyOnPass(UIView *view, const void *key, UIView *block, UIView *headerRoot, UIViewController *headerVC) {
+    if (!view || objc_getAssociatedObject(view, key)) return;
+    objc_setAssociatedObject(view, key, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    __weak UIView *weakBlock = block, *weakRoot = headerRoot;
+    __weak UIViewController *weakVC = headerVC;
+    SGRObserveLayout(view, ^(UIView *laidOut) {
+        // A block the view has since left is Spotify's to lay out alone.
+        if (!weakBlock || !weakRoot || !weakVC || [objc_getAssociatedObject(weakRoot, &kInfoKey) superview] != weakBlock) return;
+        applyInfo(weakBlock, weakRoot, weakVC);
+    });
+}
+
 // The block's own content goes, whole, and the redesign's takes its place. Spotify adds to the block as the page
 // loads and shows parts of it again when Play is pressed, so everything of Spotify's in it is concealed on every
 // pass and again from the block's own pass; concealing is idempotent and costs nothing once done.
@@ -380,16 +395,11 @@ static SGRHeaderInfo *applyInfo(UIView *block, UIView *headerRoot, UIViewControl
     if (!CGRectEqualToRect(info.frame, frame)) info.frame = frame;
     showPlaylist(info, block, headerRoot, viewModelOf(headerVC));
 
-    if (!objc_getAssociatedObject(block, &kBlockWatchedKey)) {
-        objc_setAssociatedObject(block, &kBlockWatchedKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        __weak UIView *weakRoot = headerRoot;
-        __weak UIViewController *weakVC = headerVC;
-        SGRObserveLayout(block, ^(UIView *view) {
-            // A block the view has since left is Spotify's to lay out alone.
-            if (!weakRoot || !weakVC || [objc_getAssociatedObject(weakRoot, &kInfoKey) superview] != view) return;
-            applyInfo(view, weakRoot, weakVC);
-        });
-    }
+    reapplyOnPass(block, &kBlockWatchedKey, block, headerRoot, headerVC);
+    // Save arrives after the header has laid out on a playlist opened for the first time, in a row that lays
+    // nothing else out: Play's right drew download, or nothing, until the page was opened again (issue #19). The
+    // row's own pass is watched too, a plain UIStackView, as the album's and the artist's are.
+    reapplyOnPass(SGRFindByIdentifier(block, @"HeaderActionsRow", &kRowKey), &kRowWatchedKey, block, headerRoot, headerVC);
     return info;
 }
 

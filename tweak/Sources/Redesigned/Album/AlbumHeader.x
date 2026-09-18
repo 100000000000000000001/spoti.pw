@@ -37,6 +37,7 @@ static const CGFloat kMinHero = 120, kMinCover = 80;
 
 static char kHeaderKey, kCoverKey, kTitleKey, kParentKey, kMetaKey, kAddKey, kDownloadKey, kPlayKey, kShuffleKey;
 static char kHeroKey, kHeroHeightKey, kHeaderHeightKey, kInfoKey, kCoverWatchedKey, kHeaderWatchedKey, kRetryKey;
+static char kExploreKey, kRowWatchedKey;
 
 #pragma mark - moving Spotify's views
 
@@ -90,6 +91,14 @@ static UIView *floatingIn(UIView *page, NSString *identifier, const void *cacheK
 
 static void setFrame(UIView *view, CGRect frame) {
     if (view && !CGRectIsEmpty(frame) && !CGRectEqualToRect(view.frame, frame)) view.frame = frame;
+}
+
+// The stack Spotify arranges the header's buttons in: the first one above `button`.
+static UIView *rowOf(UIView *button, UIView *header) {
+    for (UIView *v = button.superview; v && v != header; v = v.superview) {
+        if ([v isKindOfClass:UIStackView.class]) return v;
+    }
+    return nil;
 }
 
 // Installs `laidOut` on the view's own pass once, under `key`.
@@ -311,6 +320,17 @@ static SGRHeaderInfo *applyInfo(UIView *header, UIView *page) {
     // Only what the two floating buttons draw goes: a concealed layer still sends the actions the row fires.
     if (play) conceal(wrapperFor(play, page));
     if (shuffle) conceal(wrapperFor(shuffle, page));
+
+    // Add arrives after the header has laid out on an album opened for the first time (the next time its state
+    // is cached and it is there from the start), in a row that lays nothing else out (Native/Album/Album.x): the
+    // row drew download on Play's right, or nothing, until the page was opened again (issue #19). So the row's
+    // own pass is watched, a plain UIStackView, as the artist page's is, found from whichever of Spotify's
+    // buttons is in it already.
+    UIView *inRow = add ?: download ?: SGRFindByIdentifier(header, @"Components.UI.WatchFeedEntityExplorerButton", &kExploreKey);
+    __weak UIView *weakHeader = header, *weakPage = page;
+    watch(rowOf(inRow, header), &kRowWatchedKey, ^(UIView *view) {
+        if (weakHeader && weakPage) applyHeader(weakHeader, weakPage);
+    });
 
     static BOOL logged;
     if (!logged && header.window && title) {
