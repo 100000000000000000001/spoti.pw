@@ -79,6 +79,7 @@ static BOOL setText(UILabel *label, NSString *text) {
 - (void)showShuffle:(UIView *)shuffle play:(UIView *)play trailing:(UIView *)trailing
    trailingFallback:(UIImage *)trailingFallback playColor:(UIColor *)playColor {
     _trailing.fallbackGlyph = trailingFallback;
+    _trailing.showsWord = self.trailingShowsWord;
     if (shuffle) [_shuffle feedFrom:shuffle];
     if (play) {
         if (playColor) _play.contentColor = playColor;
@@ -137,7 +138,9 @@ static BOOL setText(UILabel *label, NSString *text) {
     CGRect play = CGRectMake(round((width - playWidth) / 2), y, playWidth, side);
     _play.frame = play;
     _shuffle.frame = CGRectMake(CGRectGetMinX(play) - kRowSpacing - side, y, side, side);
-    _trailing.frame = CGRectMake(CGRectGetMaxX(play) + kRowSpacing, y, side, side);
+    // A word button is as wide as its word, up to what is left of the page after Play.
+    CGFloat trailing = MIN([_trailing sgr_width], MAX(side, width - CGRectGetMaxX(play) - kRowSpacing - kSide));
+    _trailing.frame = CGRectMake(CGRectGetMaxX(play) + kRowSpacing, y, trailing, side);
     y += side;
 
     if (!_about.hidden) {
