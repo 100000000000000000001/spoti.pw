@@ -91,6 +91,13 @@ Shared:
     LockScreenLyrics/ the line being sung in the system's now playing
     Navigation/   the page transition fix (PageTransition.x) and opening a spotify: link (Links.x)
     Player/       the player's open and close announced (PlayerEvents.x), the lock screen widget's flags
+    JamesDSP/     JamesDSP's effects on Spotify's sound (JamesDSP.h has the keys and the page's calls): Spotify's import of
+                  AudioOutputUnitStart is rebound, as Music Haptics does, and a render notify on its RemoteIO unit runs
+                  each finished buffer through SGDSPEngine.m, libjamesdsp re-blocked to 1024 frames one block late, in
+                  place (JamesDSP.x). The buffers are in the unit's output format, the hardware's, not the client format
+                  Spotify sets. Settings apply as they change, on a queue of its own; the file effects read their files
+                  from Documents/spoti.pw/JamesDSP (JamesDSPFiles.m). Tested on the Mac against harness/jamesdsp/,
+                  the hook in the simulator against its sim/
 
 Native:
 
