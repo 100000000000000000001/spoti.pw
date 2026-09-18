@@ -1,4 +1,4 @@
-// Artist redesign: the Music list without the artist's videos.
+// Artist redesign: the Music list without the artist's videos, and nothing of it painted over the field.
 //
 // Tree (trees/clean/artist/05.txt, the Music list top to bottom): Popular, Artist pick, Popular releases and
 // its Show all, Featuring, Release Countdown, Music videos, Watch more from…, About, Artist playlists, Fans
@@ -120,6 +120,23 @@ static void dropHeadingOf(UICollectionView *list, NSIndexPath *path) {
     dispatch_async(dispatch_get_main_queue(), ^{ [weakList.collectionViewLayout invalidateLayout]; });
 }
 
+// What a cell of the page paints over the field, cleared: Spotify's base surface, which the redesign's AMOLED
+// black has already made black -- the "You liked" row (an Encore ListRow) and every carousel's collection
+// (Home_CarouselKit.TouchCancellingCollectionView) sat on black bands (device, trees/continuous/3.txt
+// 2026-09-18) -- and the fade Popular's "See more" draws over its last track, a GradientView as wide as the
+// page, which the black made a dark band. The repaint hook misses them: the cells are painted before they are
+// inside the page. Only what is nearly as wide as the page: a badge's black disc, a card's grey and an
+// image's placeholder are their own. The cards of a carousel are cells of their own and are not walked into.
+static void clearPaint(UIView *view, UIView *cell, CGFloat wide) {
+    if (view != cell && [view isKindOfClass:UICollectionViewCell.class]) return;
+    if (view.bounds.size.width >= wide) {
+        UIColor *color = view.backgroundColor;
+        if (color && SGIsBaseSurface(color.CGColor)) view.backgroundColor = UIColor.clearColor;
+        if (!view.layer.mask && [NSStringFromClass(view.class) containsString:@"GradientView"]) view.layer.mask = [CALayer layer];
+    }
+    for (UIView *sub in view.subviews) clearPaint(sub, cell, wide);
+}
+
 static void logOnce(NSString *what) {
     static NSMutableSet<NSString *> *logged;
     if (!logged) logged = [NSMutableSet set];
@@ -162,8 +179,13 @@ static void logOnce(NSString *what) {
 // The cell's own passes size the content to the cell again.
 - (void)layoutSubviews {
     %orig;
+    UICollectionViewCell *cell = (UICollectionViewCell *)self;
     NSNumber *settled = objc_getAssociatedObject(self, &kSettledKey);
-    if (settled) settle((UICollectionViewCell *)self, settled.doubleValue);
+    if (settled) settle(cell, settled.doubleValue);
+    UICollectionView *list = listOf(cell);
+    if (list && ![listOf(list) isKindOfClass:UICollectionView.class] && SGRArtistPageOf(cell)) {
+        clearPaint(cell, cell, cell.bounds.size.width * 0.75);
+    }
 }
 
 - (void)prepareForReuse {

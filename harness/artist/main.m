@@ -145,6 +145,14 @@ static NSArray<NSArray *> *musicList(void) {
         UILabel *sub = label(element, CGRectMake(height + 8, height / 2 + 2, W - height - 40, 16), @"Shawn Mendes", 12,
                              [UIColor colorWithWhite:1 alpha:0.6], @"EncoreConsumerMobile.View.Granular.Subtitle");
         sub.font = [UIFont systemFontOfSize:12];
+    } else if ([kind isEqualToString:@"Components.UI.HomeCard"]) {
+        // A carousel: its own collection painted the AMOLED black, and a page-wide fade, as on the phone.
+        element.backgroundColor = UIColor.blackColor;
+        UIView *fade = box(element, MockGradientView.class, element.bounds, nil);
+        fade.backgroundColor = [UIColor colorWithWhite:0 alpha:0.8];
+        UICollectionViewCell *card = [[UICollectionViewCell alloc] initWithFrame:CGRectMake(16, 4, 153, height - 8)];
+        card.backgroundColor = UIColor.blackColor;
+        [element addSubview:card];
     } else {
         UIView *card = box(element, UIView.class, CGRectMake(16, 4, W - 32, height - 8), nil);
         card.backgroundColor = [UIColor colorWithWhite:0.16 alpha:1];
@@ -272,6 +280,11 @@ static NSArray<NSArray *> *musicList(void) {
             [lines addObject:[NSString stringWithFormat:@"%@ %.0f", name, a.size.height]];
         }
         NSLog(@"[harness] Music list: %@", [lines componentsJoinedByString:@" | "]);
+        UICollectionViewCell *carousel = (UICollectionViewCell *)[list cellForItemAtIndexPath:[NSIndexPath indexPathForItem:self.source.items.count - 1 inSection:0]];
+        UIView *band = carousel.contentView.subviews.firstObject.subviews.firstObject;
+        UIView *fade = band.subviews.firstObject;
+        UIView *card = band.subviews.lastObject;
+        NSLog(@"[harness] carousel bg %@, fade masked %d, card bg %@", band.backgroundColor, fade.layer.mask != nil, card.backgroundColor);
         NSLog(@"[harness] strip a=%.2f, pages moved %.0f, list bg %@", strip.alpha, pages.transform.ty, list.backgroundColor);
     });
     return YES;
