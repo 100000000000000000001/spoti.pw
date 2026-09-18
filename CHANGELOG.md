@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.19.0](https://github.com/skopevoj/spoti.pw/compare/v0.18.0...v0.19.0) (2026-09-18)
+
+
+### Features
+
+* albums and singles get the playlist's header, the Kit's own view over Spotify's blanked column ([307ba51](https://github.com/skopevoj/spoti.pw/commit/307ba514564ff481b4f1084cc6e43b4927c34400))
+* the artist page gets the playlist's and album's header and loses its videos and tab strip ([57a2833](https://github.com/skopevoj/spoti.pw/commit/57a28330325c3e8f29e44c7274db85c31d90e832))
+* the player grows out of the now playing bar's card and the cover flies out of its artwork, the way the Music app opens its player ([9eebe8d](https://github.com/skopevoj/spoti.pw/commit/9eebe8d8912902c0d4d1848dcfe2ba8413ec6dcd))
+* the playlist header is the redesign's own, laid out like the Music app's, fed by the page's view model ([986c35d](https://github.com/skopevoj/spoti.pw/commit/986c35d29df3e8c095b76d3ac441b7a2c1aa6577))
+
+
+### Fixes
+
+* a lyrics walk that lost a request to a failure is not kept as "no lyrics" for the session ([4814a50](https://github.com/skopevoj/spoti.pw/commit/4814a506920b9ac3595e2b1dfd202db7a941ddb0))
+* the artist page opens again, with more left in Spotify's row and drawn by the redesign in the top corner ([48b7eba](https://github.com/skopevoj/spoti.pw/commit/48b7ebaaf212de1d69fe45f567b8cb938119e99a))
+* the artist page's liked row, carousels and See more fade no longer paint black bands over its colour ([1349340](https://github.com/skopevoj/spoti.pw/commit/134934027f7d66eb0478551114f6093dfaa5eb50))
+* the home screen widget shows what is playing again, Spotify's App Groups moved into one the re-signed IPA has ([4b63f35](https://github.com/skopevoj/spoti.pw/commit/4b63f3599eb55efccd37d0e5162dd4c13d4e355a))
+* the now playing bar and the tab bar keep their glass while the player closes, live glass behind Spotify's rendered stand-ins ([f1d184d](https://github.com/skopevoj/spoti.pw/commit/f1d184d416d4b7d337af643cb10c1c7d9f207ebc))
+
 ## [0.18.0](https://github.com/skopevoj/spoti.pw/compare/v0.17.0...v0.18.0) (2026-09-18)
 
 
