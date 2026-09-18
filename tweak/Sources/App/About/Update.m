@@ -1,10 +1,11 @@
-// The site's version.json, so a build that is already on someone's phone can tell them a newer one
-// exists. Fetched when the Mod Settings page opens, at most once every six hours, and on demand
-// from the Updates row; the reply is a static file and nothing but the request itself leaves.
+// The repo's latest GitHub Release, so a build that is already on someone's phone can tell them a
+// newer one exists. Fetched when the Mod Settings page opens, at most once every six hours, and on
+// demand from the Updates row; nothing but the request itself leaves. Builds from before 0.18 ask
+// spoti.pw/version.json instead, which the site still writes from the same release.
 #import "Core/SGCore.h"
 #import "About.h"
 
-NSString *const SGUpdateURL = @"https://spoti.pw/version.json";
+NSString *const SGUpdateURL = @"https://api.github.com/repos/skopevoj/spoti.pw/releases/latest";
 
 static NSString *const kChecked = @"spotifyglass.update.checked";
 static NSString *const kLatest = @"spotifyglass.update.latest";
@@ -56,16 +57,19 @@ void SGCheckForUpdate(BOOL force) {
     sg_failure = nil;
     NSURLSessionConfiguration *configuration = NSURLSessionConfiguration.ephemeralSessionConfiguration;
     configuration.timeoutIntervalForRequest = 10;
-    NSURLRequest *request = [NSURLRequest requestWithURL:[NSURL URLWithString:SGUpdateURL]
-                                             cachePolicy:NSURLRequestReloadIgnoringLocalCacheData
-                                         timeoutInterval:10];
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:SGUpdateURL]
+                                                           cachePolicy:NSURLRequestReloadIgnoringLocalCacheData
+                                                       timeoutInterval:10];
+    [request setValue:@"application/vnd.github+json" forHTTPHeaderField:@"Accept"];
     NSURLSessionDataTask *task = [[NSURLSession sessionWithConfiguration:configuration]
         dataTaskWithRequest:request
           completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
         NSDictionary *json = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:NULL] : nil;
         if (![json isKindOfClass:NSDictionary.class]) json = nil;
-        NSString *version = [json[@"version"] isKindOfClass:NSString.class] ? json[@"version"] : nil;
-        NSString *notes = [json[@"notes"] isKindOfClass:NSString.class] ? json[@"notes"] : @"";
+        // Release Please tags v0.18.0; the body is the release's changelog.
+        NSString *tag = [json[@"tag_name"] isKindOfClass:NSString.class] ? json[@"tag_name"] : nil;
+        NSString *version = [tag hasPrefix:@"v"] ? [tag substringFromIndex:1] : tag;
+        NSString *notes = [json[@"body"] isKindOfClass:NSString.class] ? json[@"body"] : @"";
         dispatch_async(dispatch_get_main_queue(), ^{
             sg_running = NO;
             if (!version) {
@@ -76,7 +80,7 @@ void SGCheckForUpdate(BOOL force) {
             [store setObject:version forKey:kLatest];
             [store setObject:notes forKey:kNotes];
             [store setDouble:NSDate.date.timeIntervalSince1970 forKey:kChecked];
-            SGLog(@"update check: the site has %@, this build is %s", version, SG_VERSION);
+            SGLog(@"update check: GitHub has %@, this build is %s", version, SG_VERSION);
         });
     }];
     [task resume];

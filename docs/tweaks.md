@@ -18,7 +18,7 @@
     extension/LiveActivity/     the redesign's Live Activity widget, a WidgetKit extension of its own
     scripts/                    pipeline.sh (build + inject), build-extension.sh (the widget extension, without an
                                 Xcode project), merge-appintents.py (the widget's intents into Spotify's), install.sh (sign + install), record-trees.py, record-session.py,
-                                dump-log.sh, extract-flags.py, publish.sh (release: version bump, site release.json)
+                                dump-log.sh, extract-flags.py
     trees/                      recorded view trees, one per screen; the input for every new hook. trees/clean/ holds
                                 the numbered snapshots per screen of record-session.py, taken of Spotify as it came
     plist/                      Info.plist overrides merged into the app (turns UIDesignRequiresCompatibility off)
