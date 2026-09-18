@@ -39,16 +39,100 @@ static UIButton *glassButton(NSString *title) {
     return button;
 }
 
+#pragma mark - the choice
+
+// One of the two looks, as a glass card: symbol, name, a line on what it brings, and a check
+// when it is the one picked.
+@interface SGLookCard : UIControl
+- (instancetype)initWithSymbol:(NSString *)symbol title:(NSString *)title subtitle:(NSString *)subtitle;
+@end
+
+@implementation SGLookCard {
+    SGGlassView *_glass;
+    UIImageView *_check;
+}
+
+- (instancetype)initWithSymbol:(NSString *)symbol title:(NSString *)title subtitle:(NSString *)subtitle {
+    if (!(self = [super initWithFrame:CGRectZero])) return nil;
+    UIImageView *icon = SGSymbolView(symbol, 17, UIImageSymbolWeightSemibold, 36);
+    icon.tintColor = UIColor.whiteColor;
+    icon.backgroundColor = [UIColor colorWithWhite:1 alpha:0.10];
+    icon.layer.cornerRadius = 10;
+    icon.layer.cornerCurve = kCACornerCurveContinuous;
+
+    UILabel *name = [UILabel new];
+    name.text = title;
+    name.font = [UIFont systemFontOfSize:17 weight:UIFontWeightSemibold];
+    name.textColor = UIColor.whiteColor;
+    UILabel *line = [UILabel new];
+    line.text = subtitle;
+    line.font = [UIFont systemFontOfSize:13];
+    line.textColor = SGGrey();
+    line.numberOfLines = 0;
+    UIStackView *text = [[UIStackView alloc] initWithArrangedSubviews:@[name, line]];
+    text.axis = UILayoutConstraintAxisVertical;
+    text.spacing = 2;
+
+    _check = SGSymbolView(@"circle", 22, UIImageSymbolWeightRegular, 26);
+
+    UIStackView *row = [[UIStackView alloc] initWithArrangedSubviews:@[icon, text, _check]];
+    row.alignment = UIStackViewAlignmentCenter;
+    row.spacing = 14;
+    row.userInteractionEnabled = NO;
+    row.translatesAutoresizingMaskIntoConstraints = NO;
+    [text setContentHuggingPriority:UILayoutPriorityDefaultLow - 1 forAxis:UILayoutConstraintAxisHorizontal];
+    [text setContentCompressionResistancePriority:UILayoutPriorityDefaultHigh - 1 forAxis:UILayoutConstraintAxisHorizontal];
+
+    _glass = [SGGlassView new];
+    _glass.radius = kCardRadius;
+    _glass.userInteractionEnabled = NO;
+    _glass.translatesAutoresizingMaskIntoConstraints = NO;
+    self.clipsToBounds = YES;
+    self.layer.cornerRadius = kCardRadius;
+    self.layer.cornerCurve = kCACornerCurveContinuous;
+    self.layer.borderColor = SGGreen().CGColor;
+    [self addSubview:_glass];
+    [self addSubview:row];
+    [NSLayoutConstraint activateConstraints:@[
+        [_glass.topAnchor constraintEqualToAnchor:self.topAnchor],
+        [_glass.bottomAnchor constraintEqualToAnchor:self.bottomAnchor],
+        [_glass.leadingAnchor constraintEqualToAnchor:self.leadingAnchor],
+        [_glass.trailingAnchor constraintEqualToAnchor:self.trailingAnchor],
+        [icon.widthAnchor constraintEqualToConstant:36],
+        [icon.heightAnchor constraintEqualToConstant:36],
+        [row.leadingAnchor constraintEqualToAnchor:self.leadingAnchor constant:16],
+        [row.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-16],
+        [row.topAnchor constraintEqualToAnchor:self.topAnchor constant:16],
+        [row.bottomAnchor constraintEqualToAnchor:self.bottomAnchor constant:-16],
+    ]];
+    return self;
+}
+
+- (void)setSelected:(BOOL)selected {
+    [super setSelected:selected];
+    _check.image = [UIImage systemImageNamed:selected ? @"checkmark.circle.fill" : @"circle"
+                           withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:22 weight:UIImageSymbolWeightRegular]];
+    _check.tintColor = selected ? SGGreen() : SGGrey();
+    self.layer.borderWidth = selected ? 2 : 0;
+}
+
+- (void)setHighlighted:(BOOL)highlighted {
+    [super setHighlighted:highlighted];
+    self.alpha = highlighted ? 0.6 : 1;
+}
+
+@end
+
 #pragma mark - the tour
 
-// One page: what the mod is, where Mod Settings lives, and the one switch worth choosing now,
-// Redesigned UI. Everything else has settled into the redesign's own pages, which have little to pick.
+// One page, the one choice worth making now: the redesign or Spotify's own look. Everything else
+// waits in Mod Settings.
 @interface SGOnboardingController : UIViewController
 @end
 
 @implementation SGOnboardingController {
     UIImageView *_hero;
-    UISwitch *_redesign;
+    SGLookCard *_redesigned, *_legacy;
     UIButton *_primary;
 }
 
@@ -57,58 +141,6 @@ static UIButton *glassButton(NSString *title) {
     self.modalPresentationStyle = UIModalPresentationOverFullScreen;
     self.modalTransitionStyle = UIModalTransitionStyleCrossDissolve;
     return self;
-}
-
-- (UIView *)redesignCard {
-    UIImageView *icon = SGSymbolView(@"sparkles", 17, UIImageSymbolWeightSemibold, 36);
-    icon.tintColor = UIColor.whiteColor;
-    icon.backgroundColor = [UIColor colorWithWhite:1 alpha:0.10];
-    icon.layer.cornerRadius = 10;
-    icon.layer.cornerCurve = kCACornerCurveContinuous;
-
-    UILabel *title = [UILabel new];
-    title.text = @"Redesigned UI";
-    title.font = [UIFont systemFontOfSize:15 weight:UIFontWeightSemibold];
-    title.textColor = UIColor.whiteColor;
-    UILabel *subtitle = [UILabel new];
-    subtitle.text = @"Spotify rebuilt in Liquid Glass, Apple Music style. Off keeps Spotify's own look";
-    subtitle.font = [UIFont systemFontOfSize:12];
-    subtitle.textColor = SGGrey();
-    subtitle.numberOfLines = 0;
-    UIStackView *text = [[UIStackView alloc] initWithArrangedSubviews:@[title, subtitle]];
-    text.axis = UILayoutConstraintAxisVertical;
-    text.spacing = 2;
-
-    // The first launch offers the redesign switched on; the tour again from the Mod page shows the
-    // stored switch.
-    _redesign = [UISwitch new];
-    _redesign.onTintColor = SGGreen();
-    _redesign.on = SGFlag(SGKeyOnboardingSeen, NO) ? SGRedesignedUIStored() : YES;
-    [_redesign addTarget:self action:@selector(refresh) forControlEvents:UIControlEventValueChanged];
-
-    UIStackView *line = [[UIStackView alloc] initWithArrangedSubviews:@[icon, text, _redesign]];
-    line.alignment = UIStackViewAlignmentCenter;
-    line.spacing = 14;
-    line.translatesAutoresizingMaskIntoConstraints = NO;
-    // The text gives way, so the subtitle wraps instead of squeezing the switch.
-    [text setContentHuggingPriority:UILayoutPriorityDefaultLow - 1 forAxis:UILayoutConstraintAxisHorizontal];
-    [text setContentCompressionResistancePriority:UILayoutPriorityDefaultHigh - 1 forAxis:UILayoutConstraintAxisHorizontal];
-
-    SGGlassView *card = [SGGlassView new];
-    card.radius = kCardRadius;
-    card.clipsToBounds = YES;
-    card.layer.cornerRadius = kCardRadius;
-    card.layer.cornerCurve = kCACornerCurveContinuous;
-    [card addSubview:line];
-    [NSLayoutConstraint activateConstraints:@[
-        [icon.widthAnchor constraintEqualToConstant:36],
-        [icon.heightAnchor constraintEqualToConstant:36],
-        [line.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:16],
-        [line.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-16],
-        [line.topAnchor constraintEqualToAnchor:card.topAnchor constant:14],
-        [line.bottomAnchor constraintEqualToAnchor:card.bottomAnchor constant:-14],
-    ]];
-    return card;
 }
 
 - (void)viewDidLoad {
@@ -126,27 +158,24 @@ static UIButton *glassButton(NSString *title) {
     [strip addSubview:halo];
 
     UILabel *heading = [UILabel new];
-    heading.text = @"Welcome to spoti.pw.";
+    heading.text = @"Pick your look.";
     heading.font = [UIFont systemFontOfSize:30 weight:UIFontWeightBold];
     heading.textColor = UIColor.whiteColor;
     heading.numberOfLines = 0;
-    UILabel *body = [UILabel new];
-    body.text = @"Spotify with a Liquid Glass redesign on top. Choose the look now; everything else waits in Mod Settings: hold Home on the tab bar, or find it at the top of the side drawer behind your avatar.";
-    body.font = [UIFont systemFontOfSize:15];
-    body.textColor = SGGrey();
-    body.numberOfLines = 0;
-    UILabel *note = [UILabel new];
-    note.text = @"Free and open source, at github.com/skopevoj/spoti.pw.";
-    note.font = [UIFont systemFontOfSize:12];
-    note.textColor = SGGrey();
-    note.numberOfLines = 0;
 
-    UIStackView *column = [[UIStackView alloc] initWithArrangedSubviews:@[strip, heading, body, [self redesignCard], note]];
+    _redesigned = [[SGLookCard alloc] initWithSymbol:@"sparkles" title:@"Redesigned" subtitle:@"Looks like Apple Music. Better lyrics, Live Activity."];
+    _legacy = [[SGLookCard alloc] initWithSymbol:@"slider.horizontal.3" title:@"Legacy" subtitle:@"More options, still looks like Spotify."];
+    for (SGLookCard *card in @[_redesigned, _legacy]) [card addTarget:self action:@selector(picked:) forControlEvents:UIControlEventTouchUpInside];
+    // The first launch offers the redesign; the tour again from the Mod page shows the stored look.
+    BOOL redesign = SGFlag(SGKeyOnboardingSeen, NO) ? SGRedesignedUIStored() : YES;
+    _redesigned.selected = redesign;
+    _legacy.selected = !redesign;
+
+    UIStackView *column = [[UIStackView alloc] initWithArrangedSubviews:@[strip, heading, _redesigned, _legacy]];
     column.axis = UILayoutConstraintAxisVertical;
-    column.spacing = 10;
+    column.spacing = 12;
     [column setCustomSpacing:28 afterView:strip];
-    [column setCustomSpacing:28 afterView:body];
-    [column setCustomSpacing:14 afterView:column.arrangedSubviews[3]];
+    [column setCustomSpacing:24 afterView:heading];
     column.translatesAutoresizingMaskIntoConstraints = NO;
 
     UIScrollView *scroll = [UIScrollView new];
@@ -158,7 +187,14 @@ static UIButton *glassButton(NSString *title) {
 
     _primary = glassButton(@"Start listening");
     [_primary addTarget:self action:@selector(finish) forControlEvents:UIControlEventTouchUpInside];
+    UILabel *footer = [UILabel new];
+    footer.text = @"Hold Home to open settings.";
+    footer.font = [UIFont systemFontOfSize:13];
+    footer.textColor = SGGrey();
+    footer.textAlignment = NSTextAlignmentCenter;
+    footer.translatesAutoresizingMaskIntoConstraints = NO;
     [self.view addSubview:_primary];
+    [self.view addSubview:footer];
 
     UILayoutGuide *safe = self.view.safeAreaLayoutGuide;
     UILayoutGuide *frame = scroll.frameLayoutGuide, *content = scroll.contentLayoutGuide;
@@ -181,7 +217,10 @@ static UIButton *glassButton(NSString *title) {
         [_hero.centerYAnchor constraintEqualToAnchor:halo.centerYAnchor],
         [_primary.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:kMargin],
         [_primary.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-kMargin],
-        [_primary.bottomAnchor constraintEqualToAnchor:safe.bottomAnchor constant:-16],
+        [_primary.bottomAnchor constraintEqualToAnchor:footer.topAnchor constant:-12],
+        [footer.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:kMargin],
+        [footer.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-kMargin],
+        [footer.bottomAnchor constraintEqualToAnchor:safe.bottomAnchor constant:-8],
     ]];
     [self refresh];
 }
@@ -192,9 +231,15 @@ static UIButton *glassButton(NSString *title) {
     if (@available(iOS 17.0, *)) [_hero addSymbolEffect:[NSClassFromString(@"NSSymbolBounceEffect") effect]];
 }
 
-// The look is picked at launch, so a switch that differs from the running one ends the tour in a restart.
+- (void)picked:(SGLookCard *)card {
+    _redesigned.selected = card == _redesigned;
+    _legacy.selected = card == _legacy;
+    [self refresh];
+}
+
+// The look is picked at launch, so a choice that differs from the running one ends the tour in a restart.
 - (BOOL)needsRestart {
-    return _redesign.on != SGRedesignedUI();
+    return _redesigned.selected != SGRedesignedUI();
 }
 
 - (void)refresh {
@@ -206,7 +251,7 @@ static UIButton *glassButton(NSString *title) {
 
 - (void)finish {
     SGSetEnabled(SGKeyOnboardingSeen, YES);
-    SGSetRedesignedUI(_redesign.on);
+    SGSetRedesignedUI(_redesigned.selected);
     if (self.needsRestart) {
         SGRestartSpotify();
         return;

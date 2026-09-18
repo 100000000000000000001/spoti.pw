@@ -1,6 +1,7 @@
-// Onboarding: a welcome page over Home the first time this build runs, in glass: what the mod is,
-// where Mod Settings lives, and Redesigned UI, offered switched on. The look is picked at launch, so
-// a changed switch ends the welcome in a restart. The Mod page offers it again.
+// Onboarding: a welcome page over Home the first time this build runs, in glass: a pick between
+// the redesign (offered first) and Spotify's own look, and a line on holding Home for Mod Settings.
+// The look is picked at launch, so a changed pick ends the welcome in a restart. The Mod page
+// offers it again.
 #import <UIKit/UIKit.h>
 
 #define SGKeyOnboardingSeen @"spotifyglass.onboarding.seen"
