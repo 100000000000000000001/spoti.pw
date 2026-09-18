@@ -312,6 +312,17 @@ static UIView *actionButton(UIView *row, CGRect frame, NSString *identifier, NSS
         [actions setNeedsLayout];
         NSLog(@"[harness] Spotify's own frames put back");
     });
+
+    // Pressing Play: Spotify reconfigures the header and shows the wash and the play disc again with
+    // -setHidden:NO (trees/continuous/1.txt, 2026-09-18). They must stay drawn by nothing.
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(17 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        gradient.hidden = NO;
+        playButton.hidden = NO;
+        cover.hidden = NO;
+        NSLog(@"[harness] Pressing Play: wash hidden=%d masked=%d, disc hidden=%d masked=%d, cover hidden=%d masked=%d",
+              gradient.hidden, gradient.layer.mask != nil, playButton.hidden, playButton.layer.mask != nil,
+              cover.hidden, cover.layer.mask != nil);
+    });
     return YES;
 }
 

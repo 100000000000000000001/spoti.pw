@@ -56,14 +56,21 @@ UIViewController *SGRPlaylistHeaderOf(UIView *view) {
     return nil;
 }
 
-// Invisible for good. Spotify fades its cover square and its colour wash back in from the scroll itself,
-// with nothing laid out (trees/continuous/1.txt, 2026-09-17), so a redesign that answers with alpha is in a
-// fight it loses a frame of on every scroll -- which is what the flicker was. `hidden` on the layer cannot
-// be undone by a write to alpha, costs nothing per frame, and, unlike -[UIView setHidden:], tells neither
-// KVO nor the stack views of it, which is what makes it safe on Spotify's Encore layouts.
+// Invisible for good, whatever Spotify does to it. It fades its cover square and its colour wash back in
+// from the scroll itself (trees/continuous/1.txt, 2026-09-17), which a hidden layer shrugs off; but pressing
+// Play reconfigures the header, and that shows the wash, the find bar and the play disc again with
+// -setHidden:NO, which writes the layer's own hidden and so undid this: the wash came back over the
+// picture as a dark band and the green disc beside the capsule (trees/continuous/1.txt, 2026-09-18).
+//
+// So two things, each for what the other cannot do. `hidden` on the layer costs nothing while it holds --
+// the layer is not drawn at all -- and, unlike -[UIView setHidden:], tells neither KVO nor the stack views,
+// which is what makes it safe on Spotify's Encore layouts. An empty mask is what holds when Spotify shows
+// the view anyway: nothing Spotify does to these views touches a mask, and a layer masked by nothing draws
+// nothing. The album page found the same (Album/AlbumHeader.x) and masks its gradients.
 static void conceal(UIView *view) {
     if (!view) return;
     if (!view.layer.hidden) view.layer.hidden = YES;
+    if (!view.layer.mask) view.layer.mask = [CALayer layer];
     if (view.userInteractionEnabled) view.userInteractionEnabled = NO;
     view.accessibilityElementsHidden = YES;
 }
