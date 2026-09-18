@@ -15,9 +15,10 @@
     tweak/Sources/App/          what brings the layers together: Mod Settings' root and composed pages, the Mod page,
                                 backup and signing, the welcome tour
     tweak/Sources/Diagnostics/  screen dumps, the tree server and the main thread hang sampler of FLEX builds
-    scripts/                    pipeline.sh (build + inject), install.sh (sign + install), record-trees.py,
-                                record-session.py, dump-log.sh, extract-flags.py, publish.sh (release: version bump,
-                                site release.json)
+    extension/LiveActivity/     the redesign's Live Activity widget, a WidgetKit extension of its own
+    scripts/                    pipeline.sh (build + inject), build-extension.sh (the widget extension, without an
+                                Xcode project), install.sh (sign + install), record-trees.py, record-session.py,
+                                dump-log.sh, extract-flags.py, publish.sh (release: version bump, site release.json)
     trees/                      recorded view trees, one per screen; the input for every new hook. trees/clean/ holds
                                 the numbered snapshots per screen of record-session.py, taken of Spotify as it came
     plist/                      Info.plist overrides merged into the app (turns UIDesignRequiresCompatibility off)
@@ -145,6 +146,11 @@ Redesigned:
                   samples go through a drum and bass analyzer on the render thread (SGRMusicAnalyzer.m, plain C), and a
                   thread of its own schedules the taps and the rumble for when the sound is heard (MusicHaptics.x). Both
                   switches apply at once; nothing plays while Spotify is not the active app
+    LiveActivity/ the line being sung, with the next one under it, as a Live Activity on the lock screen and in the
+                  Dynamic Island, lyrics only (LiveActivity.h lists its files): a timer polls the player and sends a
+                  new state only when the line or the pause changes, local updates only, no push. The widget is extension/LiveActivity; ActivityKit pairs the two
+                  by the attributes' type in LiveActivityShared.swift, compiled into both. It starts only with Spotify
+                  in front, and its switch applies at once
 
 App:
 
@@ -160,7 +166,7 @@ which makes every unset switch read off, so a reset is stock Spotify whatever sw
 A hook reads its switch when it runs (`SGEnabled`, `SGHidden`, `SGFlag` from Core/SGPrefs.h), so a
 change shows after Spotify restarts; the tab editor on the Navbar page is the exception and applies as soon as the bar lays
 out again, as are the Home gradient's colour, strength and height, but not the switch that turns it on, and the redesign's
-Vibrations. The root page in `App/ModSettings.x` holds the Appearance card and links the page of each part of Spotify, and only the stored look's.
+Vibrations and Live Activity. The root page in `App/ModSettings.x` holds the Appearance card and links the page of each part of Spotify, and only the stored look's.
 
 ## Make targets
 
@@ -187,7 +193,7 @@ is set. Redesigned UI is the one switch between the two looks (see Layers): it g
 The pages show only what the stored look has: a page opened after flipping the switch already shows
 what the restart will bring. Then a card of parts. Navbar: the tab editor of the stored look, each with
 its own list of tabs. Player: Gestures, Lyrics (the ordered list of lyrics sources, lyrics for every track,
-naming the source in the redesign, the lock screen, and glass lyrics in the native look), Blocked artists (with the count on the row) and Lock screen widget, which work with either look;
+naming the source in the redesign, the lock screen, the Live Activity in the redesign, and glass lyrics in the native look), Blocked artists (with the count on the row) and Lock screen widget, which work with either look;
 in the native look also Now playing bar (its device button and its flags), Queue & devices, and
 Spotify's own player screen (artwork background, glass header buttons, Disable Canvas and the sheet,
 header, slider and sticky header flags, the cards under the player and the lyrics preview and player

@@ -11,6 +11,7 @@
 #import "Native/NowPlayingBar/NowPlayingBar.h"
 #import "Native/Player/NowPlaying.h"
 #import "Redesigned/Haptics/Haptics.h"
+#import "Redesigned/LiveActivity/LiveActivity.h"
 #import "Redesigned/Navbar/Navbar.h"
 #import "Redesigned/NowPlayingBar/NowPlayingBar.h"
 #import "Redesigned/Kit/SGRAccent.h"
@@ -19,6 +20,8 @@ NSString *const SGRedesignedUIInfo = @"Replaces Spotify's own look with the mod'
 
 void SGSetRedesignedUI(BOOL on) {
     SGSetEnabled(SGKeyRedesign, on);
+    // The native look has no Live Activity to end one the redesign left on the lock screen.
+    if (!on) SGRSetLiveActivityEnabled(NO);
 }
 
 // The whole look changes hands at launch, so the switch asks for the restart straight away rather than
@@ -49,12 +52,13 @@ UIViewController *SGNavbarPage(void) {
     return SGRedesignedUIStored() ? SGRNavbarSettingsPage() : SGNavbarSettingsPage();
 }
 
-// The redesign always draws Apple Music style lyrics, and only it names their source; the native look
-// has its glass card and page instead.
+// The redesign always draws Apple Music style lyrics, and only it names their source and has the Live
+// Activity; the native look has its glass card and page instead.
 static UIViewController *lyricsPage(void) {
     BOOL redesigned = SGRedesignedUIStored();
     NSMutableArray<SGModRow *> *more = [NSMutableArray arrayWithObject:SGLockScreenLyricsRow()];
-    if (!redesigned) [more insertObject:SGGlassLyricsRow() atIndex:0];
+    if (redesigned) [more addObject:SGRLiveActivityRow()];
+    else [more insertObject:SGGlassLyricsRow() atIndex:0];
     NSArray<SGModSection *> *sections = @[SGLyricsSourcesSection(redesigned), SGSection(nil, more)];
     return [[SGModPage alloc] initWithTitle:@"Lyrics" intro:SGRestartNote sections:sections footer:nil];
 }
