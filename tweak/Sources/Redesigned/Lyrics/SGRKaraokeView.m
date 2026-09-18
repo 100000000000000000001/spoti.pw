@@ -30,17 +30,48 @@ static NSString *const kBlurPath = @"filters.gaussianBlur.inputRadius";
 + (instancetype)filterWithType:(NSString *)type;
 @end
 
-static UILabel *wordLabel(NSString *text, UIFont *font, UIColor *color, CGRect frame) {
+// Whether a line is written right to left, told by its first letter the way the Unicode bidi algorithm
+// tells a paragraph's direction. Each line is asked on its own, since a song can mix scripts, and the
+// phone's language has no say in it.
+static BOOL readsRightToLeft(NSString *text) {
+    static NSCharacterSet *rightToLeft, *leftToRight;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        NSMutableCharacterSet *scripts = [NSMutableCharacterSet new];
+        [scripts addCharactersInRange:NSMakeRange(0x0590, 0x370)];    // Hebrew, Arabic, Syriac, Thaana, N'Ko and on
+        [scripts addCharactersInRange:NSMakeRange(0xFB1D, 0x2E3)];    // Hebrew and Arabic presentation forms
+        [scripts addCharactersInRange:NSMakeRange(0xFE70, 0x90)];     // Arabic presentation forms B
+        [scripts addCharactersInRange:NSMakeRange(0x10800, 0x800)];   // the old scripts written right to left
+        [scripts addCharactersInRange:NSMakeRange(0x1E800, 0x800)];   // Mende Kikakui and Adlam
+        NSMutableCharacterSet *letters = [NSCharacterSet.letterCharacterSet mutableCopy];
+        [letters formIntersectionWithCharacterSet:scripts.invertedSet];
+        leftToRight = [letters copy];
+        [scripts formIntersectionWithCharacterSet:NSCharacterSet.letterCharacterSet];
+        rightToLeft = [scripts copy];
+    });
+    NSUInteger first = [text rangeOfCharacterFromSet:rightToLeft].location;
+    return first != NSNotFound && first < [text rangeOfCharacterFromSet:leftToRight].location;
+}
+
+static UILabel *wordLabel(NSString *text, UIFont *font, UIColor *color, CGRect frame, BOOL rightToLeft) {
     UILabel *label = [[UILabel alloc] initWithFrame:frame];
     label.text = text;
     label.font = font;
     label.textColor = color;
+    if (!rightToLeft) return label;
+    // A word of a line written right to left is set in the line's direction, so the punctuation at its
+    // ends falls where the whole line would put it, a word of a left to right script among them too.
+    NSMutableParagraphStyle *paragraph = [NSMutableParagraphStyle new];
+    paragraph.baseWritingDirection = NSWritingDirectionRightToLeft;
+    label.attributedText = [[NSAttributedString alloc] initWithString:text attributes:@{
+        NSFontAttributeName: font, NSForegroundColorAttributeName: color, NSParagraphStyleAttributeName: paragraph}];
     return label;
 }
 
 #pragma mark - a word
 
-// The word twice: dim underneath, white on top behind a mask whose feathered edge slides across it.
+// The word twice: dim underneath, white on top behind a mask whose feathered edge slides across it,
+// from the edge its script starts at.
 @interface SGRKaraokeWordView : UIView
 @property (nonatomic, readonly) SGKaraokeWord *word;
 @property (nonatomic, readonly) UILabel *lit;
@@ -53,15 +84,17 @@ static UILabel *wordLabel(NSString *text, UIFont *font, UIColor *color, CGRect f
 @implementation SGRKaraokeWordView {
     CAGradientLayer *_fill;
     CGFloat _filled, _lift;
+    BOOL _rightToLeft;
 }
 
-- (instancetype)initWithWord:(SGKaraokeWord *)word font:(UIFont *)font {
+- (instancetype)initWithWord:(SGKaraokeWord *)word font:(UIFont *)font rightToLeft:(BOOL)rightToLeft {
     CGSize size = [word.text sizeWithAttributes:@{NSFontAttributeName: font}];
     self = [super initWithFrame:CGRectMake(0, 0, ceil(size.width), ceil(font.lineHeight))];
     if (!self) return nil;
     _word = word;
-    [self addSubview:wordLabel(word.text, font, [UIColor colorWithWhite:1 alpha:kDimAlpha], self.bounds)];
-    _lit = wordLabel(word.text, font, UIColor.whiteColor, self.bounds);
+    _rightToLeft = rightToLeft;
+    [self addSubview:wordLabel(word.text, font, [UIColor colorWithWhite:1 alpha:kDimAlpha], self.bounds, rightToLeft)];
+    _lit = wordLabel(word.text, font, UIColor.whiteColor, self.bounds, rightToLeft);
     // Hidden until the line is sung: a masked layer is drawn offscreen every frame even when the
     // mask leaves nothing of it, and a song has hundreds of words waiting their turn.
     _lit.hidden = YES;
@@ -71,8 +104,8 @@ static UILabel *wordLabel(NSString *text, UIFont *font, UIColor *color, CGRect f
     _fill = [CAGradientLayer layer];
     _fill.colors = @[(id)UIColor.whiteColor.CGColor, (id)UIColor.whiteColor.CGColor, (id)UIColor.clearColor.CGColor];
     _fill.locations = @[@0, @((width - kFillEdge) / width), @1];
-    _fill.startPoint = CGPointMake(0, 0.5);
-    _fill.endPoint = CGPointMake(1, 0.5);
+    _fill.startPoint = CGPointMake(rightToLeft ? 1 : 0, 0.5);
+    _fill.endPoint = CGPointMake(rightToLeft ? 0 : 1, 0.5);
     _lit.layer.mask = _fill;
     _filled = NAN;
     [self fillTo:-CGFLOAT_MAX];
@@ -80,15 +113,17 @@ static UILabel *wordLabel(NSString *text, UIFont *font, UIColor *color, CGRect f
 }
 
 // The cursor is in line units and the feathered edge is centred on it, so the edge runs on through
-// the space into the next word instead of starting over at each one.
+// the space into the next word instead of starting over at each one. Right to left, the mask is the
+// same one turned around: white from the word's right edge, the feather `local` in from it.
 - (void)fillTo:(CGFloat)cursor {
     CGFloat width = self.bounds.size.width, height = self.bounds.size.height;
     CGFloat local = MAX(-kFillEdge / 2, MIN(width + kFillEdge / 2, cursor - _offset));
     if (local == _filled) return;
     _filled = local;
+    CGFloat left = _rightToLeft ? width - local - kFillEdge / 2 : local - kFillEdge / 2 - width;
     [CATransaction begin];
     [CATransaction setDisableActions:YES];
-    _fill.frame = CGRectMake(local - kFillEdge / 2 - width, -height / 2, width + kFillEdge, height * 2);
+    _fill.frame = CGRectMake(left, -height / 2, width + kFillEdge, height * 2);
     [CATransaction commit];
 }
 
@@ -113,9 +148,13 @@ static UILabel *wordLabel(NSString *text, UIFont *font, UIColor *color, CGRect f
 
 @interface SGRKaraokeLineView : UIView
 @property (nonatomic, readonly) SGKaraokeLine *line;
+// Laid against the right edge: a line written right to left, or a second voice's written left to
+// right. A backing row keeps to the edge of the line it hangs under, whatever script each is in.
+@property (nonatomic, readonly) BOOL right;
 @property (nonatomic) BOOL active;
 @property (nonatomic) CGFloat blur;
-- (instancetype)initWithLine:(SGKaraokeLine *)line width:(CGFloat)width font:(UIFont *)font backing:(BOOL)backing blurred:(BOOL)blurred;
+// under: the line a backing row hangs under, nil for a line of its own.
+- (instancetype)initWithLine:(SGKaraokeLine *)line width:(CGFloat)width font:(UIFont *)font under:(SGRKaraokeLineView *)under blurred:(BOOL)blurred;
 - (void)showTime:(double)ms;
 @end
 
@@ -131,16 +170,18 @@ typedef struct {
     SGRKaraokeLineView *_backing;
 }
 
-- (instancetype)initWithLine:(SGKaraokeLine *)line width:(CGFloat)width font:(UIFont *)font backing:(BOOL)backing blurred:(BOOL)blurred {
+- (instancetype)initWithLine:(SGKaraokeLine *)line width:(CGFloat)width font:(UIFont *)font under:(SGRKaraokeLineView *)under blurred:(BOOL)blurred {
     self = [super initWithFrame:CGRectZero];
     if (!self) return nil;
     _line = line;
+    BOOL backing = under != nil, rightToLeft = readsRightToLeft(SGKaraokeLineText(line));
+    _right = backing ? under.right : (line.align == SGKaraokeAlignTrailing) != rightToLeft;
     CGFloat space = ceil([@" " sizeWithAttributes:@{NSFontAttributeName: font}].width);
     CGFloat row = ceil(font.lineHeight) - kRowTighten, x = 0, y = 0, offset = 0;
     NSMutableArray<SGRKaraokeWordView *> *words = [NSMutableArray array];
     NSMutableArray<NSMutableArray<SGRKaraokeWordView *> *> *rows = [NSMutableArray arrayWithObject:[NSMutableArray array]];
     for (SGKaraokeWord *word in line.words) {
-        SGRKaraokeWordView *view = [[SGRKaraokeWordView alloc] initWithWord:word font:font];
+        SGRKaraokeWordView *view = [[SGRKaraokeWordView alloc] initWithWord:word font:font rightToLeft:rightToLeft];
         CGSize size = view.bounds.size;
         // A joined word follows the one before it flush: the scripts that do not space their words
         // would otherwise read with a gap between every syllable.
@@ -160,21 +201,27 @@ typedef struct {
         [words addObject:view];
         [rows.lastObject addObject:view];
     }
-    // A second voice is laid against the far edge, as Apple Music sets the two sides of a duet apart.
-    if (line.align == SGKaraokeAlignTrailing) {
-        for (NSArray<SGRKaraokeWordView *> *wrapped in rows) {
-            if (!wrapped.count) continue;
-            CGFloat shift = width - CGRectGetMaxX(wrapped.lastObject.frame);
-            if (shift <= 0) continue;
-            for (SGRKaraokeWordView *view in wrapped) view.center = CGPointMake(view.center.x + shift, view.center.y);
-        }
+    // Written right to left, the rows are laid out as above and turned around, so the first word is at
+    // the right edge and each row runs leftwards from it. Only the places move: the offsets the sweep
+    // runs along still count from the start of the line.
+    if (rightToLeft) {
+        for (SGRKaraokeWordView *view in words) view.center = CGPointMake(width - view.center.x, view.center.y);
+    }
+    // Then each row goes against the line's edge: a second voice against the far one, as Apple Music
+    // sets the two sides of a duet apart. A row too wide to fit stays where its first word put it.
+    for (NSArray<SGRKaraokeWordView *> *wrapped in rows) {
+        if (!wrapped.count) continue;
+        CGRect extent = CGRectUnion(wrapped.firstObject.frame, wrapped.lastObject.frame);
+        CGFloat shift = _right ? width - CGRectGetMaxX(extent) : -CGRectGetMinX(extent);
+        if (_right ? shift <= 0 : shift >= 0) continue;
+        for (SGRKaraokeWordView *view in wrapped) view.center = CGPointMake(view.center.x + shift, view.center.y);
     }
     _words = words;
 
     CGFloat height = y + ceil(font.lineHeight);
     if (line.backing.words.count && !backing) {
         UIFont *smaller = [UIFont systemFontOfSize:round(font.pointSize * kBackingScale) weight:UIFontWeightBold];
-        _backing = [[SGRKaraokeLineView alloc] initWithLine:line.backing width:width font:smaller backing:YES blurred:NO];
+        _backing = [[SGRKaraokeLineView alloc] initWithLine:line.backing width:width font:smaller under:self blurred:NO];
         _backing.alpha = kBackingAlpha;
         _backing.frame = CGRectMake(0, height + kBackingGap, width, _backing.bounds.size.height);
         [self addSubview:_backing];
@@ -185,14 +232,14 @@ typedef struct {
 
     // Scales toward the edge its text is aligned to, and a backing row rides its line's blur.
     if (backing) return self;
-    self.layer.anchorPoint = CGPointMake(line.align == SGKaraokeAlignTrailing ? 1 : 0, 0.5);
+    self.layer.anchorPoint = CGPointMake(_right ? 1 : 0, 0.5);
     if (!blurred) return self;
     CAFilter *blur = [NSClassFromString(@"CAFilter") filterWithType:@"gaussianBlur"];
     if (blur) self.layer.filters = @[blur];
     return self;
 }
 
-// The height a line takes at a width, its rows counted the way initWithLine:width:font:backing:blurred:
+// The height a line takes at a width, its rows counted the way initWithLine:width:font:under:blurred:
 // lays them, so the page can place every line of a song while making views for the few in sight.
 static CGFloat lineHeight(SGKaraokeLine *line, CGFloat width, UIFont *font, BOOL backing) {
     CGFloat space = ceil([@" " sizeWithAttributes:@{NSFontAttributeName: font}].width);
@@ -558,7 +605,7 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
 - (SGRKaraokeLineView *)viewForLine:(NSInteger)index {
     SGRKaraokeLineView *view = _shown[@(index)];
     if (view || !_tops || index < 0 || index >= (NSInteger)_tops.count) return view;
-    view = [[SGRKaraokeLineView alloc] initWithLine:_lines[index] width:_builtWidth - 2 * _margin font:_font backing:NO blurred:_maxBlur > 0];
+    view = [[SGRKaraokeLineView alloc] initWithLine:_lines[index] width:_builtWidth - 2 * _margin font:_font under:nil blurred:_maxBlur > 0];
     [_scroll addSubview:view];
     _shown[@(index)] = view;
     [self placeLine:view at:index animated:NO];
@@ -620,8 +667,7 @@ static double secant(SGSweepKnot *knots, NSUInteger i) {
     CGFloat height = self.bounds.size.height;
     NSInteger distance = index - _active;
     CGRect frame = CGRectMake(_margin, [self topOfLine:index], view.bounds.size.width, view.bounds.size.height);
-    BOOL trailing = view.line.align == SGKaraokeAlignTrailing;
-    CGPoint center = CGPointMake(trailing ? CGRectGetMaxX(frame) : _margin, CGRectGetMidY(frame));
+    CGPoint center = CGPointMake(view.right ? CGRectGetMaxX(frame) : _margin, CGRectGetMidY(frame));
     CGFloat scale = distance == 0 ? 1 : kDimScale;
     CGAffineTransform transform = CGAffineTransformMakeScale(scale, scale);
     view.blur = distance == 0 || _browsing ? 0 : MIN(_maxBlur, labs(distance) * _blurPerLine);

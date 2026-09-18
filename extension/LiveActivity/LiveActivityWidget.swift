@@ -110,12 +110,44 @@ private struct LyricsView: View {
                 .font(.title3.weight(.bold))
                 .lineLimit(2)
                 .minimumScaleFactor(0.8)
+                .direction(of: state.line)
             if !state.nextLine.isEmpty {
                 Text(state.nextLine)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.white.opacity(0.45))
                     .lineLimit(1)
+                    .direction(of: state.nextLine)
             }
+        }
+    }
+}
+
+// Whether a line is written right to left, told by its first letter the way the Unicode bidi algorithm
+// tells a paragraph's direction. Each line is asked on its own, since a song can mix scripts, and the
+// phone's language has no say in it. The tweak's lyrics page asks the same (SGRKaraokeView.m).
+private func readsRightToLeft(_ text: String) -> Bool {
+    guard let first = text.unicodeScalars.first(where: { $0.properties.isAlphabetic }) else { return false }
+    switch first.value {
+    case 0x0590...0x08FF,      // Hebrew, Arabic, Syriac, Thaana, N'Ko and on
+         0xFB1D...0xFDFF,      // Hebrew and Arabic presentation forms
+         0xFE70...0xFEFF,      // Arabic presentation forms B
+         0x10800...0x10FFF,    // the old scripts written right to left
+         0x1E800...0x1EFFF:    // Mende Kikakui and Adlam
+        return true
+    default:
+        return false
+    }
+}
+
+private extension View {
+    // A line written right to left is laid out right to left, against the right edge; any other is left
+    // the way it was.
+    @ViewBuilder func direction(of line: String) -> some View {
+        if readsRightToLeft(line) {
+            frame(maxWidth: .infinity, alignment: .leading)
+                .environment(\.layoutDirection, .rightToLeft)
+        } else {
+            self
         }
     }
 }
