@@ -21,5 +21,5 @@ SGModSection *SGLyricsSourcesSection(BOOL namingSource) {
 }
 
 SGModRow *SGLockScreenLyricsRow(void) {
-    return SGOptionRow(@"Lyrics on the lock screen", @"The line being sung in place of the artist, also in the Dynamic Island, Control Center and CarPlay", SGKeyLockScreenLyrics);
+    return SGOptionRow(@"Replace artist with lyrics", @"The line being sung shows in place of the artist, so lyrics show up on the lock screen and in CarPlay", SGKeyLockScreenLyrics);
 }
