@@ -124,12 +124,11 @@ static void hideStrip(UIView *strip) {
 %end
 
 %ctor {
-    // Registered whatever the switch says: the flag rows elsewhere lock to these while it is on.
-    SGRedesignForceFlags(@"artist", @{
-        // Spotify's own way of moving more up into the navigation bar, as the playlist and album pages do: the
-        // row under the photo is shuffle, Play and Follow.
-        @"ios-creator-impl.context_menu_in_navigation_bar_enabled_artist": @YES,
-    });
+    // No flags forced here. `ios-creator-impl.context_menu_in_navigation_bar_enabled_artist` moves more out of
+    // the header's row, and with it gone Spotify's OverflowStackView force-unwraps the tallest view of a line
+    // that has none and traps as the page opens (device crash 2026-09-18 19:09, SIGTRAP in -[OverflowStackView
+    // updateConstraints], OverflowStackViewLayoutBuilder.Line.tallestView nil). The row stays Spotify's, and
+    // ArtistHeader.x draws more itself.
     if (!SGRedesignedUI()) return;
     %init;
     SGRequireClasses(@[
