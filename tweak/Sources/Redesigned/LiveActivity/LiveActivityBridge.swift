@@ -15,8 +15,20 @@ public final class SGRLiveActivityBridge: NSObject {
     @objc public static var isShowing: Bool { current != nil }
 
     // A new activity can only be requested while the app is in the foreground; an update works from the background.
-    @objc public static func show(line: String, nextLine: String, paused: Bool) {
-        let state = SGLyricsAttributes.ContentState(line: line, nextLine: nextLine, paused: paused)
+    // One call per new state. View and tab are SGRLiveActivityView's and SGRLiveActivityTab's values;
+    // titles, artists and URIs pair up by index, the tracks up next; timerEnd is nil without a timer.
+    @objc public static func show(view: Int, paused: Bool, line: String, nextLine: String,
+                                  titles: [String], artists: [String], uris: [String],
+                                  tab: Int, title: String, artist: String, shuffle: Bool, repeatMode: Int,
+                                  timerEnd: Date?, timerEndOfTrack: Bool) {
+        let tracks = titles.indices.map {
+            SGLyricsAttributes.Track(title: titles[$0], artist: artists[$0], uri: uris[$0])
+        }
+        let state = SGLyricsAttributes.ContentState(
+            view: SGLyricsAttributes.View(rawValue: view) ?? .lyrics, paused: paused,
+            line: line, nextLine: nextLine, tracks: tracks,
+            tab: SGLyricsAttributes.Tab(rawValue: tab) ?? .controls, title: title, artist: artist,
+            shuffle: shuffle, repeatMode: repeatMode, timerEnd: timerEnd, timerEndOfTrack: timerEndOfTrack)
         let content = ActivityContent(state: state, staleDate: nil)
         if let activity = current {
             Task { await activity.update(content) }

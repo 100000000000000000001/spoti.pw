@@ -17,7 +17,7 @@
     tweak/Sources/Diagnostics/  screen dumps, the tree server and the main thread hang sampler of FLEX builds
     extension/LiveActivity/     the redesign's Live Activity widget, a WidgetKit extension of its own
     scripts/                    pipeline.sh (build + inject), build-extension.sh (the widget extension, without an
-                                Xcode project), install.sh (sign + install), record-trees.py, record-session.py,
+                                Xcode project), merge-appintents.py (the widget's intents into Spotify's), install.sh (sign + install), record-trees.py, record-session.py,
                                 dump-log.sh, extract-flags.py, publish.sh (release: version bump, site release.json)
     trees/                      recorded view trees, one per screen; the input for every new hook. trees/clean/ holds
                                 the numbered snapshots per screen of record-session.py, taken of Spotify as it came
@@ -146,11 +146,14 @@ Redesigned:
                   samples go through a drum and bass analyzer on the render thread (SGRMusicAnalyzer.m, plain C), and a
                   thread of its own schedules the taps and the rumble for when the sound is heard (MusicHaptics.x). Both
                   switches apply at once; nothing plays while Spotify is not the active app
-    LiveActivity/ the line being sung, with the next one under it, as a Live Activity on the lock screen and in the
-                  Dynamic Island, lyrics only (LiveActivity.h lists its files): a timer polls the player and sends a
-                  new state only when the line or the pause changes, local updates only, no push. The widget is extension/LiveActivity; ActivityKit pairs the two
+    LiveActivity/ a Live Activity on the lock screen and in the Dynamic Island in one of three views, the line being
+                  sung with the next one under it, the tracks up next (a tap on one skipping ahead to it), or a control
+                  menu of tabs, Controls (previous, play and pause, next, shuffle, repeat), Queue and a sleep Timer of
+                  the mod's own that pauses Spotify (LiveActivity.h lists its files): a timer polls the player and
+                  sends a new state only when what the view shows changes, local updates only, no push. Taps are
+                  LiveActivityIntents run inside Spotify and take a second or two to show on the card. The widget is extension/LiveActivity; ActivityKit pairs the two
                   by the attributes' type in LiveActivityShared.swift, compiled into both. It starts only with Spotify
-                  in front, and its switch applies at once
+                  in front; its switch and its view apply at once
 
 App:
 
@@ -193,13 +196,14 @@ is set. Redesigned UI is the one switch between the two looks (see Layers): it g
 The pages show only what the stored look has: a page opened after flipping the switch already shows
 what the restart will bring. Then a card of parts. Navbar: the tab editor of the stored look, each with
 its own list of tabs. Player: Gestures, Lyrics (the ordered list of lyrics sources, lyrics for every track,
-naming the source in the redesign, the lock screen, the Live Activity in the redesign, and glass lyrics in the native look), Blocked artists (with the count on the row) and Lock screen widget, which work with either look;
+naming the source in the redesign, the lock screen, and glass lyrics in the native look), Blocked artists (with the count on the row) and Lock screen widget, which work with either look;
 in the native look also Now playing bar (its device button and its flags), Queue & devices, and
 Spotify's own player screen (artwork background, glass header buttons, Disable Canvas and the sheet,
 header, slider and sticky header flags, the cards under the player and the lyrics preview and player
 buttons to hide); in the redesign instead Now playing (its device button), Vibrations, Controls (on until switched off) and Music Haptics
 (off until switched on, with an ⓘ saying it follows the sound this iPhone plays while Spotify is open), both
-applying straight away. Home & Library, in the native look only:
+applying straight away. Live Activity, in the redesign only: its switch and which view it shows, Lyrics, Queue or Control menu, both
+applying straight away, the row reading out the view or Off. Home & Library, in the native look only:
 the Gradient page (the wash behind the top of Home in one of eight colours, at three strengths and
 four heights) and the Home flags, the parts of Home to hide including the DJ button and badge, the
 playlist header, buttons and pills to hide, and the Library flags. Then Premium, ads & privacy

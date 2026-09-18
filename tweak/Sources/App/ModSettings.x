@@ -18,6 +18,7 @@
 #import "Native/Home/Home.h"
 #import "Shared/AdBlock/AdBlock.h"
 #import "Shared/Flags/Flags.h"
+#import "Redesigned/LiveActivity/LiveActivity.h"
 #import "App/About/About.h"
 #import "Pages.h"
 
@@ -38,12 +39,19 @@ static UIViewController *modSettingsPage(void) {
     if (signing) [sections addObject:SGSection(nil, @[signing])];
     SGModRow *mod = pageRow(@"Mod", @"info.circle", ^UIViewController *{ return SGAboutPage(); });
     mod.value = ^NSString *{ return @(SG_VERSION); };
-    // Home & Library holds only the native look's switches, so the redesign has no such page.
+    // Home & Library holds only the native look's switches, so the redesign has no such page; the
+    // Live Activity is the redesign's alone.
     NSMutableArray<SGModRow *> *parts = [NSMutableArray arrayWithArray:@[
         pageRow(@"Navbar", @"dock.rectangle", ^UIViewController *{ return SGNavbarPage(); }),
         pageRow(@"Player", @"play.circle", ^UIViewController *{ return SGPlayerSettingsPage(); }),
     ]];
-    if (!SGRedesignedUIStored()) [parts addObject:pageRow(@"Home & Library", @"house", ^UIViewController *{ return SGHomeSettingsPage(); })];
+    if (SGRedesignedUIStored()) {
+        SGModRow *liveActivity = pageRow(@"Live Activity", @"platter.filled.top.iphone", ^UIViewController *{ return SGRLiveActivitySettingsPage(); });
+        liveActivity.value = ^NSString *{ return SGRLiveActivitySummary(); };
+        [parts addObject:liveActivity];
+    } else {
+        [parts addObject:pageRow(@"Home & Library", @"house", ^UIViewController *{ return SGHomeSettingsPage(); })];
+    }
     [sections addObjectsFromArray:@[
         SGAppearanceSection(),
         SGSection(nil, parts),

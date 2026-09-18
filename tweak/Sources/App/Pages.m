@@ -52,13 +52,12 @@ UIViewController *SGNavbarPage(void) {
     return SGRedesignedUIStored() ? SGRNavbarSettingsPage() : SGNavbarSettingsPage();
 }
 
-// The redesign always draws Apple Music style lyrics, and only it names their source and has the Live
-// Activity; the native look has its glass card and page instead.
+// The redesign always draws Apple Music style lyrics, and only it names their source; the native look
+// has its glass card and page instead.
 static UIViewController *lyricsPage(void) {
     BOOL redesigned = SGRedesignedUIStored();
     NSMutableArray<SGModRow *> *more = [NSMutableArray arrayWithObject:SGLockScreenLyricsRow()];
-    if (redesigned) [more addObject:SGRLiveActivityRow()];
-    else [more insertObject:SGGlassLyricsRow() atIndex:0];
+    if (!redesigned) [more insertObject:SGGlassLyricsRow() atIndex:0];
     NSArray<SGModSection *> *sections = @[SGLyricsSourcesSection(redesigned), SGSection(nil, more)];
     return [[SGModPage alloc] initWithTitle:@"Lyrics" intro:SGRestartNote sections:sections footer:nil];
 }
