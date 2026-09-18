@@ -1,5 +1,5 @@
-// A switch that glows: a capsule whose rim turns into a slowly circling rainbow with a soft glow of the
-// same colours around it when on, and a plain dark rim when off, with a white knob sliding on a spring.
+// A switch that glows: a capsule whose rim is a slowly circling rainbow with a soft glow of the same
+// colours, full when on and softer when off, to invite the tap. A white knob slides on a spring.
 // For the one switch of a page that changes the whole app (Redesigned UI in Appearance); every other
 // switch stays a UISwitch.
 //

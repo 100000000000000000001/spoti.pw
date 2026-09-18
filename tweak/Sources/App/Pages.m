@@ -16,7 +16,7 @@
 #import "Redesigned/NowPlayingBar/NowPlayingBar.h"
 #import "Redesigned/Kit/SGRAccent.h"
 
-NSString *const SGRedesignedUIInfo = @"Replaces Spotify's own look with the mod's redesign, built in Liquid Glass: the glass tab bar, search field and now playing bar, the full screen player with the lyrics under it, Spotify's own glass bars and sheets, and every screen redesigned later.\n\nThe redesign starts from a clean sheet: it is black throughout, it has an accent colour of its own, and the switches that change Spotify's own screens (the player, Home, playlists, albums, artists, AMOLED) are put away while it is on, and none of them runs. What works the same with either look stays: ads and privacy, lyrics sources, gestures, blocked artists.\n\nChanges apply after you restart Spotify.";
+NSString *const SGRedesignedUIInfo = @"The newest version of spoti.pw, leaning towards Apple Music's style. It is not compatible with the legacy look's settings.\n\nThe legacy look gives you more freedom, yet still looks like Spotify.";
 
 void SGSetRedesignedUI(BOOL on) {
     SGSetEnabled(SGKeyRedesign, on);
@@ -36,7 +36,7 @@ static void offerRestart(BOOL on) {
 }
 
 SGModSection *SGAppearanceSection(void) {
-    SGModRow *redesign = SGOptionRow(@"Redesigned UI", @"The mod's own look in Liquid Glass, from a clean sheet", SGKeyRedesign);
+    SGModRow *redesign = SGOptionRow(@"Redesigned UI", nil, SGKeyRedesign);
     redesign.glows = YES;
     redesign.info = SGRedesignedUIInfo;
     redesign.changed = ^(BOOL on) {

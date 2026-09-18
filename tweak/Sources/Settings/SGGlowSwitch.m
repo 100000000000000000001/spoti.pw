@@ -44,9 +44,9 @@ static CAShapeLayer *newStroke(CGFloat width) {
 
 @implementation SGGlowSwitch {
     CAShapeLayer *_track;
-    CALayer *_rim, *_glow, *_glowShape;
-    CAShapeLayer *_rimMask, *_glowMask;
-    CAGradientLayer *_rimColors, *_glowColors;
+    CALayer *_rim, *_glow, *_glowShape, *_wash;
+    CAShapeLayer *_rimMask, *_glowMask, *_washMask;
+    CAGradientLayer *_rimColors, *_glowColors, *_washColors;
     UIView *_knob;
     UIImpactFeedbackGenerator *_haptic;
     BOOL _pressed;
@@ -61,6 +61,14 @@ static CAShapeLayer *newStroke(CGFloat width) {
     _track = [CAShapeLayer layer];
     _track.lineWidth = 1;
     [self.layer addSublayer:_track];
+
+    // The rainbow washed faintly over the inside of the track.
+    _wash = [CALayer layer];
+    _washMask = [CAShapeLayer layer];
+    _wash.mask = _washMask;
+    _washColors = newRainbow();
+    [_wash addSublayer:_washColors];
+    [self.layer addSublayer:_wash];
 
     // The glow: the rainbow cut to a wide stroke, blurred as a whole, in a layer larger than the switch
     // so the blur has room to spread.
@@ -123,6 +131,10 @@ static CAShapeLayer *newStroke(CGFloat width) {
     _rimMask.frame = bounds;
     _rimMask.path = capsule.CGPath;
     _rimColors.frame = square;
+    _wash.frame = bounds;
+    _washMask.frame = bounds;
+    _washMask.path = capsule.CGPath;
+    _washColors.frame = square;
 
     _glow.frame = CGRectInset(bounds, -kGlowBleed, -kGlowBleed);
     _glowShape.frame = _glow.bounds;
@@ -144,25 +156,26 @@ static CAShapeLayer *newStroke(CGFloat width) {
     _knob.layer.cornerRadius = side / 2;
 }
 
-// Colours for the state: a dark inset track and a faint rim when off, the rainbow rim and its glow on a
-// darker track when on.
+// Colours for the state. Off is meant to tempt: the rainbow already circles the rim, softer, with a
+// fainter glow. On it comes in full, glow and all.
 - (void)paint {
     BOOL on = self.on;
-    BOOL glow = on && !UIAccessibilityIsReduceTransparencyEnabled();
-    _track.fillColor = [UIColor colorWithWhite:on ? 0.08 : 0.2 alpha:1].CGColor;
-    _track.strokeColor = [UIColor colorWithWhite:1 alpha:on ? 0 : 0.14].CGColor;
-    _rim.opacity = on ? 1 : 0;
-    _glow.opacity = glow ? 0.85 : 0;
+    BOOL glow = !UIAccessibilityIsReduceTransparencyEnabled();
+    _track.fillColor = [UIColor colorWithWhite:on ? 0.08 : 0.12 alpha:1].CGColor;
+    _track.strokeColor = UIColor.clearColor.CGColor;
+    _wash.opacity = on ? 0.3 : 0.16;
+    _rim.opacity = on ? 1 : 0.6;
+    _glow.opacity = glow ? (on ? 0.9 : 0.45) : 0;
     _knob.alpha = self.enabled ? 1 : 0.5;
     self.alpha = self.enabled ? 1 : 0.4;
     self.accessibilityValue = on ? @"On" : @"Off";
-    [self updateTurn];
+    [self updateMotion];
 }
 
-- (void)updateTurn {
-    BOOL turning = self.on && self.window && !UIAccessibilityIsReduceMotionEnabled();
-    for (CAGradientLayer *colors in @[_rimColors, _glowColors]) {
-        if (!turning) {
+- (void)updateMotion {
+    BOOL moving = self.window && !UIAccessibilityIsReduceMotionEnabled();
+    for (CAGradientLayer *colors in @[_rimColors, _glowColors, _washColors]) {
+        if (!moving) {
             [colors removeAnimationForKey:kTurnKey];
             continue;
         }
@@ -177,12 +190,12 @@ static CAShapeLayer *newStroke(CGFloat width) {
     }
 }
 
-// The app going to the background drops layer animations; the rim starts again on the way back.
+// The app going to the background drops layer animations; they start again on the way back.
 - (void)didMoveToWindow {
     [super didMoveToWindow];
     [NSNotificationCenter.defaultCenter removeObserver:self name:UIApplicationWillEnterForegroundNotification object:nil];
-    if (self.window) [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(updateTurn) name:UIApplicationWillEnterForegroundNotification object:nil];
-    [self updateTurn];
+    if (self.window) [NSNotificationCenter.defaultCenter addObserver:self selector:@selector(updateMotion) name:UIApplicationWillEnterForegroundNotification object:nil];
+    [self updateMotion];
 }
 
 - (void)dealloc {
