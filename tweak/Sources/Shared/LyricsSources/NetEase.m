@@ -21,6 +21,7 @@ static void get(NSString *path, NSDictionary<NSString *, NSString *> *query, voi
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url.URL cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:kTimeout];
     [request setValue:@"https://music.163.com" forHTTPHeaderField:@"Referer"];
     [[NSURLSession.sharedSession dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+        SGLyricsNoteReply(response, error);
         id root = data ? [NSJSONSerialization JSONObjectWithData:data options:0 error:nil] : nil;
         if (error || !root) SGLog(@"netease: %@ failed: status %ld, error %@", path, (long)[(NSHTTPURLResponse *)response statusCode], error);
         dispatch_async(dispatch_get_main_queue(), ^{ done([root isKindOfClass:NSDictionary.class] ? root : nil); });
