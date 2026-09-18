@@ -9,3 +9,5 @@ extern __weak UIView *sgr_lyricsPageRoot;   // Redesigned/Lyrics/LyricsPage.x
 // its list and its rows with goes clear here: the artwork field is underneath, and the greys of a
 // placeholder or a badge are what still has to read against it.
 extern __weak UIView *sgr_playlistRoot;
+// Redesigned/Album/AlbumField.x, the album page, kept clear the same way and for the same reason.
+extern __weak UIView *sgr_albumRoot;

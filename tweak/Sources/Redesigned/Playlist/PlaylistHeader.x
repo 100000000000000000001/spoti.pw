@@ -35,13 +35,10 @@ static const CGFloat kDissolve = 0.46, kTopScrim = 140, kTopScrimAlpha = 0.28;
 // A header whose cover square is smaller than this is one mid collapse or mid load, not one to measure
 // the hero from; and an artwork view narrower than this is a placeholder glyph rather than the cover.
 static const CGFloat kMinHero = 120, kMinCover = 80;
-// The play capsule: the glyph is Spotify's own 48pt canvas with the triangle small in the middle of it, so
-// the lead is short and the gap to the word comes out of the canvas itself.
-static const CGFloat kGlyphSide = 44, kCapsuleLead = 4, kCapsuleTrail = 20;
 
-static char kCoverKey, kRowKey, kMetaKey, kPlayKey, kGlassKey, kCapsuleGlassKey, kLayoutKey;
+static char kCoverKey, kRowKey, kMetaKey, kPlayKey, kGlassKey, kLayoutKey;
 static char kShuffleKey, kAddKey, kMoreKey, kToolbarKey;
-static char kHeroKey, kHeroHeightKey, kCapsuleKey, kColumnWatchedKey, kRowWatchedKey, kCoverWatchedKey, kGlyphWatchedKey;
+static char kHeroKey, kHeroHeightKey, kCapsuleKey, kColumnWatchedKey, kRowWatchedKey, kCoverWatchedKey;
 
 #pragma mark - finding things
 
@@ -348,123 +345,6 @@ static void applyColumn(UIView *column) {
     }
 }
 
-#pragma mark - the Play capsule
-
-@interface SGRPlayCapsule : UIControl
-@property (nonatomic, readonly) UIImageView *glyph;
-@property (nonatomic, readonly) UILabel *title;
-@property (nonatomic, weak) UIView *source;   // Spotify's own play button, fired by a tap
-@end
-
-@implementation SGRPlayCapsule
-
-- (instancetype)initWithFrame:(CGRect)frame {
-    if (!(self = [super initWithFrame:frame])) return nil;
-    _glyph = [UIImageView new];
-    _glyph.contentMode = UIViewContentModeScaleAspectFit;
-    _glyph.userInteractionEnabled = NO;
-    [self addSubview:_glyph];
-
-    _title = [UILabel new];
-    _title.userInteractionEnabled = NO;
-    [self addSubview:_title];
-
-    self.isAccessibilityElement = YES;
-    self.accessibilityTraits = UIAccessibilityTraitButton;
-    [self addTarget:self action:@selector(sgr_down) forControlEvents:UIControlEventTouchDown];
-    [self addTarget:self action:@selector(sgr_up) forControlEvents:UIControlEventTouchUpInside | UIControlEventTouchUpOutside | UIControlEventTouchCancel];
-    [self addTarget:self action:@selector(sgr_tap) forControlEvents:UIControlEventTouchUpInside];
-    return self;
-}
-
-- (CGFloat)sgr_width {
-    [_title sizeToFit];
-    return kCapsuleLead + kGlyphSide + ceil(_title.bounds.size.width) + kCapsuleTrail;
-}
-
-- (void)layoutSubviews {
-    [super layoutSubviews];
-    CGRect bounds = self.bounds;
-    SGRGlassCapsuleInside(self, &kCapsuleGlassKey, bounds.size, YES);
-    _glyph.frame = CGRectMake(kCapsuleLead, round((bounds.size.height - kGlyphSide) / 2), kGlyphSide, kGlyphSide);
-    [_title sizeToFit];
-    CGSize text = _title.bounds.size;
-    _title.frame = CGRectMake(CGRectGetMaxX(_glyph.frame), round((bounds.size.height - text.height) / 2),
-                              MAX(0, bounds.size.width - kCapsuleTrail - CGRectGetMaxX(_glyph.frame)), text.height);
-}
-
-- (void)sgr_down {
-    SGRAnimate(SGRMotionPress, ^{ self.transform = CGAffineTransformMakeScale(0.94, 0.94); }, nil);
-}
-
-- (void)sgr_up {
-    SGRAnimate(SGRMotionPress, ^{ self.transform = CGAffineTransformIdentity; }, nil);
-}
-
-- (void)sgr_tap {
-    __block UIControl *control = nil;
-    SGForEachView(self.source, ^(UIView *v) {
-        if (!control && [v isKindOfClass:UIControl.class]) control = (UIControl *)v;
-    });
-    if (control && SGRFire(control)) return;
-    id target = control ?: self.source;
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{ SGLog(@"redesign playlist: play fired through accessibility on %@", [target class]); });
-    [target accessibilityActivate];
-}
-
-@end
-
-// The capsule takes what it shows from Spotify's button: the glyph it draws, whichever of play and pause
-// that is, and the word beside it in the app's own language.
-static void feedCapsule(SGRPlayCapsule *capsule, UIView *playButton) {
-    capsule.source = playButton;
-
-    // The glyph is the disc the button draws, the size of the button itself, and it has to be looked for
-    // past what is hidden behind it: the play button's glow ring is a hidden 78pt view holding an image of
-    // its own, and taken for the glyph it put a soft green ring in the capsule (device, 2026-09-17).
-    __block NSString *word = nil;
-    __block UIImageView *glyph = nil;
-    CGFloat side = playButton.bounds.size.width;
-    SGForEachView(playButton, ^(UIView *v) {
-        if (!word && v.accessibilityLabel.length) word = v.accessibilityLabel;
-        if (glyph || ![v isKindOfClass:UIImageView.class] || !((UIImageView *)v).image) return;
-        if (fabs(v.bounds.size.width - side) > 2 || fabs(v.bounds.size.height - side) > 2) return;
-        for (UIView *up = v; up && up != playButton; up = up.superview) {
-            if (up.hidden || up.alpha <= 0.01) return;
-        }
-        glyph = (UIImageView *)v;
-    });
-
-    UIFont *font = SGRFont(UIFontTextStyleSubheadline, UIFontWeightSemibold, UIContentSizeCategoryLarge);
-    if (![capsule.title.font isEqual:font]) capsule.title.font = font;
-    if (![capsule.title.textColor isEqual:SGRAccent()]) capsule.title.textColor = SGRAccent();
-    if (word && ![capsule.title.text isEqualToString:word]) {
-        capsule.title.text = word;
-        capsule.accessibilityLabel = word;
-        [capsule setNeedsLayout];
-    }
-    if (![capsule.glyph.tintColor isEqual:SGRAccent()]) capsule.glyph.tintColor = SGRAccent();
-
-    if (glyph.image && capsule.glyph.image != glyph.image) {
-        capsule.glyph.image = [glyph.image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
-        static dispatch_once_t once;
-        dispatch_once(&once, ^{
-            SGLog(@"redesign playlist: play glyph %@ from %@, word \"%@\"", NSStringFromCGSize(glyph.image.size),
-                  NSStringFromClass(glyph.class), word);
-        });
-    }
-    // Play becomes pause without the header laying out again.
-    if (glyph && !objc_getAssociatedObject(glyph, &kGlyphWatchedKey)) {
-        objc_setAssociatedObject(glyph, &kGlyphWatchedKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        __weak SGRPlayCapsule *weakCapsule = capsule;
-        __weak UIView *weakButton = playButton;
-        SGRObserveImage(glyph, ^(UIImageView *view) {
-            if (weakCapsule && weakButton) feedCapsule(weakCapsule, weakButton);
-        });
-    }
-}
-
 #pragma mark - the action row
 
 // Shuffle, Play and add, centred, with more beside them when Spotify has not moved it into the navigation
@@ -501,7 +381,7 @@ static void applyActions(UIView *block, UIView *headerRoot) {
     if (capsule.superview != container) [container addSubview:capsule];
     UIView *playButton = SGRFindByIdentifier(headerRoot, @"header-play-button", &kPlayKey);
     if (playButton) {
-        feedCapsule(capsule, playButton);
+        [capsule feedFrom:playButton];
         // Only what the button draws goes: a concealed layer still sends the actions the capsule fires.
         conceal(playButton);
     }

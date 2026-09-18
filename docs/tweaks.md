@@ -130,6 +130,14 @@ Redesigned:
                   prominent Play capsule taking its glyph and its word from Spotify's own button, add, more), the find
                   bar and the curation pills gone, and the track rows on the field with a hairline between them
                   (Playlist.h lists its files). Laid out on the Mac against harness/playlist/
+    Album/        the album page laid out the same way, on the page the Creative Work Platform builds rather than the
+                  playlist's, so it shares nothing with Playlist/ but the Kit: the cover full bleed dissolving into the
+                  field, the title, the artist and the kind and date centred under it, and the same row of glass
+                  controls -- play and shuffle float over the album page outside its header, so they are concealed
+                  there and the row carries the Kit's stand-ins, which draw their glyph and fire them. Under the tracks
+                  everything the server sends is dropped -- more by the artist, videos, concerts, merch, you might also
+                  like, and whatever it adds next -- but the album's own line and its copyright (Album.h lists its
+                  files). Laid out on the Mac against harness/album/
     Haptics/      Vibrations (Haptics.h lists its files): a tap of UIKit's feedback generators for the player's and the now
                   playing bar's controls, the scrubber's tenths and ends, cover swipes, gestures and the lyrics page's tap to
                   seek (ControlHaptics.x, SGRFeedback.m); and Music Haptics, Core Haptics playing along with the song:
@@ -143,7 +151,7 @@ App:
     ModSettings.x  the root page and the rows that open it from Spotify's settings and the side drawer
     Pages.m        the Appearance card with Redesigned UI, the Player and Lyrics pages, which Navbar page opens
     About/         the update check, backup, the signing warning and the Mod page with the reset
-    Onboarding/    the welcome tour over Home on the first launch, offered again from the Mod page
+    Onboarding/    the welcome page over Home on the first launch, with Redesigned UI, offered again from the Mod page
 
 Every key a feature stores starts with `spotifyglass.`, whatever it holds: Reset all settings on
 the Mod page removes by that prefix and has no list to keep up to date. It leaves `SGKeyStock` behind,
