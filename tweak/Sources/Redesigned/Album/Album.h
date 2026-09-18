@@ -10,9 +10,8 @@
 //
 //     AlbumField.x     the artwork field behind the whole page, the artwork it is read from, the flags the
 //                      screen forces
-//     AlbumHeader.x    the header: the cover full bleed at the top dissolving into the field, the title, the
-//                      artist and the kind and date centred under it, and one row of glass controls --
-//                      shuffle, a prominent Play capsule, add, and more where Spotify still has it
+//     AlbumHeader.x    the header: the cover full bleed at the top dissolving into the field, and the Kit's
+//                      SGRHeaderInfo over it -- title, artist, kind and date, shuffle, a white Play, add
 //     AlbumRows.x      the track rows on the field with no surface of their own and a hairline between them
 //     AlbumSections.x  everything under the tracks dropped but the album's own line and its copyright: no
 //                      more by the artist, no videos, no concerts, no merch, no you might also like
