@@ -20,7 +20,21 @@ spotifyglass_FRAMEWORKS := UIKit QuartzCore UniformTypeIdentifiers MediaPlayer C
 # Runtime swizzling instead of Substrate so the dylib has no extra dependency inside the IPA.
 spotifyglass_LOGOS_DEFAULT_GENERATOR := internal
 
+# JamesDSP's engine, libjamesdsp (vendor/libjamesdsp), is C of its own: its Makefile builds it into a static
+# library with its own flags, out of this one's -Werror and with its symbols hidden, into
+# vendor/libjamesdsp/build/ios/, which `clean` leaves alone and later builds only update. Listed as an object
+# file it is a prerequisite of the link and linked in; only SGDSPEngine.m sees its headers.
+SG_JDSP := ../vendor/libjamesdsp
+spotifyglass_OBJ_FILES := $(SG_JDSP)/build/ios/libjamesdsp.a
+Sources/Shared/JamesDSP/SGDSPEngine.m_CFLAGS := -isystem $(SG_JDSP)/subtree/Main/libjamesdsp/jni/jamesdsp/jdsp -isystem $(SG_JDSP)
+
 include $(THEOS_MAKE_PATH)/tweak.mk
+
+# The library is brought up to date before the tweak's instance builds, so the link finds it current.
+spotifyglass.all.tweak.variables: sg-libjamesdsp
+.PHONY: sg-libjamesdsp
+sg-libjamesdsp:
+	@$(MAKE) --no-print-directory -C $(SG_JDSP) JDSP_PLATFORM=ios
 
 # The layers of Sources/ stay apart (scripts/check-layers.sh): an import across them fails the build.
 # A copy of tweak/ made without the scripts beside it builds unchecked.

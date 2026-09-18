@@ -25,7 +25,9 @@
     trees/                      recorded view trees, one per screen; the input for every new hook. trees/clean/ holds
                                 the numbered snapshots per screen of record-session.py, taken of Spotify as it came
     plist/                      Info.plist overrides merged into the app (turns UIDesignRequiresCompatibility off)
-    vendor/                     AutoFLEX deb
+    vendor/                     AutoFLEX deb; libjamesdsp, JamesDSP's engine with RootlessJamesDSP's Liveprog scripts and DDC
+                                presets, built by its own Makefile into a static library the tweak links (its README
+                                names the upstream commits and every local change)
     ipa/, out/                  decrypted Spotify IPA in, built IPAs out (both gitignored)
 
 `tweak/Sources/Shared/Flags/SGFlagList.m` is generated from the IPA and gitignored, as are the
