@@ -92,8 +92,21 @@ static NSString *wordIn(UIView *button) {
 - (void)layoutSubviews {
     [super layoutSubviews];
     CGRect bounds = self.bounds;
-    SGRGlassCapsuleInside(self, &kCapsuleGlassKey, bounds.size, YES);
-    _glyph.frame = CGRectMake(kCapsuleLead, round((bounds.size.height - kGlyphSide) / 2), kGlyphSide, kGlyphSide);
+    if (self.fillColor) {
+        if (![self.backgroundColor isEqual:self.fillColor]) self.backgroundColor = self.fillColor;
+        self.layer.cornerRadius = bounds.size.height / 2;
+        self.layer.cornerCurve = kCACornerCurveContinuous;
+    } else {
+        SGRGlassCapsuleInside(self, &kCapsuleGlassKey, bounds.size, YES);
+    }
+    // Given more room than the word asks for, the glyph and the word stay together in the middle.
+    CGFloat lead = kCapsuleLead + MAX(0, round((bounds.size.width - [self sgr_width]) / 2));
+    _glyph.frame = CGRectMake(lead, round((bounds.size.height - kGlyphSide) / 2), kGlyphSide, kGlyphSide);
+    // Spotify's glyph comes on a 48pt canvas and is scaled down into the frame; one drawn tight is shown at
+    // its own size instead of blown up to fill it.
+    CGSize image = _glyph.image.size;
+    UIViewContentMode mode = image.width <= kGlyphSide && image.height <= kGlyphSide ? UIViewContentModeCenter : UIViewContentModeScaleAspectFit;
+    if (_glyph.contentMode != mode) _glyph.contentMode = mode;
     [_title sizeToFit];
     CGSize text = _title.bounds.size;
     _title.frame = CGRectMake(CGRectGetMaxX(_glyph.frame), round((bounds.size.height - text.height) / 2),
@@ -112,13 +125,14 @@ static NSString *wordIn(UIView *button) {
 
     UIFont *font = SGRFont(UIFontTextStyleSubheadline, UIFontWeightSemibold, UIContentSizeCategoryLarge);
     if (![_title.font isEqual:font]) _title.font = font;
-    if (![_title.textColor isEqual:SGRAccent()]) _title.textColor = SGRAccent();
+    UIColor *content = self.contentColor ?: SGRAccent();
+    if (![_title.textColor isEqual:content]) _title.textColor = content;
     if (word && ![_title.text isEqualToString:word]) {
         _title.text = word;
         self.accessibilityLabel = word;
         [self setNeedsLayout];
     }
-    if (![_glyph.tintColor isEqual:SGRAccent()]) _glyph.tintColor = SGRAccent();
+    if (![_glyph.tintColor isEqual:content]) _glyph.tintColor = content;
 
     if (glyph.image && _glyph.image != glyph.image) {
         _glyph.image = [glyph.image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
@@ -193,6 +207,10 @@ static NSString *wordIn(UIView *button) {
     if (word && ![self.accessibilityLabel isEqualToString:word]) self.accessibilityLabel = word;
     if (glyph.image && _glyph.image != glyph.image) _glyph.image = glyph.image;
     if (glyph.tintColor && ![_glyph.tintColor isEqual:glyph.tintColor]) _glyph.tintColor = glyph.tintColor;
+    if (!glyph && self.fallbackGlyph && _glyph.image != self.fallbackGlyph) {
+        _glyph.image = self.fallbackGlyph;
+        _glyph.tintColor = SGRPrimary();
+    }
 
     if (glyph && !objc_getAssociatedObject(glyph, &kGlyphWatchedKey)) {
         objc_setAssociatedObject(glyph, &kGlyphWatchedKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);

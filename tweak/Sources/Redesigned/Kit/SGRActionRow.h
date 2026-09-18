@@ -16,6 +16,11 @@
 @interface SGRPlayCapsule : UIControl
 // Spotify's play button, the one the capsule reads and fires. Set by -feedFrom:.
 @property (nonatomic, weak, readonly) UIView *source;
+// A solid capsule of this colour instead of the prominent glass, the Music app's white Play (the playlist).
+// nil, the default, is the glass. Set before the capsule is first laid out.
+@property (nonatomic, copy) UIColor *fillColor;
+// The glyph's and the word's colour; nil is the accent.
+@property (nonatomic, copy) UIColor *contentColor;
 // Takes the glyph, the word and the language from `source`, and follows the glyph as Spotify swaps it
 // (play becoming pause) without the header laying out again. Cheap to call again on every pass.
 - (void)feedFrom:(UIView *)source;
@@ -27,6 +32,8 @@
 // than scrolling with its header, so it is left where it is, concealed, and this stands in for it.
 @interface SGRMirrorButton : UIControl
 @property (nonatomic, weak, readonly) UIView *source;
+// Drawn, in white, when Spotify's button has no image view to copy (a glyph it draws itself).
+@property (nonatomic, strong) UIImage *fallbackGlyph;
 // Takes the glyph, its colour and the label from `source`, and follows the glyph as Spotify swaps it
 // (shuffle turning on). Cheap to call again on every pass.
 - (void)feedFrom:(UIView *)source;

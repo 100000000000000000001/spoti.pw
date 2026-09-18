@@ -10,10 +10,43 @@
 @interface _TtC35ListUXPlatform_FreeTierPlaylistImpl32FTPTouchCancellingCollectionView : UIScrollView @end
 @implementation _TtC35ListUXPlatform_FreeTierPlaylistImpl32FTPTouchCancellingCollectionView @end
 
+// The page's view model, as the device showed it (2026-09-18): the header controller's defaultHeaderViewModel.
+// `other` on the launch line makes it someone else's playlist, `liked` Liked Songs.
+@interface MockViewModel : NSObject
+@property (nonatomic, copy) NSString *playlistName, *playlistDescription, *formatListType;
+@property (nonatomic) BOOL isOwnedBySelf;
+@end
+@implementation MockViewModel @end
+
+@interface MockHeaderController : NSObject
+@property (nonatomic, strong) MockViewModel *defaultHeaderViewModel;
+@end
+@implementation MockHeaderController @end
+
 @interface SPTFreeTierPlaylistEncoreHeaderViewController : UIViewController
+@property (nonatomic, strong) MockHeaderController *headerController;
 - (void)entityHeaderViewController:(id)controller didUpdateVisibleRect:(CGRect)rect;
 @end
 @implementation SPTFreeTierPlaylistEncoreHeaderViewController
+- (MockHeaderController *)headerController {
+    if (!_headerController) {
+        NSArray *args = NSProcessInfo.processInfo.arguments;
+        MockViewModel *model = [MockViewModel new];
+        if ([args containsObject:@"liked"]) {
+            model.playlistName = @"Liked Songs";
+            model.formatListType = @"liked-songs";
+        } else if ([args containsObject:@"other"]) {
+            model.playlistName = @"Barre Beats";
+            model.playlistDescription = @"All music for beat-driven barre classes. Some cool-downs too! I&#x27;m always adding to the list";
+        } else {
+            model.playlistName = @"crap.";
+            model.isOwnedBySelf = YES;
+        }
+        _headerController = [MockHeaderController new];
+        _headerController.defaultHeaderViewModel = model;
+    }
+    return _headerController;
+}
 // Spotify's own is what reports a scroll to the header; here it only gives the hook something to run after.
 - (void)entityHeaderViewController:(id)controller didUpdateVisibleRect:(CGRect)rect {}
 @end
@@ -150,7 +183,21 @@ static void buildLikedSongs(UIViewController *page, CGFloat W) {
     UIView *slot = box(layout, _TtC19LegacyUI_ECMCoreKit19AutoLayoutStackView.class, CGRectMake(178.33, 68, 45.33, 45.33), nil);
     box(slot, UIView.class, slot.bounds, nil);
 
-    UIView *block = box(layout, UIView.class, CGRectMake(0, 129.33, 386, 108.67), nil);
+    // Loading, the block sits above the icon's slot (so the slot is the lowest child) and moves down after.
+    UIView *block = box(layout, UIView.class, CGRectMake(0, 20, 386, 108.67), nil);
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        block.frame = CGRectMake(0, 129.33, 386, 108.67);
+        [layout setNeedsLayout];
+        [layout layoutIfNeeded];
+        __block NSUInteger infos = 0;
+        NSMutableArray *stack = [NSMutableArray arrayWithObject:page.view];
+        while (stack.count) {
+            UIView *v = stack.lastObject; [stack removeLastObject];
+            if ([NSStringFromClass(v.class) isEqualToString:@"SGRPlaylistInfo"]) infos++;
+            [stack addObjectsFromArray:v.subviews];
+        }
+        NSLog(@"[harness] liked: after loading, %lu redesign blocks on the page", (unsigned long)infos);
+    });
     UIView *blockInner = box(box(block, UIView.class, block.bounds, nil), UIView.class, CGRectMake(0, 0, 386, 100.67), nil);
     UIView *columnStack = box(blockInner, _TtC19LegacyUI_ECMCoreKit19AutoLayoutStackView.class, CGRectMake(16, 0, 370, 100.67), nil);
     UIView *columnAndRow = box(columnStack, UIView.class, columnStack.bounds, nil);

@@ -25,6 +25,9 @@ scroll does, with nothing laid out, and reports what the redesign's scroll pass 
 
 What it does not cover: the real element framework's autolayout, and the flags `PlaylistField.x` forces.
 
+`other` on the launch line makes it someone else's playlist (save on Play's right instead of download, and a
+description with an HTML entity); the header controller's view model is mocked from the device's values (2026-09-18).
+
 `liked` on the launch line (`xcrun simctl launch booted com.vojta.playlistharness liked`) builds Liked Songs
 instead, from `trees/continuous/1.txt` (2026-09-18): no cover, a 238pt header, the count in a stack of its own,
 the play button 80x48, and `LiquidGlass.gradientContainer`, which it fades in at 3 s as a scroll does.
