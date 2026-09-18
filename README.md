@@ -44,7 +44,8 @@ own look with its tweaks.
 
 No IPA is distributed, here or on [spoti.pw](https://spoti.pw). Fork the repo and
 [build it yourself](#build-it-yourself) from your own decrypted Spotify IPA; the GitHub workflow
-needs no Mac. The Mod page tells you when a newer version is out.
+needs no Mac. Each [release](https://github.com/skopevoj/spoti.pw/releases) carries the tweak's
+`.deb` and its changelog, and the Mod page tells you when a newer one is out.
 
 The app keeps Spotify's bundle id, so it installs over the real Spotify.
 

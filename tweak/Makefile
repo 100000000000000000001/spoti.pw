@@ -2,11 +2,15 @@ TARGET := iphone:clang:latest:16.0
 ARCHS := arm64
 FINALPACKAGE := 1
 
+# version.txt at the repo root is the one version, bumped by Release Please's release PR. Theos
+# stamps PACKAGE_VERSION into the .deb (control has no Version line) and reads it while common.mk
+# loads, so it is set above the include.
+SG_VERSION := $(or $(shell cat ../version.txt 2>/dev/null),0.0.0)
+PACKAGE_VERSION := $(SG_VERSION)
+
 include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME := spotifyglass
-
-SG_VERSION := $(shell sed -n 's/^Version: //p' control)
 
 # Every source under Sources/, so a new feature needs no Makefile edit. Shared/Flags/SGFlagList.m
 # is generated from the IPA by scripts/extract-flags.py.
