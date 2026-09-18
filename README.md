@@ -8,7 +8,7 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/iOS-000000?style=for-the-badge&logo=ios&logoColor=white" alt="iOS">
-  <img src="https://img.shields.io/badge/Spotify-1ED760?style=for-the-badge&logo=spotify&logoColor=white" alt="Spotify">
+  <img src="https://img.shields.io/badge/Spotify-9.1.78-1ED760?style=for-the-badge&logo=spotify&logoColor=white" alt="Spotify 9.1.78">
   <img src="https://img.shields.io/badge/Objective--C-3A95E3?style=for-the-badge&logo=apple&logoColor=white" alt="Objective-C">
   <img src="https://img.shields.io/badge/GitHub_Actions-2671E5?style=for-the-badge&logo=githubactions&logoColor=white" alt="GitHub Actions">
   <img src="https://img.shields.io/badge/License-GPL_v3-blue?style=for-the-badge" alt="GPL-3.0">
@@ -22,35 +22,23 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/now-playing.webp" width="19%" alt="Full screen player">
-  <img src="docs/screenshots/queue.webp" width="19%" alt="Queue as a bottom sheet">
-  <img src="docs/screenshots/home.webp" width="19%" alt="Home with the gradient">
-  <img src="docs/screenshots/navbar.webp" width="19%" alt="Navbar editor">
-  <img src="docs/screenshots/settings.webp" width="19%" alt="Mod Settings">
+  <img src="docs/screenshots/now-playing.webp" width="16%" alt="Full screen player with lyrics">
+  <img src="docs/screenshots/album.webp" width="16%" alt="Album">
+  <img src="docs/screenshots/playlist.webp" width="16%" alt="Playlist">
+  <img src="docs/screenshots/queue.webp" width="16%" alt="Queue">
+  <img src="docs/screenshots/live-activity.webp" width="16%" alt="Live Activity on the lock screen">
+  <img src="docs/screenshots/home.webp" width="16%" alt="Home">
 </p>
 
-A Theos tweak that rebuilds Spotify for iOS in Liquid Glass. One dylib injected into a decrypted
-IPA, signed with your own certificate, no jailbreak. Every piece has a switch in Settings → Mod
-Settings.
+A Theos tweak that rebuilds Spotify for iOS in Liquid Glass. A dylib, and a widget extension for
+the Live Activity, injected into a decrypted IPA and signed with your own certificate, no jailbreak.
+Settings are in Settings → Mod Settings, where one switch picks between the redesign and Spotify's
+own look with its tweaks.
 
-What is in, and what is next.
-
-- [x] Liquid Glass, every flag of it at once
-- [x] AMOLED black, Home gradient
-- [x] Ad blocking
-- [x] Spoof Premium
-- [x] Tracker blocking
-- [x] Custom tab bar
-- [x] Double tap zones on the player
-- [x] Like and dislike on the lock screen
-- [x] Hide anything
-- [x] Every flag Spotify ships
-- [ ] Custom lyrics
-- [ ] Block an artist
-- [ ] Radio stations from a stream URL
-- [ ] Alternate app icons
-- [ ] Open on the tab you choose
-- [ ] Long press and swipe gestures
+> [!IMPORTANT]
+> Built and tested on **Spotify 9.1.78**, so use that version's IPA. The mod hooks Spotify's own
+> classes, which change between releases: a newer or older Spotify may build fine and then lose parts
+> of the redesign or crash.
 
 ## Get it
 
@@ -77,6 +65,8 @@ ready to copy. The warning also stays in Mod Settings until you sign it again.
 Bring a decrypted Spotify IPA. The result is an unsigned `Spotify-<version>-glass.ipa`, to sign with
 SideStore, Feather or any certificate signer.
 
+Use the IPA of **Spotify 9.1.78**, the version it is tested on.
+
 ### On GitHub, no Mac needed
 
 Fork the repo, enable Actions, run the **Build IPA from your own Spotify IPA** workflow. It takes a
@@ -85,7 +75,9 @@ masked in the log and the result stays in your fork.
 
 ### On a Mac
 
-Theos in `~/theos` and an iPhoneOS 26 or newer SDK, from Xcode (`xcode-select` it) or in `~/theos/sdks`, plus:
+Theos in `~/theos` and Xcode with an iPhoneOS 26 or newer SDK (`xcode-select` it). An SDK in
+`~/theos/sdks` alone builds too, but without the Live Activity, which needs Xcode's Swift toolchain.
+Plus:
 
     brew install make ldid dpkg zsign ideviceinstaller libimobiledevice
     uv tool install "cyan @ git+https://github.com/asdfzxcvbn/pyzule-rw"
