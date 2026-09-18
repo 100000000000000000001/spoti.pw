@@ -33,6 +33,7 @@ static NSDictionary *noActions(void) {
     CAGradientLayer *_black;
     CALayer *_backdrop;
     UIColor *_color;
+    UIColor *_preferred;   // the page's own colour, made fit; wins over the artwork's
     UIImage *_image;
     NSString *_identity;
     NSUInteger _generation;
@@ -125,6 +126,14 @@ static NSDictionary *noActions(void) {
     [self applyColor:SGRFieldColorFor(color) animated:self.window != nil];
 }
 
+- (void)setPreferredColor:(UIColor *)color {
+    if (!color) return;
+    UIColor *fit = SGRFieldColorFor(color);
+    if (_preferred && CGColorEqualToColor(fit.CGColor, _preferred.CGColor)) return;
+    _preferred = fit;
+    [self applyColor:fit animated:self.window != nil];
+}
+
 - (void)setArtwork:(UIImage *)image identity:(NSString *)identity animated:(BOOL)animated {
     if (!image || image == _image || (identity && [identity isEqualToString:_identity])) return;
     _image = image;
@@ -155,7 +164,7 @@ static NSDictionary *noActions(void) {
         _backdrop.hidden = NO;
         [CATransaction commit];
     }
-    [self applyColor:palette.fieldColor animated:animated];
+    [self applyColor:_preferred ?: palette.fieldColor animated:animated];
 }
 
 @end

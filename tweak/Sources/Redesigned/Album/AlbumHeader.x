@@ -375,15 +375,59 @@ static void applyActions(UIView *row, UIView *header, UIView *page) {
 
 #pragma mark - the header's pass
 
-// Spotify's colour wash behind the header goes, so the page's field shows through. The sticky navigation
-// bar above it keeps its own gradient: that one is hidden at rest and fades in under the title as the page
-// scrolls, which is what makes the title legible over the list.
+// Drawn by nothing, whatever Spotify does to it: an empty mask. Spotify switches the navigation bar's
+// gradient on and off with -setHidden:, which writes the layer's own hidden and so undoes conceal(); and
+// it fades both gradients by alpha. Neither touches a mask.
+static void maskOut(UIView *view) {
+    if (!view || view.layer.mask) return;
+    view.layer.mask = [CALayer layer];
+    view.accessibilityElementsHidden = YES;
+}
+
+// The colour Spotify painted the wash in: the first opaque colour of the gradient layer it draws with,
+// whether that is the view's own layer or one under it. nil when it draws some other way, or has
+// no colour yet.
+static UIColor *washColorOf(UIView *gradient) {
+    NSMutableArray<CALayer *> *layers = [NSMutableArray arrayWithObject:gradient.layer];
+    [layers addObjectsFromArray:gradient.layer.sublayers ?: @[]];
+    for (CALayer *layer in layers) {
+        if (![layer isKindOfClass:CAGradientLayer.class]) continue;
+        for (id value in ((CAGradientLayer *)layer).colors) {
+            CGColorRef cg = (__bridge CGColorRef)value;
+            if (CFGetTypeID(cg) != CGColorGetTypeID() || CGColorGetAlpha(cg) < 0.5) continue;
+            // The page's base surface is what a wash is before Spotify has a colour for it, not a colour.
+            if (SGIsBaseSurface(cg)) return nil;
+            return [UIColor colorWithCGColor:cg];
+        }
+    }
+    return nil;
+}
+
+// Spotify's colour wash behind the header goes, so the page's field shows through, and the colour it was
+// painted in goes to the field: Spotify reads the whole cover for it, where the Kit reads the bottom edge.
+//
+// The navigation bar's gradient goes too. Hidden at rest, it is shown as the page scrolls under the
+// title, and over the field it was a flat dark band across the top (device, 2026-09-18). What keeps the
+// title legible over the list is the soft top edge every redesigned page has (SGREdgeEffect.x), as it is
+// on Home, Search and Library.
 static void applyWash(UIView *page) {
     for (UIView *sub in page.subviews) {
         NSString *name = NSStringFromClass(sub.class);
-        if (![name containsString:@"HeaderView"] || [name containsString:@"NavigationBar"]) continue;
+        if (![name containsString:@"HeaderView"] && ![name containsString:@"HeaderNavigationBar"]) continue;
+        BOOL wash = ![name containsString:@"NavigationBar"];
         for (UIView *v in sub.subviews) {
-            if ([NSStringFromClass(v.class) containsString:@"GradientView"]) conceal(v);
+            if (![NSStringFromClass(v.class) containsString:@"GradientView"]) continue;
+            if (wash) {
+                UIColor *color = washColorOf(v);
+                static BOOL logged;
+                if (!logged) {
+                    logged = YES;
+                    SGLog(@"redesign album: Spotify's wash %@ on %@, colour %@", NSStringFromClass(v.class),
+                          NSStringFromClass(v.layer.class), color ?: @"not found");
+                }
+                SGRAlbumSetSpotifyColor(page, color);
+            }
+            maskOut(v);
         }
     }
 }

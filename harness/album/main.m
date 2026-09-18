@@ -16,8 +16,11 @@
 @interface _TtC28EncoreConsumerMobile_BaseKit20HeaderNavigationBar : UIView @end
 @implementation _TtC28EncoreConsumerMobile_BaseKit20HeaderNavigationBar @end
 
+// Spotify's draws a CAGradientLayer; whether it is the view's own layer is what the device log settles.
 @interface _TtC19LegacyUI_ECMCoreKit12GradientView : UIView @end
-@implementation _TtC19LegacyUI_ECMCoreKit12GradientView @end
+@implementation _TtC19LegacyUI_ECMCoreKit12GradientView
++ (Class)layerClass { return CAGradientLayer.class; }
+@end
 
 @interface _TtC28EncoreConsumerMobile_BaseKit14PlayButtonView : UIView @end
 @implementation _TtC28EncoreConsumerMobile_BaseKit14PlayButtonView @end
@@ -73,6 +76,9 @@ static UIImage *artwork(void) {
         for (int i = 0; i < 4; i++) {
             [[UIBezierPath bezierPathWithRect:CGRectMake(24 + i * 62, 60 + (i % 2) * 90, 48, 150)] fill];
         }
+        // A scanned sleeve: the scanner's pale border along the bottom, which is all the Kit's palette reads.
+        [[UIColor colorWithWhite:0.82 alpha:1] setFill];
+        UIRectFill(CGRectMake(0, 282, 300, 18));
     }];
 }
 
@@ -159,11 +165,15 @@ static UIView *actionButton(UIView *row, CGRect frame, NSString *identifier, NSS
     // Spotify's colour wash behind the header, the height of the header at rest.
     UIView *wash = box(page, _TtCO19LegacyUI_ECMCoreKit5Views10HeaderView.class, CGRectMake(0, 0, W, 486.67), nil);
     UIView *gradient = box(wash, _TtC19LegacyUI_ECMCoreKit12GradientView.class, wash.bounds, nil);
-    gradient.backgroundColor = [UIColor colorWithRed:0.13 green:0.24 blue:0.44 alpha:1];
+    // The colour Spotify read off the whole cover, down to its base surface.
+    ((CAGradientLayer *)gradient.layer).colors = @[(id)[UIColor colorWithRed:0.29 green:0.22 blue:0.62 alpha:1].CGColor,
+                                                   (id)[UIColor colorWithRed:0.07 green:0.07 blue:0.07 alpha:1].CGColor];
 
     // the tab, the scroll and the stack the header and the list sit in
     UIView *tab = box(page, UIView.class, CGRectMake(0, 0, W, H), @"CreativeWorkPlatform.Tab");
     UIScrollView *scroll = (UIScrollView *)box(tab, UIScrollView.class, CGRectMake(0, 0, W, H), @"PCFFTabLayoutViewController.containerScrollView");
+    // Spotify's starts its content at the very top of the page, under the status bar.
+    scroll.contentInsetAdjustmentBehavior = UIScrollViewContentInsetAdjustmentNever;
     UIStackView *stack = (UIStackView *)box(scroll, UIStackView.class, CGRectMake(0, 0, W, 2200), nil);
 
     UIView *headerElement = box(stack, UIView.class, CGRectMake(0, 0, W, 486.67), @"CreativeWorkPlatform.Header");
@@ -300,8 +310,14 @@ static UIView *actionButton(UIView *row, CGRect frame, NSString *identifier, NSS
     // the sticky navigation bar, its gradient hidden until the page scrolls
     UIView *navBar = box(page, _TtC28EncoreConsumerMobile_BaseKit20HeaderNavigationBar.class, CGRectMake(0, 0, W, 118), @"CreativeWorkPlatform.HeaderNavigationBar");
     UIView *navGradient = box(navBar, _TtC19LegacyUI_ECMCoreKit12GradientView.class, navBar.bounds, nil);
-    navGradient.backgroundColor = [UIColor colorWithWhite:0 alpha:0.6];
+    ((CAGradientLayer *)navGradient.layer).colors = @[(id)[UIColor colorWithWhite:0.02 alpha:1].CGColor,
+                                                      (id)[UIColor colorWithWhite:0.02 alpha:1].CGColor];
     navGradient.hidden = YES;
+    // Scrolled, Spotify shows it by -setHidden:, which is what took a conceal() back.
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        navGradient.hidden = NO;
+        NSLog(@"[harness] Spotify showed the navigation bar's gradient; mask %@", navGradient.layer.mask ? @"on" : @"off");
+    });
 
     // the two controls Spotify floats over the page, outside the scroll
     UIView *shuffleElement = box(page, UIView.class, CGRectMake(282, 62, 48, 48), nil);
