@@ -10,7 +10,9 @@
 // ListeningActivity_ElementsKit.AdaptiveFaceContainer (the avatar, id=Components.UI.SideDrawerButton),
 // id=YourLibraryHeader.title ("Your Library", 21pt), a spacer, a hidden id=YourLibraryHeader.recents,
 // id=YourLibraryHeader.search and id=YourLibraryHeader.plus; and under the row
-// YourLibraryHeaderContentFiltersView {0, 110} 402x49.33, the chips. A folder (trees/continuous/1.txt:325-344)
+// YourLibraryHeaderContentFiltersView {0, 110} 402x49.33, the chips. Recents is hidden on the account the tree
+// is of; the header's model shows it where it says isRecentsAvailable, a clock between the spacer and Search
+// (issue #21), and it goes to the trailing edge with the others. A folder (trees/continuous/1.txt:325-344)
 // is the same header under YourLibrary_FolderImpl, with id=YourLibraryFolderHeader.back at the leading edge,
 // its title, then contextMenu, plus and play or pause, and the chips at {0, 118}.
 //
@@ -24,6 +26,15 @@
 // an arranged view of Spotify's that hides traps its stack in updateConstraints (Kit/SGRRestyle.h), so what
 // goes is alpha, touches and accessibility, and the title Spotify draws goes that way while ours is a subview
 // of the header the stack does not arrange.
+//
+// A move is worked out from where the stack put the control, so it holds only until the stack puts it somewhere
+// else, and the stack does that on passes of its own that reach neither the header nor the page: the header's
+// model arriving after the page first laid out shows or hides a button, the title gets its text, the avatar
+// its size. A button just shown stands where it stood hidden, at the row's leading edge (Recents in 03.txt),
+// until the stack's next pass places it. Moves worked out on the page's pass alone were then off by however
+// far each control went since -- over the title, off the screen -- until the page laid out again on the way
+// back from a playlist (issue #21). So the row the controls stand in is watched too, and every pass of its own
+// places them again.
 //
 // The chips leaving takes 49pt off the bottom of the header. What the header is shrunk to is the bottom of its
 // control row, which hangs off the safe area rather than off the header and so answers the same on every pass,
@@ -43,8 +54,8 @@ static const CGFloat kRowInset = 8;
 // A header shorter than this has not been laid out yet, and nothing is resized from it.
 static const CGFloat kHeaderFloor = 88;
 
-static char kTitleKey, kListKey, kInsetKey;
-static char kSearchKey, kPlusKey, kHeaderTitleKey;
+static char kTitleKey, kListKey, kInsetKey, kRowWatchedKey;
+static char kRecentsKey, kSearchKey, kPlusKey, kHeaderTitleKey;
 static char kBackKey, kMenuKey, kFolderPlusKey, kPlayKey, kPauseKey, kFolderTitleKey;
 
 static void vanish(UIView *view) {
@@ -91,6 +102,32 @@ static CGFloat placeTrailing(UIView *header, NSArray<UIView *> *controls) {
         right -= width;
     }
     return right;
+}
+
+// `place` again after every pass of the row the controls stand in (see the top of the file), for as long as it
+// is in the header. The row is the stack's container, a plain UIView the Kit can watch; what `place` does not
+// touch -- the header's height, the list under it -- stays the page's pass's.
+static void watchRow(UIView *row, UIView *header, NSArray<UIView *> *(*place)(UIView *header)) {
+    if (!row || objc_getAssociatedObject(row, &kRowWatchedKey)) return;
+    objc_setAssociatedObject(row, &kRowWatchedKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    __weak UIView *weakHeader = header;
+    SGRObserveLayout(row, ^(UIView *view) {
+        UIView *owner = weakHeader;
+        if (!owner || ![view isDescendantOfView:owner]) return;
+        // Once, the first time the row's pass finds a control away from where the page's pass left it.
+        static BOOL logged;
+        NSMutableArray<NSNumber *> *before = logged ? nil : [NSMutableArray array];
+        for (UIView *sub in before ? view.subviews : @[]) [before addObject:@(sub.transform.tx)];
+        NSArray<UIView *> *placed = place(owner);
+        if (!before || !owner.window) return;
+        for (NSUInteger i = 0; i < before.count && i < view.subviews.count; i++) {
+            if (fabs(view.subviews[i].transform.tx - before[i].doubleValue) < 0.5) continue;
+            logged = YES;
+            SGLog(@"redesign library: the header's row laid out on its own after the page, its %lu controls placed again",
+                  (unsigned long)placed.count);
+            break;
+        }
+    });
 }
 
 #pragma mark - the title
@@ -183,6 +220,57 @@ static void resize(UIView *page, UIView *header, UIView *control, UIView *filter
 
 #pragma mark - the two headers
 
+static BOOL isFace(UIView *view) {
+    static Class faceClass;
+    if (!faceClass) faceClass = NSClassFromString(@"_TtC29ListeningActivity_ElementsKit21AdaptiveFaceContainer");
+    return faceClass && [view isKindOfClass:faceClass];
+}
+
+// The root header's controls at its trailing edge, the avatar last, and the title before them. Answers what it
+// placed in the order it reads, nothing while the header has no control laid out.
+static NSArray<UIView *> *placeRoot(UIView *header) {
+    UIView *spotifyTitle = SGRFindByIdentifier(header, @"YourLibraryHeader.title", &kHeaderTitleKey);
+    vanish(spotifyTitle);
+    static const void *keys[] = {&kRecentsKey, &kSearchKey, &kPlusKey};
+    NSMutableArray<UIView *> *trailing = controlsIn(header, @[
+        @"YourLibraryHeader.recents", @"YourLibraryHeader.search", @"YourLibraryHeader.plus",
+    ], keys);
+    __block UIView *face = nil;
+    SGForEachView(header, ^(UIView *view) {
+        if (!face && isFace(view) && view.bounds.size.width > 1) face = view;
+    });
+    if (face) [trailing addObject:face];
+    if (!trailing.count) return trailing;
+
+    CGFloat leading = placeTrailing(header, trailing);
+    CGRect row = SGFrameIn(trailing.firstObject, header);
+    layoutTitle(header, spotifyTitle, SGRSideMargin, leading, CGRectGetMidY(row));
+    for (UIView *control in trailing) watchRow(control.superview, header, placeRoot);
+    return trailing;
+}
+
+// The folder header's controls at its trailing edge and the title between them and the back button, which stays
+// where Spotify has it. Answers what it placed in the order it reads, the back button first.
+static NSArray<UIView *> *placeFolder(UIView *header) {
+    UIView *spotifyTitle = SGRFindByIdentifier(header, @"YourLibraryFolderHeader.title", &kFolderTitleKey);
+    vanish(spotifyTitle);
+    UIView *back = SGRFindByIdentifier(header, @"YourLibraryFolderHeader.back", &kBackKey);
+    static const void *keys[] = {&kMenuKey, &kFolderPlusKey, &kPlayKey, &kPauseKey};
+    NSMutableArray<UIView *> *placed = controlsIn(header, @[
+        @"YourLibraryFolderHeader.contextMenu", @"YourLibraryFolderHeader.plus",
+        @"YourLibraryFolderHeader.play", @"YourLibraryFolderHeader.pause",
+    ], keys);
+    if (!placed.count && !back) return placed;
+
+    CGFloat trailingEdge = placed.count ? placeTrailing(header, placed) : header.bounds.size.width - kRowInset;
+    if (back) [placed insertObject:back atIndex:0];
+    CGRect rowFrame = SGFrameIn(placed.firstObject, header);
+    CGFloat leading = back ? CGRectGetMaxX(rowFrame) + SGRGrid : SGRSideMargin;
+    layoutTitle(header, spotifyTitle, leading, trailingEdge, CGRectGetMidY(rowFrame));
+    for (UIView *control in placed) watchRow(control.superview, header, placeFolder);
+    return placed;
+}
+
 static void layoutRoot(UIView *page) {
     UIView *header = childNamed(page, @"YourLibraryHeaderView");
     if (!header) return;
@@ -191,26 +279,13 @@ static void layoutRoot(UIView *page) {
     UIView *filters = childNamed(header, @"YourLibraryHeaderContentFiltersView");
     vanish(filters);
 
-    UIView *spotifyTitle = SGRFindByIdentifier(header, @"YourLibraryHeader.title", &kHeaderTitleKey);
-    vanish(spotifyTitle);
-    static const void *keys[] = {&kSearchKey, &kPlusKey};
-    NSMutableArray<UIView *> *trailing = controlsIn(header, @[@"YourLibraryHeader.search", @"YourLibraryHeader.plus"], keys);
-    static Class faceClass;
-    if (!faceClass) faceClass = NSClassFromString(@"_TtC29ListeningActivity_ElementsKit21AdaptiveFaceContainer");
-    __block UIView *face = nil;
-    SGForEachView(header, ^(UIView *view) {
-        if (!face && faceClass && [view isKindOfClass:faceClass] && view.bounds.size.width > 1) face = view;
-    });
-    if (face) [trailing addObject:face];
+    NSArray<UIView *> *trailing = placeRoot(header);
     if (!trailing.count) return;
-
-    CGFloat leading = placeTrailing(header, trailing);
-    CGRect row = SGFrameIn(trailing.firstObject, header);
-    layoutTitle(header, spotifyTitle, SGRSideMargin, leading, CGRectGetMidY(row));
     resize(page, header, trailing.firstObject, filters);
 
     // The first pass that laid the header out, not the first pass at all: a page appearing lays out before
     // its controls have a size, and a line off that pass would say the header was left as Spotify's.
+    UIView *face = isFace(trailing.lastObject) ? trailing.lastObject : nil;
     static BOOL logged;
     if (!logged && header.window && face) {
         logged = YES;
@@ -228,28 +303,17 @@ static void layoutFolder(UIView *page) {
     UIView *filters = childNamed(header, @"YourLibraryHeaderContentFiltersView");
     vanish(filters);
 
-    UIView *spotifyTitle = SGRFindByIdentifier(header, @"YourLibraryFolderHeader.title", &kFolderTitleKey);
-    vanish(spotifyTitle);
+    NSArray<UIView *> *placed = placeFolder(header);
+    if (!placed.count) return;
+    resize(page, header, placed.firstObject, filters);
+
     UIView *back = SGRFindByIdentifier(header, @"YourLibraryFolderHeader.back", &kBackKey);
-    static const void *keys[] = {&kMenuKey, &kFolderPlusKey, &kPlayKey, &kPauseKey};
-    NSMutableArray<UIView *> *trailing = controlsIn(header, @[
-        @"YourLibraryFolderHeader.contextMenu", @"YourLibraryFolderHeader.plus",
-        @"YourLibraryFolderHeader.play", @"YourLibraryFolderHeader.pause",
-    ], keys);
-    if (!trailing.count && !back) return;
-
-    CGFloat trailingEdge = trailing.count ? placeTrailing(header, trailing) : header.bounds.size.width - kRowInset;
-    UIView *row = back ?: trailing.firstObject;
-    CGRect rowFrame = SGFrameIn(row, header);
-    CGFloat leading = back ? CGRectGetMaxX(rowFrame) + SGRGrid : SGRSideMargin;
-    layoutTitle(header, spotifyTitle, leading, trailingEdge, CGRectGetMidY(rowFrame));
-    resize(page, header, row, filters);
-
+    NSUInteger trailing = placed.count - (back ? 1 : 0);
     static BOOL logged;
-    if (!logged && header.window && trailing.count) {
+    if (!logged && header.window && trailing) {
         logged = YES;
         SGLog(@"redesign library: folder header %@, back %@, %lu controls at the trailing edge, chips %@",
-              NSStringFromCGRect(header.frame), back ? @"found" : @"not found", (unsigned long)trailing.count,
+              NSStringFromCGRect(header.frame), back ? @"found" : @"not found", (unsigned long)trailing,
               filters ? @"gone" : @"not found");
     }
 }
