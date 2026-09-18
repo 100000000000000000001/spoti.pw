@@ -30,14 +30,10 @@ typedef struct {
 // nil to the completion when the image has no bitmap to read (a symbol, a CIImage).
 + (void)paletteForImage:(UIImage *)image request:(SGRPaletteRequest)request completion:(void (^)(SGRPalette *palette))completion;
 
-// A strip `size` points across with the artwork `artWidth` wide at its leading edge, carried on to the
-// trailing edge by the artwork's own trailing edge stretched out, the way a background extension continues
-// a picture, and blurred. From the artwork's trailing edge on it is dimmed until white text on it passes
-// WCAG AA (its 90th percentile luminance at 0.16, 0.08 with Increase Contrast, and never less than a
-// 15% dim), so a row can run its picture on behind its text; under the artwork itself it is the same
-// picture blurred, for the sharp one to fade into. One pixel a point, since it is blurred. nil to the
-// completion when the image has no bitmap to read.
-+ (void)extensionForImage:(UIImage *)image size:(CGSize)size artWidth:(CGFloat)artWidth completion:(void (^)(UIImage *extension))completion;
+// `surface` tinted a little towards the artwork's dominant colour (brought down to a luminance of 0.05, then
+// 35% of it mixed in), so a tile or row on the surface quietly takes its cover's colour while white text on
+// it keeps its contrast. nil to the completion when the image has no bitmap to read.
++ (void)tintForImage:(UIImage *)image surface:(UIColor *)surface completion:(void (^)(UIColor *tint))completion;
 @end
 
 // Any colour made fit to be a field, the same way the edge colour is: for a colour Spotify hands over

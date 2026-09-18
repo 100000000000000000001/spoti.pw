@@ -1,31 +1,37 @@
-// Home redesign: a shortcut tile runs its own picture across itself. The sharp cover keeps its place at the
-// leading edge and fades, from 40% of its width, into the same picture blurred, which carries on to the
-// trailing edge as its own edge stretched out and dims under the title until white text on it passes WCAG AA
-// (Kit/SGRPalette.h, +extensionForImage:). Until the picture has loaded, the tile is Spotify's grey.
+// Home redesign: a shortcut tile the way an Apple list row holds artwork. The cover sits inset from the tile's
+// edges with its own corners, the title follows it in, and the tile is a dark surface tinted faintly towards the
+// cover's dominant colour (Kit/SGRPalette.h, +tintForImage:), so the grid is not one grey and white text always
+// reads. Until the cover has loaded, the tile is the untinted surface.
 //
-// The picture sits behind Spotify's stack, over the tile's own fill, so the title, the playing indicator and
-// the button's touches stay Spotify's. It is made off the main thread once per picture and follows the cover
-// as Spotify sets it (SGRObserveImage), since a cover lands after the tile has laid out.
+// The surface sits behind Spotify's stack, over the tile's own fill, so the title, the playing indicator and
+// the button's touches stay Spotify's. The inset and the title's move are transforms, which Spotify's layout
+// never reads, so its constraints are left as they are. The tint is worked out off the main thread once per
+// picture and follows the cover as Spotify sets it (SGRObserveImage), since a cover lands after layout.
 //
-// Tree (trees/continuous/1.txt:3454-3465, 2026-09-17): InteractableLayoutBackingButton id=Shortcut.Card.Home
+// Tree (trees/home 3 more scrolled.txt:36-50, 2026-09-17): InteractableLayoutBackingButton id=Shortcut.Card.Home
 // 181x48 clips > UIView 181x48 bg=#FFFFFF@0.10 (the fill), then Encore.StackView > AutoLayoutStackView >
-// UIView > UIView {0, 0} 48x48 bg=#000000@0.90 r=4 (the cover's square) > Encore.ImageView > UIImageView 48x48
-// and the PlaceholderView; the title's stack starts at x 56.
-#import <QuartzCore/QuartzCore.h>
+// UIView 173x48 (the row) > UIView {0, 0} 48x48 bg=#000000@0.90 r=4 (the cover's square) > Encore.ImageView >
+// UIImageView 48x48 and the PlaceholderView; then the row's 8pt spacer and the title's stack at x 56.
 #import "Core/SGCore.h"
 #import "Redesigned/Kit/SGRKit.h"
 #import "Home.h"
 
-// Where the sharp cover starts to fade, as a share of its width.
-static const CGFloat kFadeFrom = 0.4;
+// How far the cover sits in from the tile's top, bottom and leading edges, and its corners there.
+static const CGFloat kInset = 5, kCoverRadius = 4;
 
-static char kBackdropKey, kImageKey, kMaskKey, kShownKey;
+static char kSurfaceKey, kImageKey, kShownKey;
 
-// Pictures already worked out, by the image object while it lives (main thread only).
-static NSMapTable<UIImage *, UIImage *> *extensions(void) {
+// Tints already worked out, by the image object while it lives (main thread only).
+static NSMapTable<UIImage *, UIColor *> *tints(void) {
     static NSMapTable *table;
     if (!table) table = [NSMapTable weakToStrongObjectsMapTable];
     return table;
+}
+
+static UIColor *untinted(void) {
+    static UIColor *color;
+    if (!color) color = SGRElevated(UIColor.blackColor);
+    return color;
 }
 
 @interface SGRTileParts : NSObject
@@ -49,67 +55,57 @@ static SGRTileParts *partsOf(UIView *tile) {
     return parts;
 }
 
-static UIView *backdropIn(UIView *tile, UIView *fill) {
-    UIView *backdrop = objc_getAssociatedObject(tile, &kBackdropKey);
-    if (!backdrop) {
-        backdrop = [UIView new];
-        backdrop.userInteractionEnabled = NO;
-        backdrop.accessibilityElementsHidden = YES;
-        backdrop.layer.contentsGravity = kCAGravityResize;
-        backdrop.hidden = YES;
-        objc_setAssociatedObject(tile, &kBackdropKey, backdrop, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+static UIView *surfaceIn(UIView *tile, UIView *fill) {
+    UIView *surface = objc_getAssociatedObject(tile, &kSurfaceKey);
+    if (!surface) {
+        surface = [UIView new];
+        surface.userInteractionEnabled = NO;
+        surface.accessibilityElementsHidden = YES;
+        surface.backgroundColor = untinted();
+        objc_setAssociatedObject(tile, &kSurfaceKey, surface, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
-    if (backdrop.superview != tile) {
-        if (fill) [tile insertSubview:backdrop aboveSubview:fill];
-        else [tile insertSubview:backdrop atIndex:0];
+    if (surface.superview != tile) {
+        if (fill) [tile insertSubview:surface aboveSubview:fill];
+        else [tile insertSubview:surface atIndex:0];
     }
-    if (!CGRectEqualToRect(backdrop.frame, tile.bounds)) backdrop.frame = tile.bounds;
-    return backdrop;
+    if (!CGRectEqualToRect(surface.frame, tile.bounds)) surface.frame = tile.bounds;
+    return surface;
 }
 
-static void fadeCover(UIView *square, BOOL on) {
-    if (!square) return;
-    if (!on) {
-        if (square.layer.mask) square.layer.mask = nil;
-        return;
+// The square scaled about its centre so it clears the tile's edges by kInset, and everything after it in the
+// row moved in by what that took off its trailing side.
+static void inset(UIView *square) {
+    CGFloat side = square.bounds.size.height;
+    if (side <= kInset * 4) return;
+    CGFloat scale = (side - kInset * 2) / side;
+    CGAffineTransform shrink = CGAffineTransformMakeScale(scale, scale);
+    if (!CGAffineTransformEqualToTransform(square.transform, shrink)) square.transform = shrink;
+    CALayer *layer = square.layer;
+    // The radius is drawn scaled with the square.
+    CGFloat radius = kCoverRadius / scale;
+    if (layer.cornerRadius != radius) layer.cornerRadius = radius;
+    if (layer.cornerCurve != kCACornerCurveContinuous) layer.cornerCurve = kCACornerCurveContinuous;
+    if (!layer.masksToBounds) layer.masksToBounds = YES;
+
+    CGAffineTransform follow = CGAffineTransformMakeTranslation(-square.bounds.size.width * (1 - scale) / 2, 0);
+    BOOL after = NO;
+    for (UIView *sibling in square.superview.subviews) {
+        if (sibling == square) {
+            after = YES;
+            continue;
+        }
+        if (after && !CGAffineTransformEqualToTransform(sibling.transform, follow)) sibling.transform = follow;
     }
-    CAGradientLayer *mask = objc_getAssociatedObject(square, &kMaskKey);
-    if (!mask) {
-        mask = [CAGradientLayer layer];
-        mask.startPoint = CGPointMake(0, 0.5);
-        mask.endPoint = CGPointMake(1, 0.5);
-        mask.colors = @[(id)UIColor.blackColor.CGColor, (id)UIColor.clearColor.CGColor];
-        mask.locations = @[@(kFadeFrom), @1];
-        mask.actions = @{@"bounds": NSNull.null, @"position": NSNull.null};
-        objc_setAssociatedObject(square, &kMaskKey, mask, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    }
-    if (!CGRectEqualToRect(mask.frame, square.bounds)) mask.frame = square.bounds;
-    if (square.layer.mask != mask) square.layer.mask = mask;
 }
 
-static void show(UIView *tile, UIView *backdrop, UIView *square, UIImage *extension, BOOL animated) {
-    if (!extension) {
-        backdrop.hidden = YES;
-        backdrop.layer.contents = nil;
-        fadeCover(square, NO);
+static void tint(UIView *tile, UIView *surface, UIColor *color, BOOL animated) {
+    color = color ?: untinted();
+    if ([surface.backgroundColor isEqual:color]) return;
+    if (!animated || !tile.window) {
+        surface.backgroundColor = color;
         return;
     }
-    if (backdrop.layer.contents == (__bridge id)extension.CGImage && !backdrop.hidden) {
-        fadeCover(square, YES);
-        return;
-    }
-    [CATransaction begin];
-    [CATransaction setDisableActions:YES];
-    if (animated && tile.window && !backdrop.hidden) {
-        CATransition *fade = [CATransition animation];
-        fade.type = kCATransitionFade;
-        fade.duration = SGRCrossfade;
-        [backdrop.layer addAnimation:fade forKey:@"contents"];
-    }
-    backdrop.layer.contents = (__bridge id)extension.CGImage;
-    backdrop.hidden = NO;
-    [CATransaction commit];
-    fadeCover(square, YES);
+    SGRAnimate(SGRMotionFade, ^{ surface.backgroundColor = color; }, nil);
 }
 
 static void refresh(UIView *tile) {
@@ -117,33 +113,31 @@ static void refresh(UIView *tile) {
     UIImageView *cover = parts.cover;
     UIView *square = parts.square;
     if (!cover || !square || square.bounds.size.width < 20 || tile.bounds.size.width <= square.bounds.size.width) return;
-    UIView *backdrop = backdropIn(tile, parts.fill);
+    UIView *surface = surfaceIn(tile, parts.fill);
+    inset(square);
 
     UIImage *image = cover.image;
-    // The cover's placeholder shows while there is no picture, over Spotify's grey.
     if (!image) {
         objc_setAssociatedObject(tile, &kShownKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        show(tile, backdrop, square, nil, NO);
+        tint(tile, surface, nil, NO);
         return;
     }
-    UIImage *known = [extensions() objectForKey:image];
-    if (known && CGSizeEqualToSize(known.size, CGSizeMake(ceil(tile.bounds.size.width), ceil(tile.bounds.size.height)))) {
+    UIColor *known = [tints() objectForKey:image];
+    if (known) {
         objc_setAssociatedObject(tile, &kShownKey, image, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        show(tile, backdrop, square, known, YES);
+        tint(tile, surface, known, YES);
         return;
     }
     if (objc_getAssociatedObject(tile, &kShownKey) == image) return;
     objc_setAssociatedObject(tile, &kShownKey, image, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 
-    CGFloat art = CGRectGetMaxX([square convertRect:square.bounds toView:tile]);
     __weak UIView *weakTile = tile;
-    [SGRPalette extensionForImage:image size:tile.bounds.size artWidth:art completion:^(UIImage *extension) {
+    [SGRPalette tintForImage:image surface:untinted() completion:^(UIColor *color) {
         UIView *strongTile = weakTile;
-        if (extension) [extensions() setObject:extension forKey:image];
+        if (color) [tints() setObject:color forKey:image];
         // A tile reused for another cover in the meantime has asked for that one.
         if (!strongTile || objc_getAssociatedObject(strongTile, &kShownKey) != image) return;
-        SGRTileParts *now = partsOf(strongTile);
-        show(strongTile, backdropIn(strongTile, now.fill), now.square, extension, YES);
+        tint(strongTile, surfaceIn(strongTile, partsOf(strongTile).fill), color, YES);
     }];
 }
 
