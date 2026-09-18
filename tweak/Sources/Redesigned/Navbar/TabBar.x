@@ -272,6 +272,11 @@ static void syncBar(UIView *stockBar) {
     SGRSystemTabBar *bar = objc_getAssociatedObject(stockBar, &kBarKey);
     if (!bar) {
         bar = [[SGRSystemTabBar alloc] initWithFrame:stockBar.bounds];
+        // UIKit draws the glass in the appearance the bar inherits, and the bar is outside the navigation
+        // stacks Spotify makes dark itself (-[SPNavigationController viewDidLoad] while +[SPTLiquidGlass
+        // isEnabled]), so a phone in light mode had it light over Spotify's black. Spotify is dark whatever
+        // the system is, and so is the bar.
+        bar.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
         bar.delegate = bar;
         bar.stockBar = stockBar;
         UILongPressGestureRecognizer *hold = [[UILongPressGestureRecognizer alloc] initWithTarget:bar action:@selector(held:)];

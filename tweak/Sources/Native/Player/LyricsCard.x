@@ -34,6 +34,9 @@ static UIView *cellAround(UIView *view) {
     sg_lyricsCardRoot = cell;
     SGStripBackgrounds(cell);
     UIVisualEffectView *glass = SGGlassFor(cell, &kCardGlassKey);
+    // Dark whatever the system is set to, as the player's header panes are (Player.x): light glass under
+    // white lyrics otherwise, on a phone in light mode.
+    if (glass.overrideUserInterfaceStyle != UIUserInterfaceStyleDark) glass.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
     glass.frame = cell.bounds;
     glass.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     SGShapeGlass(glass, kCardRadius, NO);

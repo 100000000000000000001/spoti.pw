@@ -43,6 +43,9 @@ static UIVisualEffectView *copyPane(UIView *pane) {
     UIVisualEffect *effect = platter ? SGGlassEffect() : ((UIVisualEffectView *)pane).effect;
     UIVisualEffectView *glass = [[UIVisualEffectView alloc] initWithEffect:effect];
     glass.userInteractionEnabled = NO;
+    // The effect does not carry the appearance the pane was drawn in, dark for both bars, and the stand-in
+    // would give the copy the system's.
+    glass.overrideUserInterfaceStyle = pane.traitCollection.userInterfaceStyle;
     if (platter) {
         SGShapeGlass(glass, pane.bounds.size.height / 2, YES);
     } else if ([pane respondsToSelector:@selector(cornerConfiguration)] && [glass respondsToSelector:@selector(setCornerConfiguration:)]) {
