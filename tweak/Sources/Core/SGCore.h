@@ -1,8 +1,10 @@
 // What every source file of the mod builds on. Feature-specific API lives in the feature's own
-// header under Features/, next to the keys it reads.
-#import "Core/SGRuntime.h"
-#import "Core/SGLog.h"
-#import "Core/SGPrefs.h"
-#import "Core/SGViewTree.h"
-#import "Core/SGGlass.h"
-#import "Core/SGBackdrop.h"
+// header under Shared/, Native/ or Redesigned/, next to the keys it reads.
+#import "SGRuntime.h"
+#import "SGLog.h"
+#import "SGPrefs.h"
+#import "SGViewTree.h"
+#import "SGGlass.h"
+#import "SGBackdrop.h"
+#import "SGUIMode.h"
+#import "SGFlagForce.h"

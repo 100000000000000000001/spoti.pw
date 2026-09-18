@@ -12,5 +12,7 @@ trees/*.txt
 tweak/.theos/
 tweak/obj/
 tweak/packages/
-tweak/Sources/Features/Flags/SGFlagList.m
+tweak/Sources/Shared/Flags/SGFlagList.m
 /trees/continuous
+/trees/clean
+harness/*/build/

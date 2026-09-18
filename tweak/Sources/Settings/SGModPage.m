@@ -1,9 +1,7 @@
 #import "SGModPage.h"
 #import "SGPageStyle.h"
+#import "SGGlowSwitch.h"
 #import "Core/SGCore.h"
-#import "Features/Flags/Flags.h"
-#import "Features/About/About.h"
-#import "Features/AdBlock/AdBlock.h"
 
 NSString *const SGRestartNote = @"Changes apply after you restart Spotify.";
 
@@ -223,11 +221,17 @@ static BOOL flagRowOn(SGModRow *row) {
     return value && [value boolValue] != row.forceOff;
 }
 
-// A flag the Liquid Glass UI switch owns: its row shows what that switch forces and
-// takes no touch, so the flag has one place to change. An override from All flags still wins.
+// A flag something of the mod's forces (Core/SGFlagForce.h: the redesign, the ad blocking): its row
+// shows what is forced and takes no touch, so the flag has one place to change.
 static BOOL flagRowLocked(SGModRow *row) {
-    if (!row.flag) return NO;
-    return (SGGlassOwnsFlag(row.key) && SGFlag(SGKeySpotifyGlass, NO)) || (row.forceOff && SGAdBlockForcesFlagOff(row.key));
+    return row.flag && SGLockedFlagValue(row.key, NULL) != nil;
+}
+
+// What a locked row shows: the forced value, read the row's way, so a Disable Canvas row reads on
+// while Canvas is forced off.
+static BOOL lockedRowOn(SGModRow *row) {
+    id value = SGLockedFlagValue(row.key, NULL);
+    return value ? [value boolValue] != row.forceOff : YES;
 }
 
 @implementation SGModPage {
@@ -329,8 +333,8 @@ static BOOL flagRowLocked(SGModRow *row) {
 }
 
 - (UITableViewCell *)tableView:(UITableView *)table cellForRowAtIndexPath:(NSIndexPath *)path {
-    UITableViewCell *cell = SGDequeueCell(table, @"row");
     SGModRow *row = [self rowAt:path];
+    UITableViewCell *cell = SGDequeueCell(table, @"row");
     SGFillCell(cell, row.title, row.subtitle, row.color, row.symbol);
     UIListContentConfiguration *content = (UIListContentConfiguration *)cell.contentConfiguration;
     if (row.color) content.secondaryTextProperties.color = row.color;
@@ -340,16 +344,30 @@ static BOOL flagRowLocked(SGModRow *row) {
     cell.separatorInset = UIEdgeInsetsMake(0, row.symbol ? (tile ? 58 : 48) : 16, 0, 0);
 
     if (row.key) {
-        UISwitch *toggle = [UISwitch new];
-        toggle.onTintColor = SGGreen();
         BOOL locked = flagRowLocked(row);
-        toggle.on = row.flag ? (locked && !SGFlagOverride(row.key) ? YES : flagRowOn(row)) : SGFlag(row.key, row.defaultOn);
+        // A lock that beats an override shows over one; the others give way to it.
+        BOOL beats = NO;
+        if (locked) SGLockedFlagValue(row.key, &beats);
+        BOOL showsLock = locked && (beats || !SGFlagOverride(row.key));
+        BOOL on = row.flag ? (showsLock ? lockedRowOn(row) : flagRowOn(row)) : SGFlag(row.key, row.defaultOn);
+        UIControl *toggle;
+        if (row.glows) {
+            SGGlowSwitch *glow = [SGGlowSwitch new];
+            glow.on = on;
+            glow.accessibilityLabel = row.title;
+            toggle = glow;
+        } else {
+            UISwitch *plain = [UISwitch new];
+            plain.onTintColor = SGGreen();
+            plain.on = on;
+            toggle = plain;
+        }
         toggle.enabled = !locked;
         // A disabled switch would swallow the tap; letting it through is what gets the row asked.
         toggle.userInteractionEnabled = !locked;
         toggle.tag = path.section * 1000 + path.row;
         [toggle addTarget:self action:@selector(toggled:) forControlEvents:UIControlEventValueChanged];
-        cell.accessoryView = toggle;
+        cell.accessoryView = row.info ? [self infoButtonBeside:toggle tag:toggle.tag] : toggle;
         cell.selectionStyle = locked ? UITableViewCellSelectionStyleDefault : UITableViewCellSelectionStyleNone;
     } else if (row.page) {
         cell.accessoryView = row.value ? valueAndChevron(row.value()) : SGSymbolView(@"chevron.right", 13, UIImageSymbolWeightSemibold, 16);
@@ -382,15 +400,45 @@ static BOOL flagRowLocked(SGModRow *row) {
     [self readValues];
 }
 
-- (void)toggled:(UISwitch *)toggle {
+// The ⓘ to the left of the switch, the grey of a subtitle, 30pt across so it is easy to hit next to it.
+- (UIView *)infoButtonBeside:(UIControl *)toggle tag:(NSInteger)tag {
+    UIButton *info = [UIButton buttonWithType:UIButtonTypeSystem];
+    UIImageSymbolConfiguration *symbol = [UIImageSymbolConfiguration configurationWithPointSize:17 weight:UIImageSymbolWeightRegular];
+    [info setImage:[UIImage systemImageNamed:@"info.circle" withConfiguration:symbol] forState:UIControlStateNormal];
+    info.tintColor = SGGrey();
+    info.tag = tag;
+    info.accessibilityLabel = @"About this switch";
+    [info addTarget:self action:@selector(infoTapped:) forControlEvents:UIControlEventTouchUpInside];
+    [toggle sizeToFit];
+    CGFloat side = 30, gap = 8, height = MAX(side, toggle.bounds.size.height);
+    UIView *box = [[UIView alloc] initWithFrame:CGRectMake(0, 0, side + gap + toggle.bounds.size.width, height)];
+    info.frame = CGRectMake(0, (height - side) / 2, side, side);
+    toggle.frame = CGRectMake(side + gap, (height - toggle.bounds.size.height) / 2, toggle.bounds.size.width, toggle.bounds.size.height);
+    [box addSubview:info];
+    [box addSubview:toggle];
+    return box;
+}
+
+- (void)infoTapped:(UIButton *)button {
+    SGModRow *row = [self rowAt:[NSIndexPath indexPathForRow:button.tag % 1000 inSection:button.tag / 1000]];
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:row.title message:row.info preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
+// A UISwitch or an SGGlowSwitch, both answering isOn.
+- (void)toggled:(UIControl *)toggle {
+    BOOL on = [(UISwitch *)toggle isOn];
     SGModRow *row = [self rowAt:[NSIndexPath indexPathForRow:toggle.tag % 1000 inSection:toggle.tag / 1000]];
-    if (row.flag) SGSetFlagOverride(row.key, toggle.on ? @(!row.forceOff) : nil);
-    else SGSetEnabled(row.key, toggle.on);
+    if (row.flag) SGSetFlagOverride(row.key, on ? @(!row.forceOff) : nil);
+    else SGSetEnabled(row.key, on);
     if (row.changed) {
-        row.changed(toggle.on);
-        [self.tableView reloadData];
+        row.changed(on);
+        // A glowing switch is let finish its slide before the reload puts a new one in its place.
+        NSTimeInterval wait = [toggle isKindOfClass:SGGlowSwitch.class] ? 0.45 : 0;
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(wait * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ [self.tableView reloadData]; });
     }
-    if (toggle.on && row.warning) [self warn:row];
+    if (on && row.warning) [self warn:row];
 }
 
 // A locked row will not move, and nothing on it says why.

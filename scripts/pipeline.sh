@@ -62,7 +62,7 @@ OUT="${OUT:-$ROOT/out/Spotify-$VERSION-glass.ipa}"
 echo "==> Spotify $VERSION -> $OUT"
 
 # The flag table is generated rather than committed, so it always matches the IPA being built.
-if [ ! -f "$ROOT/tweak/Sources/Features/Flags/SGFlagList.m" ]; then
+if [ ! -f "$ROOT/tweak/Sources/Shared/Flags/SGFlagList.m" ]; then
   echo "==> extracting the flag table (once, about 40 s)"
   "$ROOT/scripts/extract-flags.py" "$IN"
 fi
@@ -83,9 +83,25 @@ echo "    $TWEAK_DEB"
 FILES=("$TWEAK_DEB")
 [ "$WITH_FLEX" = 1 ] && FILES+=("$FLEX_DEB")
 
+# The redesign's Live Activity (Redesigned/LiveActivity) draws in a widget extension of its own.
+if xcrun --sdk iphoneos --find swiftc >/dev/null 2>&1; then
+  EXT_DIR="$ROOT/out/extension"
+  unzip -p "$IN" "${APP_DIR}Info.plist" > "$ROOT/out/.info.plist"
+  "$ROOT/scripts/build-extension.sh" "$ROOT/out/.info.plist" "$EXT_DIR"
+  rm -f "$ROOT/out/.info.plist"
+  FILES+=("$EXT_DIR/SpotifyGlassLiveActivity.appex")
+else
+  echo "==> no Xcode selected: building without the Live Activity extension"
+fi
+
 echo "==> injecting"
 # -w drops the Watch app: its companion-app key would still name com.spotify.client and block the install.
 cyan -i "$IN" -o "$OUT" -f "${FILES[@]}" -l "$ROOT/plist/liquid-glass.plist" ${BUNDLE_ID:+-b "$BUNDLE_ID"} ${NAME:+-n "$NAME"} ${ICON:+-k "$ICON"} -w -s --overwrite
+
+if [ -n "${EXT_DIR:-}" ]; then
+  echo "==> adding the Live Activity intents to Spotify's App Intents metadata"
+  "$ROOT/scripts/merge-appintents.py" "$OUT" "$APP_DIR" "$EXT_DIR/app/Metadata.appintents"
+fi
 
 echo "==> done: $OUT"
 [ "$INSTALL" = 1 ] && exec "$ROOT/scripts/install.sh" "$OUT"

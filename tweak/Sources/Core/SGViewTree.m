@@ -40,8 +40,8 @@ BOOL SGKeepsColor(UIView *view) {
 
 void SGStripBackgrounds(UIView *view) {
     if ([view isKindOfClass:UIVisualEffectView.class]) return;
-    // The karaoke view paints nothing to strip and holds a label for every word in sight.
-    if ([NSStringFromClass(view.class) hasPrefix:@"SGKaraoke"]) return;
+    // The karaoke views paint nothing to strip and hold a label for every word in sight.
+    if ([NSStringFromClass(view.class) hasPrefix:@"SGRKaraoke"]) return;
     if (!SGKeepsColor(view)) view.layer.backgroundColor = NULL;
     if ([view.layer isKindOfClass:CAGradientLayer.class] || [NSStringFromClass(view.class) containsString:@"GradientView"]) view.hidden = YES;
     for (CALayer *layer in view.layer.sublayers) {
