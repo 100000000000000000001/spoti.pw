@@ -218,7 +218,10 @@ header, slider and sticky header flags, the cards under the player and the lyric
 buttons to hide); in the redesign instead Now playing (its device button), Vibrations, Controls (on until switched off) and Music Haptics
 (off until switched on, with an ⓘ saying it follows the sound this iPhone plays while Spotify is open), both
 applying straight away. Live Activity, in the redesign only: its switch and which view it shows, Lyrics, Queue or Control menu, both
-applying straight away, the row reading out the view or Off. Home & Library, in the native look only:
+applying straight away, the row reading out the view or Off. Audio effects, in either look (Shared/JamesDSP/JamesDSPPage.m):
+JamesDSP's switch with what the engine is doing under it, then a card per effect in RootlessJamesDSP's order, each
+opening out into its sliders, choices, curve or file library while its switch is on, everything applying as it
+changes; the row reads out Off, On or how many effects are on. Home & Library, in the native look only:
 the Gradient page (the wash behind the top of Home in one of eight colours, at three strengths and
 four heights) and the Home flags, the parts of Home to hide including the DJ button and badge, the
 playlist header, buttons and pills to hide, and the Library flags. Then Premium, ads & privacy
