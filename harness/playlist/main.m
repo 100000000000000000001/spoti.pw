@@ -42,6 +42,16 @@
 @interface _TtGC13Element_UIKit11ElementViewT_P_P__ : UIView @end
 @implementation _TtGC13Element_UIKit11ElementViewT_P_P__ @end
 
+// The plain UIView Liked Songs' shuffle stack sits in: its own pass puts the stack back where Spotify's
+// constraints want it, on the right of the row, which is what made the shuffle flash there on the phone.
+@interface MockRightHost : UIView @end
+@implementation MockRightHost
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    self.subviews.firstObject.frame = CGRectMake(52, 0, 48, 48);
+}
+@end
+
 @interface MockCondensedButton : UIControl @end
 @implementation MockCondensedButton @end
 
@@ -109,6 +119,103 @@ static UIView *actionButton(UIView *row, CGRect frame, NSString *identifier, NSS
     return action;
 }
 
+
+// Liked Songs (trees/continuous/1.txt, 2026-09-18): the same page with no cover, a 238pt header, a column of
+// only the title and the count (the count in a stack of its own, 314pt of label and a 56pt spacer), no add or
+// more in the row, the play button 80x48 with its 48pt disc at x=16, and LiquidGlass.gradientContainer, the
+// scrim Spotify fades in as the page scrolls. `liked` on the launch line builds it; at 3 s it is scrolled.
+static void buildLikedSongs(UIViewController *page, CGFloat W) {
+    UIViewController *headerVC = [SPTFreeTierPlaylistEncoreHeaderViewController new];
+    [page addChildViewController:headerVC];
+    UIView *header = headerVC.view;
+    header.frame = CGRectMake(0, -72, W, 310);
+    header.accessibilityIdentifier = @"PL.Header";
+    header.backgroundColor = UIColor.clearColor;
+    [page.view addSubview:header];
+    [headerVC didMoveToParentViewController:page];
+
+    UIView *headerLayout = box(header, UIView.class, CGRectMake(0, 72, W, 238), nil);
+    UIView *clipping = box(headerLayout, UIView.class, headerLayout.bounds, @"_clippingView");
+    UIView *background = box(clipping, UIView.class, clipping.bounds, @"_backgroundViewContainer");
+    UIView *wash = box(background, UIView.class, background.bounds, nil);
+    UIView *gradient = box(wash, _TtC19LegacyUI_ECMCoreKit13GradientView.class, wash.bounds, nil);
+    gradient.backgroundColor = [UIColor colorWithRed:0.25 green:0.2 blue:0.7 alpha:1];
+    UIView *safeArea = box(clipping, UIView.class, clipping.bounds, @"_safeAreaView");
+    UIView *contentContainer = box(safeArea, UIView.class, CGRectMake(0, -72, W, 310), @"_headerContentContainer");
+    UIView *contentView = box(contentContainer, UIView.class, CGRectMake(0, 72, W, 238), @"_contentViewContainer");
+    UIView *layout = box(contentView, _TtC28EncoreConsumerMobile_BaseKit19HeaderContentLayout.class, contentView.bounds, nil);
+
+    UIView *slot = box(layout, _TtC19LegacyUI_ECMCoreKit19AutoLayoutStackView.class, CGRectMake(178.33, 68, 45.33, 45.33), nil);
+    box(slot, UIView.class, slot.bounds, nil);
+
+    UIView *block = box(layout, UIView.class, CGRectMake(0, 129.33, 386, 108.67), nil);
+    UIView *blockInner = box(box(block, UIView.class, block.bounds, nil), UIView.class, CGRectMake(0, 0, 386, 100.67), nil);
+    UIView *columnStack = box(blockInner, _TtC19LegacyUI_ECMCoreKit19AutoLayoutStackView.class, CGRectMake(16, 0, 370, 100.67), nil);
+    UIView *columnAndRow = box(columnStack, UIView.class, columnStack.bounds, nil);
+    UIView *columnHost = box(columnAndRow, UIView.class, CGRectMake(0, 0, 370, 44.67), nil);
+    UIView *titleStack = box(columnHost, _TtC19LegacyUI_ECMCoreKit19AutoLayoutStackView.class, columnHost.bounds, nil);
+    UIView *column = box(titleStack, UIView.class, titleStack.bounds, nil);
+    label(column, CGRectMake(0, 0, 370, 25.33), @"Liked Songs", 21, UIColor.whiteColor, @"Encore.Label");
+    UIView *countStack = box(column, _TtC19LegacyUI_ECMCoreKit19AutoLayoutStackView.class, CGRectMake(0, 29.33, 370, 15.33), nil);
+    UIView *countRow = box(countStack, UIView.class, countStack.bounds, nil);
+    label(countRow, CGRectMake(0, 0, 314, 15.33), @"1 016 songs", 11, [UIColor colorWithWhite:1 alpha:0.4],
+          @"Components.Header.UI.Metadata").textAlignment = NSTextAlignmentLeft;
+    box(countRow, UIView.class, CGRectMake(314, 7.67, 56, 0), nil);
+
+    UIView *rowHost = box(columnAndRow, UIView.class, CGRectMake(0, 52.67, 370, 48), nil);
+    UIView *rowStack = box(rowHost, _TtC19LegacyUI_ECMCoreKit19AutoLayoutStackView.class, rowHost.bounds, nil);
+    UIView *container = box(rowStack, UIView.class, rowStack.bounds, nil);
+    UIView *left = box(container, UIView.class, CGRectMake(0, 0, 96, 48), nil);
+    UIView *leftStack = box(left, _TtC19LegacyUI_ECMCoreKit19AutoLayoutStackView.class, CGRectMake(-10, 0, 106, 48), nil);
+    UIView *element = box(box(leftStack, UIView.class, leftStack.bounds, nil), _TtGC13Element_UIKit11ElementViewT_P_P__.class, CGRectMake(0, 0, 106, 48), nil);
+    UIStackView *actions = (UIStackView *)box(element, UIStackView.class, element.bounds, @"HeaderActionsRow");
+    actionButton(actions, CGRectMake(0, 4, 58, 40), @"Components.UI.WatchFeedEntityExplorerButton", @"Explore Liked Songs");
+    actionButton(actions, CGRectMake(58, 0, 48, 48), @"DownloadButton.Granular.None", @"Download");
+    box(container, UIView.class, CGRectMake(96, 23.67, 174, 1), nil);
+    UIView *right = box(container, MockRightHost.class, CGRectMake(270, 0, 100, 48), nil);
+    UIView *rightStack = box(right, _TtC19LegacyUI_ECMCoreKit19AutoLayoutStackView.class, CGRectMake(-184, 0, 48, 48), nil);
+    UIView *shuffleHost = box(box(rightStack, UIView.class, rightStack.bounds, nil), UIView.class, CGRectMake(0, 0, 48, 48), nil);
+    UIView *shuffle = box(shuffleHost, UIButton.class, shuffleHost.bounds, @"Components.UI.ShuffleButton");
+    shuffle.accessibilityLabel = @"Shuffle tracks";
+    UIImageView *shuffleGlyph = [[UIImageView alloc] initWithFrame:CGRectInset(shuffle.bounds, 12, 12)];
+    shuffleGlyph.image = [UIImage systemImageNamed:@"shuffle"];
+    shuffleGlyph.tintColor = [UIColor colorWithRed:0.02 green:0.97 blue:0 alpha:1];
+    [shuffle addSubview:shuffleGlyph];
+
+    UIView *scrim = box(headerLayout, UIView.class, CGRectMake(0, 0, W, 124), @"LiquidGlass.gradientContainer");
+    scrim.alpha = 0;
+    box(scrim, UIView.class, scrim.bounds, @"LiquidGlass.GradientView").backgroundColor = [UIColor colorWithRed:0.25 green:0.3 blue:0.9 alpha:1];
+
+    UIView *foreground = box(headerLayout, UIView.class, headerLayout.bounds, @"_foregroundViewContainer");
+    UIView *playButton = box(foreground, _TtC28EncoreConsumerMobile_BaseKit14PlayButtonView.class, CGRectMake(322, 182, 80, 48), @"header-play-button");
+    UIControl *condensed = (UIControl *)box(playButton, MockCondensedButton.class, CGRectMake(16, 0, 48, 48), nil);
+    condensed.accessibilityLabel = @"Shuffle Play";
+    UIImageView *disc = [[UIImageView alloc] initWithFrame:condensed.bounds];
+    disc.image = [[UIImage systemImageNamed:@"shuffle"] imageByApplyingSymbolConfiguration:
+                  [UIImageSymbolConfiguration configurationWithPointSize:18]];
+    disc.contentMode = UIViewContentModeCenter;
+    disc.backgroundColor = [UIColor colorWithRed:0.02 green:0.97 blue:0 alpha:1];
+    [condensed addSubview:disc];
+
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        scrim.alpha = 1;
+        [layout setNeedsLayout];
+        [layout layoutIfNeeded];
+        // Spotify's parent laying the shuffle out again, after every pass of the header's.
+        [right setNeedsLayout];
+        [right layoutIfNeeded];
+        CGRect shuffleInRow = [container convertRect:shuffle.bounds fromView:shuffle];
+        UIView *capsule = container.subviews.lastObject;
+        NSLog(@"[harness] liked: after the shuffle's parent laid out: shuffle %@, capsule %@ (%@), screen middle %.1f",
+              NSStringFromCGRect([container convertRect:shuffleInRow toView:nil]),
+              NSStringFromCGRect([container convertRect:capsule.frame toView:nil]), capsule.class,
+              CGRectGetMidX(page.view.bounds));
+        NSLog(@"[harness] liked: scrolled, scrim a=%.2f hidden=%d masked=%d; column rows %@ / %@",
+              scrim.alpha, scrim.layer.hidden, scrim.layer.mask != nil,
+              NSStringFromCGRect(column.subviews[0].frame), NSStringFromCGRect(column.subviews[1].frame));
+    });
+}
+
 @interface SGRHarnessDelegate : UIResponder <UIApplicationDelegate>
 @property (nonatomic, strong) UIWindow *window;
 @end
@@ -142,6 +249,12 @@ static UIView *actionButton(UIView *row, CGRect frame, NSString *identifier, NSS
         [art addSubview:picture];
         label(row, CGRectMake(76, 12, W - 130, 20), tracks[i][0], 16, UIColor.whiteColor, @"Track.Row.Content.Title");
         label(row, CGRectMake(76, 32, W - 130, 18), tracks[i][1], 14, [UIColor colorWithWhite:1 alpha:0.7], @"Track.Row.Content.Subtitle");
+    }
+
+    if ([NSProcessInfo.processInfo.arguments containsObject:@"liked"]) {
+        buildLikedSongs(page, W);
+        [self.window makeKeyAndVisible];
+        return YES;
     }
 
     // the header

@@ -105,7 +105,10 @@ static NSString *wordIn(UIView *button) {
     _source = source;
 
     NSString *word = wordIn(source);
-    UIImageView *glyph = glyphIn(source, source.bounds.size.width);
+    // The disc is as tall as the button, not always as wide: Liked Songs' is 80x48 with the 48pt disc at
+    // x=16 (trees/continuous/1.txt, 2026-09-18), and matched by width the capsule drew no glyph at all.
+    CGSize size = source.bounds.size;
+    UIImageView *glyph = glyphIn(source, MIN(size.width, size.height));
 
     UIFont *font = SGRFont(UIFontTextStyleSubheadline, UIFontWeightSemibold, UIContentSizeCategoryLarge);
     if (![_title.font isEqual:font]) _title.font = font;

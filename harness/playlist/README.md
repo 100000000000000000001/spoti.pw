@@ -24,3 +24,7 @@ screen, not pinned to it. At 16 s it fades Spotify's cover square and colour was
 scroll does, with nothing laid out, and reports what the redesign's scroll pass made of them.
 
 What it does not cover: the real element framework's autolayout, and the flags `PlaylistField.x` forces.
+
+`liked` on the launch line (`xcrun simctl launch booted com.vojta.playlistharness liked`) builds Liked Songs
+instead, from `trees/continuous/1.txt` (2026-09-18): no cover, a 238pt header, the count in a stack of its own,
+the play button 80x48, and `LiquidGlass.gradientContainer`, which it fades in at 3 s as a scroll does.

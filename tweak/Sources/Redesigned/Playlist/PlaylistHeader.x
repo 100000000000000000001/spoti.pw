@@ -37,8 +37,9 @@ static const CGFloat kDissolve = 0.46, kTopScrim = 140, kTopScrimAlpha = 0.28;
 static const CGFloat kMinHero = 120, kMinCover = 80;
 
 static char kCoverKey, kRowKey, kMetaKey, kPlayKey, kGlassKey, kLayoutKey;
-static char kShuffleKey, kAddKey, kMoreKey, kToolbarKey;
+static char kShuffleKey, kAddKey, kMoreKey, kToolbarKey, kScrimKey, kBarScrimKey;
 static char kHeroKey, kHeroHeightKey, kCapsuleKey, kColumnWatchedKey, kRowWatchedKey, kCoverWatchedKey;
+static char kParentWatchedKey;
 
 #pragma mark - finding things
 
@@ -328,8 +329,10 @@ static void applyColumn(UIView *column) {
     CGFloat spacing = 0;
     for (NSUInteger i = 0; i + 1 < rows.count; i++) spacing += gaps[i].doubleValue;
     // Spotify measured the column for the same four, so this is room enough; a description that has grown
-    // since gives the gaps up first and then goes, rather than reaching down into the action row.
-    BOOL spaced = bare + spacing <= room;
+    // since gives the gaps up first and then goes, rather than reaching down into the action row. Gaps that
+    // do not fit shrink to what does rather than going all at once: Liked Songs' column is title and length
+    // with 4pt between (trees/continuous/1.txt, 2026-09-18), and with none the title sat on the song count.
+    CGFloat scale = spacing > 0 ? MAX(0, MIN(1, (room - bare) / spacing)) : 0;
     if (bare > room && description && [rows containsObject:description]) {
         [rows removeObject:description];
         vanish(description);
@@ -346,13 +349,57 @@ static void applyColumn(UIView *column) {
             if (part.bounds.size.width > 0 && part.bounds.size.width < content) content = part.bounds.size.width;
         }
         CGFloat x = content < size.width - 1 ? round((width - content) / 2) : 0;
+        // Liked Songs' length fills the width but its label does not: 314pt of it with a 56pt spacer after,
+        // so centred text in it sat 28pt left of the title (trees/continuous/1.txt, 2026-09-18). The row
+        // moves by what puts the label's middle on the column's.
+        if (row == length && x == 0) {
+            UIView *label = SGRFindByIdentifier(row, @"Components.Header.UI.Metadata", &kMetaKey);
+            if (label && label.bounds.size.width < size.width - 1) {
+                x = round(width / 2 - CGRectGetMidX([row convertRect:label.bounds fromView:label]));
+            }
+        }
         CGRect frame = CGRectMake(x, round(y), size.width, size.height);
         if (!CGRectEqualToRect(row.frame, frame)) row.frame = frame;
-        y += size.height + (spaced && i + 1 < rows.count ? gaps[i].doubleValue : 0);
+        y += size.height + (i + 1 < rows.count ? gaps[i].doubleValue * scale : 0);
     }
 }
 
+// The column is the view that holds the title as well as the length. Spotify sets both in stacks, and on a
+// playlist the first view up from the length that sits in a stack is the column; on Liked Songs the length
+// has a stack of its own inside it, and taking that one styled and centred nothing but the song count,
+// leaving the title at the left (trees/continuous/1.txt, 2026-09-18). So a stacked view counts only when
+// something showing sits beside the length in it.
+static UIView *columnOf(UIView *metadata, UIView *block) {
+    UIView *first = nil;
+    for (UIView *v = metadata; v && v != block; v = v.superview) {
+        if (![NSStringFromClass(v.superview.class) containsString:@"AutoLayoutStackView"]) continue;
+        if (!first) first = v;
+        for (UIView *sub in v.subviews) {
+            if (sub.hidden || sub.bounds.size.height <= 0 || [metadata isDescendantOfView:sub]) continue;
+            return v;
+        }
+    }
+    return first;
+}
+
 #pragma mark - the action row
+
+// A control moved by frame goes back where Spotify put it the next time its own parent lays out, and that
+// can come after every pass the redesign sees: Liked Songs' shuffle sits in a stack of its own on the right
+// of the row, and a page opening showed it there for a moment before the next header pass took it to the
+// left of Play (device, 2026-09-18). So the parent is watched too. One watch per view, which is why the row
+// itself -- already watched from the header's pass -- is left alone; Swift parents cannot be watched and are
+// only marked, so the pass does not try again.
+static void applyActions(UIView *block, UIView *headerRoot);
+static void watchParent(UIView *item, UIView *block, UIView *headerRoot) {
+    UIView *parent = item.superview;
+    if (!parent || objc_getAssociatedObject(parent, &kRowWatchedKey) || objc_getAssociatedObject(parent, &kParentWatchedKey)) return;
+    objc_setAssociatedObject(parent, &kParentWatchedKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    __weak UIView *weakBlock = block, *weakRoot = headerRoot;
+    SGRObserveLayout(parent, ^(UIView *view) {
+        if (weakBlock && weakRoot) applyActions(weakBlock, weakRoot);
+    });
+}
 
 // Shuffle, Play and add, centred, with more beside them when Spotify has not moved it into the navigation
 // bar. Glass goes inside each of Spotify's round buttons (the Kit's way: the shape is the button's own
@@ -402,9 +449,22 @@ static void applyActions(UIView *block, UIView *headerRoot) {
     if (more) { [items addObject:wrapperFor(more, container)]; [widths addObject:@(SGRActionHeight)]; }
     if (!items.count) return;
 
-    CGFloat total = (items.count - 1) * SGRActionSpacing;
-    for (NSNumber *width in widths) total += width.doubleValue;
-    CGFloat x = round((container.bounds.size.width - total) / 2), middle = CGRectGetMidY(container.bounds);
+    // Play in the middle of the screen, what comes before it hanging off its left and the rest off its right,
+    // so it stays put whether the row has shuffle and add either side (a playlist) or shuffle alone (Liked
+    // Songs, where centring the pair put the capsule 30pt right of the title, device 2026-09-18). The screen's
+    // middle rather than the container's: the container is inset differently on each page.
+    CGFloat middleX = [container convertPoint:CGPointMake(CGRectGetMidX(headerRoot.bounds), 0) fromView:headerRoot].x;
+    NSUInteger lead = [items indexOfObject:capsule];
+    CGFloat x;
+    if (lead == NSNotFound) {
+        CGFloat total = (items.count - 1) * SGRActionSpacing;
+        for (NSNumber *width in widths) total += width.doubleValue;
+        x = round(middleX - total / 2);
+    } else {
+        x = round(middleX - widths[lead].doubleValue / 2);
+        for (NSUInteger i = 0; i < lead; i++) x -= widths[i].doubleValue + SGRActionSpacing;
+    }
+    CGFloat middle = CGRectGetMidY(container.bounds);
     for (NSUInteger i = 0; i < items.count; i++) {
         UIView *item = items[i];
         CGFloat slot = widths[i].doubleValue;
@@ -414,6 +474,7 @@ static void applyActions(UIView *block, UIView *headerRoot) {
             if (!CGRectEqualToRect(capsule.frame, target)) capsule.frame = target;
         } else {
             place(item, target, container);
+            watchParent(item, block, headerRoot);
         }
         x += slot + SGRActionSpacing;
     }
@@ -439,7 +500,28 @@ static void applyToolbar(UIView *headerRoot) {
     for (UIView *v = toolbar; v && v != headerRoot; v = v.superview) {
         if (![NSStringFromClass(v.class) containsString:@"HeaderView"]) continue;
         conceal(v);
-        return;
+        break;
+    }
+}
+
+// Two scrims Spotify fades in under the navigation bar as the page scrolls, each tinted with its own colour
+// for the page rather than the field's: LiquidGlass.gradientContainer (124pt, a child of HeaderLayout) and
+// the HeaderNavigationBar's GradientView. On Liked Songs the first is Spotify's blue, a band across the top
+// of a black page (trees/continuous/2.txt, 2026-09-18). UIKit's own scroll edge effect is still there under
+// the bar and keeps the back button legible, as on Home, Search and Library. Concealed rather than faded:
+// Spotify writes their alpha on every step of the scroll, and the navigation bar's with -setHidden:.
+static void applyScrims(UIView *headerRoot) {
+    conceal(SGRFindByIdentifier(headerRoot, @"LiquidGlass.gradientContainer", &kScrimKey));
+    // A concealed view stays concealed, so the bar is looked for until it is found and then never again:
+    // the header lays out on every step of its collapse.
+    if (objc_getAssociatedObject(headerRoot, &kBarScrimKey)) return;
+    static Class bar;
+    if (!bar) bar = NSClassFromString(@"_TtC28EncoreConsumerMobile_BaseKit19HeaderNavigationBar");
+    UIView *navigation = firstOfClass(headerRoot, bar);
+    for (UIView *sub in navigation.subviews) {
+        if (![NSStringFromClass(sub.class) containsString:@"GradientView"]) continue;
+        conceal(sub);
+        objc_setAssociatedObject(headerRoot, &kBarScrimKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
 }
 
@@ -480,15 +562,13 @@ static void applyHeader(UIView *layout) {
 
     UIView *plane = applyBackground(layout);
     applyToolbar(headerRoot);
+    applyScrims(headerRoot);
     if (cover) applyHero(layout, cover, plane, block);
 
     // The column and the action row lay their own children out after this pass; each is watched once so the
     // redesign has the last word on both.
     UIView *metadata = SGRFindByIdentifier(block, @"Components.Header.UI.Metadata", &kMetaKey);
-    UIView *column = nil;
-    for (UIView *v = metadata; v && v != block; v = v.superview) {
-        if ([NSStringFromClass(v.superview.class) containsString:@"AutoLayoutStackView"]) { column = v; break; }
-    }
+    UIView *column = columnOf(metadata, block);
     if (column) {
         applyColumn(column);
         if (!objc_getAssociatedObject(column, &kColumnWatchedKey)) {
