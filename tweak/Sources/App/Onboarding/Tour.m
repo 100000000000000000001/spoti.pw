@@ -133,6 +133,7 @@ static UIButton *glassButton(NSString *title) {
 @implementation SGOnboardingController {
     UIImageView *_hero;
     SGLookCard *_redesigned, *_legacy;
+    UIView *_beta;
     UIButton *_primary;
 }
 
@@ -141,6 +142,38 @@ static UIButton *glassButton(NSString *title) {
     self.modalPresentationStyle = UIModalPresentationOverFullScreen;
     self.modalTransitionStyle = UIModalTransitionStyleCrossDissolve;
     return self;
+}
+
+// Under the cards while the redesign is picked: it is a beta, and a bug report is the way to help.
+- (UIView *)betaNote {
+    UIImageView *icon = SGSymbolView(@"exclamationmark.triangle.fill", 15, UIImageSymbolWeightSemibold, 22);
+    icon.tintColor = UIColor.systemYellowColor;
+    UILabel *text = [UILabel new];
+    text.text = @"The redesign is a beta. Expect lags, freezes and bugs, and if you find one, please report it.";
+    text.font = [UIFont systemFontOfSize:13];
+    text.textColor = SGGrey();
+    text.numberOfLines = 0;
+    [text setContentHuggingPriority:UILayoutPriorityDefaultLow - 1 forAxis:UILayoutConstraintAxisHorizontal];
+    UIStackView *line = [[UIStackView alloc] initWithArrangedSubviews:@[icon, text]];
+    line.alignment = UIStackViewAlignmentTop;
+    line.spacing = 10;
+
+    UIButtonConfiguration *config = [UIButtonConfiguration plainButtonConfiguration];
+    config.contentInsets = NSDirectionalEdgeInsetsMake(4, 32, 4, 0);
+    config.baseForegroundColor = SGGreen();
+    config.attributedTitle = [[NSAttributedString alloc] initWithString:@"Report a bug" attributes:@{NSFontAttributeName: [UIFont systemFontOfSize:13 weight:UIFontWeightSemibold]}];
+    UIButton *report = [UIButton buttonWithConfiguration:config primaryAction:[UIAction actionWithHandler:^(UIAction *action) {
+        SGOpenURL([SGRepoURL stringByAppendingString:@"/issues"]);
+    }]];
+    report.contentHorizontalAlignment = UIControlContentHorizontalAlignmentLeading;
+
+    UIStackView *note = [[UIStackView alloc] initWithArrangedSubviews:@[line, report]];
+    note.axis = UILayoutConstraintAxisVertical;
+    note.alignment = UIStackViewAlignmentLeading;
+    note.spacing = 2;
+    note.layoutMargins = UIEdgeInsetsMake(4, 4, 0, 4);
+    note.layoutMarginsRelativeArrangement = YES;
+    return note;
 }
 
 - (void)viewDidLoad {
@@ -170,8 +203,10 @@ static UIButton *glassButton(NSString *title) {
     BOOL redesign = SGFlag(SGKeyOnboardingSeen, NO) ? SGRedesignedUIStored() : YES;
     _redesigned.selected = redesign;
     _legacy.selected = !redesign;
+    _beta = [self betaNote];
+    _beta.hidden = !redesign;
 
-    UIStackView *column = [[UIStackView alloc] initWithArrangedSubviews:@[strip, heading, _redesigned, _legacy]];
+    UIStackView *column = [[UIStackView alloc] initWithArrangedSubviews:@[strip, heading, _redesigned, _legacy, _beta]];
     column.axis = UILayoutConstraintAxisVertical;
     column.spacing = 12;
     [column setCustomSpacing:28 afterView:strip];
@@ -234,6 +269,14 @@ static UIButton *glassButton(NSString *title) {
 - (void)picked:(SGLookCard *)card {
     _redesigned.selected = card == _redesigned;
     _legacy.selected = card == _legacy;
+    BOOL hide = !_redesigned.selected;
+    if (_beta.hidden != hide) {
+        [UIView animateWithDuration:0.25 animations:^{
+            self->_beta.hidden = hide;
+            self->_beta.alpha = hide ? 0 : 1;
+            [self.view layoutIfNeeded];
+        }];
+    }
     [self refresh];
 }
 
