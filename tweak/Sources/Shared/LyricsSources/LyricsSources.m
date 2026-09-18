@@ -11,6 +11,7 @@
 #import "LyricsSources.h"
 #import "Shared/Lyrics/Lyrics.h"
 #import "Headers/SPTPlayer.h"
+#import <stdatomic.h>
 
 static const NSTimeInterval kTimeout = 6;
 static const NSUInteger kKeptTracks = 40;
@@ -31,6 +32,15 @@ static NSString *const kLegacyNetEase = @"spotifyglass.neteaseWordTiming";
 @end
 
 #pragma mark - the requests the sources share
+
+// Every request any source has lost to the network or to a server too busy to answer, counted so a
+// walk can tell "no source has lyrics" from "a source could not say". Only the first is kept.
+static _Atomic NSUInteger sg_failures;
+
+void SGLyricsNoteReply(NSURLResponse *response, NSError *error) {
+    NSInteger status = [response isKindOfClass:NSHTTPURLResponse.class] ? ((NSHTTPURLResponse *)response).statusCode : 0;
+    if (error || status == 429 || status >= 500) atomic_fetch_add(&sg_failures, 1);
+}
 
 NSURL *SGLyricsURL(NSString *base, NSDictionary<NSString *, NSString *> *query) {
     NSURLComponents *url = [NSURLComponents componentsWithString:base];
@@ -53,6 +63,7 @@ static void get(NSURL *url, NSDictionary<NSString *, NSString *> *headers, void 
     }];
     [[NSURLSession.sharedSession dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
         NSInteger status = [response isKindOfClass:NSHTTPURLResponse.class] ? ((NSHTTPURLResponse *)response).statusCode : 0;
+        SGLyricsNoteReply(response, error);
         if (error || status >= 400) SGLog(@"lyrics: %@ answered %ld, error %@", url.host, (long)status, error);
         dispatch_async(dispatch_get_main_queue(), ^{ done(status >= 400 ? nil : data); });
     }] resume];
@@ -240,6 +251,8 @@ static BOOL named(SGLyricsQuery *query) {
 @property (nonatomic, strong) SGLyricsResult *merged;
 // Sources that needed a name the query did not have when their turn came.
 @property (nonatomic, strong) NSMutableArray<NSString *> *passedOver;
+// sg_failures when the walk started. Another walk's failure counts too, which at worst asks again.
+@property (nonatomic) NSUInteger failuresAtStart;
 @end
 
 @implementation SGLyricsWalk
@@ -248,14 +261,16 @@ static BOOL named(SGLyricsQuery *query) {
 // A walk that ends with nothing is only an answer when every source got to search. One that passed a
 // source over for want of a name asked it nothing, and keeping that as "no lyrics" would stick to the
 // track: every later request would get the kept nil, and the lyrics card would be taken off the track
-// for the rest of the session.
+// for the rest of the session. The same goes for a walk during which a request failed: a busy
+// server's 503 read as "no lyrics" hid a track's lyrics until Spotify was restarted.
 static void finish(SGLyricsWalk *walk) {
     SGLyricsQuery *query = walk.query;
     SGLyricsResult *merged = walk.merged;
     NSString *trackID = query.trackID;
     SGLyricsResult *lyrics = merged.karaokeLines.count || merged.texts.count ? merged : nil;
     BOOL everyoneAsked = !walk.passedOver.count;
-    if (lyrics || everyoneAsked || merged.instrumental) {
+    BOOL failed = atomic_load(&sg_failures) != walk.failuresAtStart;
+    if (lyrics || (everyoneAsked && !failed) || merged.instrumental) {
         if (sg_kept.count >= kKeptTracks) [sg_kept removeAllObjects];
         sg_kept[trackID] = lyrics ?: NSNull.null;
         if (!lyrics) {
@@ -266,6 +281,7 @@ static void finish(SGLyricsWalk *walk) {
           ? [NSString stringWithFormat:@"%lu %@ lines from %@, %lu page lines",
              (unsigned long)lyrics.karaokeLines.count, lyrics.wordTimed ? @"word timed" : @"estimated",
              lyrics.provider, (unsigned long)lyrics.texts.count]
+          : everyoneAsked && failed ? @"nothing, a request failed on the way; not kept, so the next request asks again"
           : everyoneAsked ? @"nothing"
           : [NSString stringWithFormat:@"nothing, %@ never knowing its name; not kept, so the next request asks again",
              [walk.passedOver componentsJoinedByString:@", "]]);
@@ -334,6 +350,7 @@ static void startWalk(NSString *trackID, SGLyricsQuery *query) {
     walk.query = query;
     walk.merged = [SGLyricsResult new];
     walk.passedOver = [NSMutableArray array];
+    walk.failuresAtStart = atomic_load(&sg_failures);
     step(walk);
 }
 

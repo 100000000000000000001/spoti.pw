@@ -72,6 +72,7 @@ static NSURLRequest *requestFor(NSString *method, NSDictionary<NSString *, NSStr
 
 static void call(NSString *method, NSDictionary<NSString *, NSString *> *query, void (^done)(NSDictionary *message)) {
     [[NSURLSession.sharedSession dataTaskWithRequest:requestFor(method, query) completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+        SGLyricsNoteReply(response, error);
         id message = dig(jsonOf(data), @"message");
         if (error || !message) SGLog(@"musixmatch: %@ failed: status %ld, error %@", method, (long)[(NSHTTPURLResponse *)response statusCode], error);
         dispatch_async(dispatch_get_main_queue(), ^{ done([message isKindOfClass:NSDictionary.class] ? message : nil); });

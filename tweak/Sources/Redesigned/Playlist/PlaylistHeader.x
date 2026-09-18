@@ -1,7 +1,7 @@
-// Playlist redesign: the header the Music app gives a playlist. The cover runs full bleed across the top of
-// the page and dissolves into the field under it, with no seam and no card; the title, the creator and the
-// length are centred under it; and one row of glass controls sits below them -- shuffle, a prominent Play
-// capsule, add, and more where Spotify still keeps it in the page.
+// Playlist redesign: the header the Music app gives a playlist (iOS 26.4). The cover runs full bleed across
+// the top of the page and dissolves into the page's colour; the title, the creator and the length are centred
+// on the bottom of that dissolve; under them one row -- shuffle, a white Play capsule, and save (someone
+// else's playlist) or download (one's own, Liked Songs) -- and the description last.
 //
 // Tree (trees/clean/playlist/01.txt:640-869). Spotify's header is id=PL.Header, and at rest its
 // HeaderContentLayout starts at the very top of the page. It holds exactly two things:
@@ -12,22 +12,21 @@
 //
 // Nothing is measured from what the header shows: -[SPTFreeTierPlaylistEncoreHeaderViewController update]
 // counts a stored fullHeaderHeight and pins headerViewHeightConstraint to it. So the redesign changes no
-// height and moves nothing between the two: the cover's square is where the full bleed picture goes, and
-// the block keeps its place with its own contents rearranged. The header then collapses, snaps and scrolls
-// exactly as Spotify laid it out.
+// height: the cover's square is where the full bleed picture goes, and the block keeps its place, its size
+// and its fading as the header collapses.
 //
-// Whose layout pass. A view lays its children out, so a frame set from an ancestor's layoutSubviews is the
-// one that is overwritten a moment later -- the column and the action row are both laid out by Spotify
-// after HeaderContentLayout's pass has returned. Both of them are plain UIViews, so each is watched for its
-// own pass with the Kit's SGRObserveLayout, and the header's pass only finds them and starts the watch.
-//
-// Every one of Spotify's controls stays Spotify's own, with its action, its state and its accessibility:
-// they are moved by frame, never rebuilt. The one exception is Play, which the Music app draws as a capsule
-// with a word in it rather than a disc: the capsule is the Kit's, it takes the glyph and the word from
-// Spotify's own button (so play, pause and the language are Spotify's), and a tap on it fires that button.
+// What is in the block is the redesign's own (the Kit's SGRHeaderInfo), not Spotify's rearranged. Moving Spotify's
+// column and controls meant answering every layout pass of theirs -- stacks re-arranging, Auto Layout putting
+// frames back, buttons flashing where Spotify wanted them -- so Spotify's contents of the block are concealed
+// whole and one view of the redesign's own is drawn in their place, which nothing of Spotify's lays out. It
+// reads what it shows from the page's view model (FTPViewModelImplementation: the name, the description,
+// whose playlist it is; device 2026-09-18) and from Spotify's concealed labels where the model has no getter
+// (the creator, and the length line, already in the app's language). Its buttons draw Spotify's glyphs and
+// fire Spotify's own concealed controls, so every action, state and language stays Spotify's.
 #import "Core/SGCore.h"
 #import "Redesigned/Kit/SGRKit.h"
 #import "Playlist.h"
+#import <objc/message.h>
 
 // How much of the cover's height the dissolve into the field covers, and the scrim over the top of it that
 // keeps the status bar and the back button legible on a bright picture.
@@ -36,9 +35,9 @@ static const CGFloat kDissolve = 0.46, kTopScrim = 140, kTopScrimAlpha = 0.28;
 // the hero from; and an artwork view narrower than this is a placeholder glyph rather than the cover.
 static const CGFloat kMinHero = 120, kMinCover = 80;
 
-static char kCoverKey, kRowKey, kMetaKey, kPlayKey, kGlassKey, kLayoutKey;
-static char kShuffleKey, kAddKey, kMoreKey, kToolbarKey, kScrimKey, kBarScrimKey;
-static char kHeroKey, kHeroHeightKey, kCapsuleKey, kColumnWatchedKey, kRowWatchedKey, kCoverWatchedKey;
+static char kCoverKey, kMetaKey, kPlayKey, kLayoutKey, kToolbarKey, kScrimKey, kBarScrimKey;
+static char kShuffleKey, kAddKey, kDownloadKey, kInfoKey, kBlockHeightKey, kBlockWatchedKey;
+static char kHeroKey, kHeroHeightKey, kCoverWatchedKey;
 
 #pragma mark - finding things
 
@@ -75,64 +74,12 @@ static void conceal(UIView *view) {
     view.accessibilityElementsHidden = YES;
 }
 
-// Alpha 0, no touches, hidden from accessibility, set again on every pass: for the buttons of the action row,
-// which Spotify arranges in stacks that trap when an arranged view is hidden, and which it leaves alone.
-static void vanish(UIView *view) {
-    if (!view) return;
-    if (view.alpha != 0) view.alpha = 0;
-    if (view.userInteractionEnabled) view.userInteractionEnabled = NO;
-    view.accessibilityElementsHidden = YES;
-}
-
 static UIView *firstOfClass(UIView *root, Class wanted) {
     __block UIView *found = nil;
     SGForEachView(root, ^(UIView *v) {
         if (!found && [v isKindOfClass:wanted]) found = v;
     });
     return found;
-}
-
-// The outermost view that still wraps the button exactly: what Spotify's stack arranges, and so what moves
-// without the button coming loose from whatever draws around it.
-static UIView *wrapperFor(UIView *button, UIView *stop) {
-    UIView *wrapper = button;
-    for (UIView *v = button.superview; v && v != stop; v = v.superview) {
-        if (fabs(v.bounds.size.width - button.bounds.size.width) > 4) break;
-        if (fabs(v.bounds.size.height - button.bounds.size.height) > 4) break;
-        wrapper = v;
-    }
-    return wrapper;
-}
-
-// A rect of `container`'s, given to a view that hangs somewhere else in the header, as a translation from where
-// Spotify lays it out rather than as a frame. Spotify's layout writes frames -- Auto Layout its centre and
-// bounds, a stack its arranged views' frames -- and never a transform, so a pass of Spotify's that puts the
-// view back in the same place leaves it where the row wants it. Set as a frame, Liked Songs' shuffle went back
-// to the right of Play whenever its box laid out after the row had been arranged (device, 2026-09-18), and
-// watching that box as well raced the page being built and left the row half arranged. Nothing on the way
-// down to the action row clips, so the control still takes its touches where it is drawn.
-static void place(UIView *view, CGRect target, UIView *container) {
-    if (!view.superview || CGRectIsEmpty(target)) return;
-    CGRect local = [view.superview convertRect:target fromView:container];
-    CGPoint center = view.center;
-    CGAffineTransform move = CGAffineTransformMakeTranslation(round(CGRectGetMidX(local) - center.x),
-                                                              round(CGRectGetMidY(local) - center.y));
-    if (!CGAffineTransformEqualToTransform(view.transform, move)) view.transform = move;
-}
-
-static void styleLabels(UIView *root, UIColor *color, UIFont *font, NSTextAlignment alignment) {
-    SGForEachView(root, ^(UIView *v) {
-        if ([v isKindOfClass:UILabel.class]) {
-            UILabel *label = (UILabel *)v;
-            if (color && ![label.textColor isEqual:color]) label.textColor = color;
-            if (font && ![label.font isEqual:font]) label.font = font;
-            if (label.textAlignment != alignment) label.textAlignment = alignment;
-        } else if ([v isKindOfClass:UITextView.class]) {
-            UITextView *text = (UITextView *)v;
-            if (color && ![text.textColor isEqual:color]) text.textColor = color;
-            if (text.textAlignment != alignment) text.textAlignment = alignment;
-        }
-    });
 }
 
 #pragma mark - the cover, full bleed
@@ -249,11 +196,11 @@ static void showCover(SGRPlaylistHero *hero, UIImageView *view, UIView *layout) 
 // header's geometry on every frame instead is what made it flicker: the numbers it is built from move under
 // their own animations, and a redesign reading them is always a frame behind.
 //
-// Its height is where the header's text begins, taken in the plane's own space. Below that the page's field
+// Its height is where the header's text begins, taken in the plane's own space, and a little past. Below that the page's field
 // is already drawing the very colour the picture dissolves into, so the hero simply stops there: pulled down
 // past the top, where Spotify moves its text down and leaves a gap, that gap is the same colour and there is
 // no seam to see.
-static void applyHero(UIView *layout, UIView *cover, UIView *plane, UIView *block) {
+static void applyHero(UIView *layout, UIView *cover, UIView *plane, UIView *block, CGFloat reach) {
     if (!plane || !block) return;
     SGRPlaylistHero *hero = objc_getAssociatedObject(plane, &kHeroKey);
     if (!hero) {
@@ -281,7 +228,11 @@ static void applyHero(UIView *layout, UIView *cover, UIView *plane, UIView *bloc
         SGLog(@"redesign playlist: hero %.0fpt across the top of the plane", height);
     }
     if (height < kMinHero) return;
-    CGRect frame = CGRectMake(0, 0, plane.bounds.size.width, height);
+    // On past the block's top by `reach`, so the title sits on the bottom of the dissolve the way the Music app
+    // sets it on the picture. `reach` comes from the block at rest (applyHeader), so the frame still does not
+    // move while the header does.
+    CGFloat bottom = MAX(kMinHero, round(height + reach));
+    CGRect frame = CGRectMake(0, 0, plane.bounds.size.width, bottom);
     if (!CGRectEqualToRect(hero.frame, frame)) hero.frame = frame;
     hero.fieldColor = SGRPlaylistFieldColor(layout);
 
@@ -299,188 +250,149 @@ static void applyHero(UIView *layout, UIView *cover, UIView *plane, UIView *bloc
     conceal(cover);
 }
 
-#pragma mark - the column
+#pragma mark - the block, the redesign's own
 
-// Title, creator and length centred under the cover, the description last, the way the Music app reads. The
-// four sit as frames in a plain UIView, so the order is the order they are given, and the column keeps the
-// height Spotify measured for it: what is laid out here never grows past it.
-static void applyColumn(UIView *column) {
-    UIView *title = nil, *description = nil, *creator = nil, *length = nil;
-    for (UIView *row in column.subviews) {
-        if (SGHasClass(row, @"ExpandableTextView")) description = row;
-        else if (SGHasClass(row, @"FacepileView")) creator = row;
-        else if (SGRFindByIdentifier(row, @"Components.Header.UI.Metadata", &kMetaKey)) length = row;
-        else if (!title) title = row;
-    }
-    if (!title) return;
-
-    styleLabels(title, SGRPrimary(), SGRFont(UIFontTextStyleTitle2, UIFontWeightSemibold, UIContentSizeCategoryLarge), NSTextAlignmentCenter);
-    styleLabels(creator, SGRAccent(), nil, NSTextAlignmentCenter);
-    styleLabels(length, SGRTertiary(), nil, NSTextAlignmentCenter);
-    styleLabels(description, SGRSecondary(), nil, NSTextAlignmentCenter);
-
-    NSMutableArray<UIView *> *rows = [NSMutableArray array];
-    NSMutableArray<NSNumber *> *gaps = [NSMutableArray array];
-    NSArray *order = @[title, creator ?: NSNull.null, length ?: NSNull.null, description ?: NSNull.null];
-    NSArray<NSNumber *> *after = @[@6, @2, @8, @0];
-    for (NSUInteger i = 0; i < order.count; i++) {
-        UIView *row = (UIView *)order[i];
-        if (![row isKindOfClass:UIView.class] || row.hidden || row.bounds.size.height <= 0) continue;
-        [rows addObject:row];
-        [gaps addObject:after[i]];
-    }
-
-    CGFloat width = column.bounds.size.width, room = column.bounds.size.height;
-    CGFloat bare = 0;
-    for (UIView *row in rows) bare += row.bounds.size.height;
-    CGFloat spacing = 0;
-    for (NSUInteger i = 0; i + 1 < rows.count; i++) spacing += gaps[i].doubleValue;
-    // Spotify measured the column for the same four, so this is room enough; a description that has grown
-    // since gives the gaps up first and then goes, rather than reaching down into the action row. Gaps that
-    // do not fit shrink to what does rather than going all at once: Liked Songs' column is title and length
-    // with 4pt between (trees/continuous/1.txt, 2026-09-18), and with none the title sat on the song count.
-    CGFloat scale = spacing > 0 ? MAX(0, MIN(1, (room - bare) / spacing)) : 0;
-    if (bare > room && description && [rows containsObject:description]) {
-        [rows removeObject:description];
-        vanish(description);
-    }
-
-    CGFloat y = 0;
-    for (NSUInteger i = 0; i < rows.count; i++) {
-        UIView *row = rows[i];
-        CGSize size = row.bounds.size;
-        // A row Spotify fills the width with centres its own text; one that holds a narrow stack of its own
-        // is moved instead, keeping its width so the stack inside it is not laid out differently.
-        CGFloat content = size.width;
-        for (UIView *part in row.subviews) {
-            if (part.bounds.size.width > 0 && part.bounds.size.width < content) content = part.bounds.size.width;
-        }
-        CGFloat x = content < size.width - 1 ? round((width - content) / 2) : 0;
-        // Liked Songs' length fills the width but its label does not: 314pt of it with a 56pt spacer after,
-        // so centred text in it sat 28pt left of the title (trees/continuous/1.txt, 2026-09-18). The row
-        // moves by what puts the label's middle on the column's.
-        if (row == length && x == 0) {
-            UIView *label = SGRFindByIdentifier(row, @"Components.Header.UI.Metadata", &kMetaKey);
-            if (label && label.bounds.size.width < size.width - 1) {
-                x = round(width / 2 - CGRectGetMidX([row convertRect:label.bounds fromView:label]));
-            }
-        }
-        CGRect frame = CGRectMake(x, round(y), size.width, size.height);
-        if (!CGRectEqualToRect(row.frame, frame)) row.frame = frame;
-        y += size.height + (i + 1 < rows.count ? gaps[i].doubleValue * scale : 0);
-    }
+// The page's view model: the header controller's defaultHeaderViewModel, FTPViewModelImplementation on every
+// playlist, Liked Songs and a shared playlist alike (device, 2026-09-18). Its getters are plain ObjC --
+// playlistName and playlistDescription @, isOwnedBySelf B, formatListType @ (Spotify 9.1.78) -- and each is
+// checked before it is called, so a Spotify without one shows Spotify's text for it rather than crashing.
+static id viewModelOf(UIViewController *headerVC) {
+    SEL controllerSel = NSSelectorFromString(@"headerController"), modelSel = NSSelectorFromString(@"defaultHeaderViewModel");
+    if (![headerVC respondsToSelector:controllerSel]) return nil;
+    id controller = ((id (*)(id, SEL))objc_msgSend)(headerVC, controllerSel);
+    if (![controller respondsToSelector:modelSel]) return nil;
+    return ((id (*)(id, SEL))objc_msgSend)(controller, modelSel);
 }
 
-// The column is the view that holds the title as well as the length. Spotify sets both in stacks, and on a
-// playlist the first view up from the length that sits in a stack is the column; on Liked Songs the length
-// has a stack of its own inside it, and taking that one styled and centred nothing but the song count,
-// leaving the title at the left (trees/continuous/1.txt, 2026-09-18). So a stacked view counts only when
-// something showing sits beside the length in it.
-static UIView *columnOf(UIView *metadata, UIView *block) {
-    UIView *first = nil;
-    for (UIView *v = metadata; v && v != block; v = v.superview) {
-        if (![NSStringFromClass(v.superview.class) containsString:@"AutoLayoutStackView"]) continue;
-        if (!first) first = v;
-        for (UIView *sub in v.subviews) {
-            if (sub.hidden || sub.bounds.size.height <= 0 || [metadata isDescendantOfView:sub]) continue;
-            return v;
-        }
-    }
-    return first;
+static NSString *modelString(id model, NSString *name) {
+    SEL sel = NSSelectorFromString(name);
+    if (![model respondsToSelector:sel]) return nil;
+    id value = ((id (*)(id, SEL))objc_msgSend)(model, sel);
+    return [value isKindOfClass:NSString.class] ? value : nil;
 }
 
-#pragma mark - the action row
+static BOOL modelFlag(id model, NSString *name, BOOL fallback) {
+    SEL sel = NSSelectorFromString(name);
+    if (![model respondsToSelector:sel]) return fallback;
+    return ((BOOL (*)(id, SEL))objc_msgSend)(model, sel);
+}
 
-// Shuffle, Play and add, centred, with more beside them when Spotify has not moved it into the navigation
-// bar. Glass goes inside each of Spotify's round buttons (the Kit's way: the shape is the button's own
-// subview, so it goes wherever the button is put); the capsule carries its own.
-static void applyActions(UIView *block, UIView *headerRoot) {
-    UIView *row = SGRFindByIdentifier(block, @"HeaderActionsRow", &kRowKey);
-    // The row of the block, not the box Spotify wraps its own half of it in: a plain UIView as wide as the
-    // block itself, which is the one the centred row is measured against (the harness placed the group 90pt
-    // off centre when the narrower wrapper was taken for it, 2026-09-17).
-    UIView *container = nil;
-    for (UIView *v = row.superview; v && v != block; v = v.superview) {
-        if (object_getClass(v) != UIView.class || v.bounds.size.height > 80) continue;
-        if (v.bounds.size.width < block.bounds.size.width - 24) continue;
-        container = v;
-        break;
+// A description is HTML: links to other playlists as <a> and entities for quotes and ampersands.
+static NSString *plainText(NSString *html) {
+    if (!html.length) return nil;
+    static NSRegularExpression *tags;
+    if (!tags) tags = [NSRegularExpression regularExpressionWithPattern:@"<[^>]+>" options:0 error:NULL];
+    NSMutableString *text = [[tags stringByReplacingMatchesInString:html options:0 range:NSMakeRange(0, html.length)
+                                                       withTemplate:@""] mutableCopy];
+    NSDictionary<NSString *, NSString *> *entities = @{@"&amp;": @"&", @"&quot;": @"\"", @"&#x27;": @"'", @"&#39;": @"'",
+                                                       @"&lt;": @"<", @"&gt;": @">", @"&nbsp;": @" "};
+    for (NSString *entity in entities) {
+        [text replaceOccurrencesOfString:entity withString:entities[entity] options:0 range:NSMakeRange(0, text.length)];
     }
-    // A row not yet laid out is 0pt tall, and a capsule centred on it sat 24pt above it, over the length,
-    // until something laid the header out again (device, 2026-09-18). Its own pass comes once it has a size.
-    if (!container || container.bounds.size.height < SGRActionHeight - 1) return;
+    NSString *trimmed = [text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+    return trimmed.length ? trimmed : nil;
+}
 
+static NSString *firstText(UIView *root, UIView *skip) {
+    __block NSString *found = nil;
+    SGForEachView(root, ^(UIView *v) {
+        if (found || ![v isKindOfClass:UILabel.class] || (skip && [v isDescendantOfView:skip])) return;
+        NSString *text = [((UILabel *)v).text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+        if (text.length > 1) found = text;
+    });
+    return found;
+}
+
+// The creator is on no getter of the page's model; Spotify's own creator row has the name beside the facepile
+// (its avatars, whose initial is a one-letter label of its own: "D | Darkk" on the device, 2026-09-18). A
+// shared playlist's reads "Darkk" as well, with the others in the facepile. Looked for no further up than the
+// facepile's own row, where the title would be the next label found.
+static NSString *creatorIn(UIView *block) {
+    __block UIView *facepile = nil;
+    SGForEachView(block, ^(UIView *v) {
+        if (!facepile && [NSStringFromClass(v.class) containsString:@"FacepileView"]) facepile = v;
+    });
+    UIView *row = facepile.superview;
+    for (NSUInteger level = 0; row && row != block && level < 3; level++, row = row.superview) {
+        NSString *name = firstText(row, facepile);
+        if (name) return name;
+    }
+    return nil;
+}
+
+// The length line, as Spotify words it in the app's language: "8 saves • 41h 14m", "1 038 songs".
+static NSString *lengthIn(UIView *block) {
+    return firstText(SGRFindByIdentifier(block, @"Components.Header.UI.Metadata", &kMetaKey), nil);
+}
+
+// What the playlist's header shows: the name and the description from the page's model, the creator and the
+// length from Spotify's concealed labels, and on Play's right save for someone else's playlist, download for
+// one's own and for Liked Songs, which Spotify reports as neither owned nor unsaved (isOwnedBySelf NO,
+// formatListType liked-songs).
+static void showPlaylist(SGRHeaderInfo *info, UIView *block, UIView *root, id model) {
+    NSString *title = modelString(model, @"playlistName") ?: firstText(block, nil);
+    [info showTitle:title creator:creatorIn(block) length:lengthIn(block)
+              about:plainText(modelString(model, @"playlistDescription"))];
+
+    BOOL liked = [modelString(model, @"formatListType") isEqualToString:@"liked-songs"];
+    BOOL own = modelFlag(model, @"isOwnedBySelf", YES) || liked;
     UIView *shuffle = SGRFindByIdentifier(block, @"Components.UI.ShuffleButton", &kShuffleKey);
-    UIView *add = SGRFindByIdentifier(block, @"Components.UI.AddToButton", &kAddKey);
-    UIView *more = SGRFindByIdentifier(block, @"Components.UI.ContextMenuButton", &kMoreKey);
-    for (NSString *identifier in @[@"Components.UI.WatchFeedEntityExplorerButton", @"DownloadButton.Granular*",
-                                   @"Components.UI.ShareButton", @"MixAndShuffleComposedUI.mixView"]) {
-        UIView *gone = SGRFindByIdentifier(block, identifier, NULL);
-        if (gone) vanish(wrapperFor(gone, container));
-    }
-
-    SGRPlayCapsule *capsule = objc_getAssociatedObject(container, &kCapsuleKey);
-    if (!capsule) {
-        capsule = [[SGRPlayCapsule alloc] initWithFrame:CGRectZero];
-        objc_setAssociatedObject(container, &kCapsuleKey, capsule, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    }
-    if (capsule.superview != container) [container addSubview:capsule];
-    UIView *playButton = SGRFindByIdentifier(headerRoot, @"header-play-button", &kPlayKey);
-    if (playButton) {
-        [capsule feedFrom:playButton];
-        // Only what the button draws goes: a concealed layer still sends the actions the capsule fires.
-        conceal(playButton);
-    }
-    capsule.hidden = playButton == nil;
-
-    NSMutableArray<UIView *> *items = [NSMutableArray array];
-    NSMutableArray<NSNumber *> *widths = [NSMutableArray array];
-    if (shuffle) { [items addObject:wrapperFor(shuffle, container)]; [widths addObject:@(SGRActionHeight)]; }
-    if (playButton) { [items addObject:capsule]; [widths addObject:@([capsule sgr_width])]; }
-    if (add) { [items addObject:wrapperFor(add, container)]; [widths addObject:@(SGRActionHeight)]; }
-    if (more) { [items addObject:wrapperFor(more, container)]; [widths addObject:@(SGRActionHeight)]; }
-    if (!items.count) return;
-
-    // Play in the middle of the screen, what comes before it hanging off its left and the rest off its right,
-    // so it stays put whether the row has shuffle and add either side (a playlist) or shuffle alone (Liked
-    // Songs, where centring the pair put the capsule 30pt right of the title, device 2026-09-18). The screen's
-    // middle rather than the container's: the container is inset differently on each page.
-    CGFloat middleX = [container convertPoint:CGPointMake(CGRectGetMidX(headerRoot.bounds), 0) fromView:headerRoot].x;
-    NSUInteger lead = [items indexOfObject:capsule];
-    CGFloat x;
-    if (lead == NSNotFound) {
-        CGFloat total = (items.count - 1) * SGRActionSpacing;
-        for (NSNumber *width in widths) total += width.doubleValue;
-        x = round(middleX - total / 2);
-    } else {
-        x = round(middleX - widths[lead].doubleValue / 2);
-        for (NSUInteger i = 0; i < lead; i++) x -= widths[i].doubleValue + SGRActionSpacing;
-    }
-    CGFloat middle = CGRectGetMidY(container.bounds);
-    for (NSUInteger i = 0; i < items.count; i++) {
-        UIView *item = items[i];
-        CGFloat slot = widths[i].doubleValue;
-        CGSize size = item == capsule ? CGSizeMake(slot, SGRActionHeight) : item.bounds.size;
-        CGRect target = CGRectMake(round(x + (slot - size.width) / 2), round(middle - size.height / 2), size.width, size.height);
-        if (item == capsule) {
-            if (!CGRectEqualToRect(capsule.frame, target)) capsule.frame = target;
-        } else {
-            place(item, target, container);
-        }
-        x += slot + SGRActionSpacing;
-    }
-    for (UIView *button in @[shuffle ?: NSNull.null, add ?: NSNull.null, more ?: NSNull.null]) {
-        if ([button isKindOfClass:UIView.class]) SGRGlassInside(button, &kGlassKey, SGRGlassCircleSize);
-    }
+    UIView *play = SGRFindByIdentifier(root, @"header-play-button", &kPlayKey);
+    UIView *save = own ? nil : SGRFindByIdentifier(block, @"Components.UI.AddToButton", &kAddKey);
+    UIView *download = save ? nil : SGRFindByIdentifier(block, @"DownloadButton.Granular*", &kDownloadKey);
+    [info showShuffle:shuffle play:play trailing:save ?: download
+     trailingFallback:[UIImage systemImageNamed:save ? @"plus" : @"arrow.down"] playColor:SGRPlaylistFieldColor(info)];
+    // Only what the button draws goes: a concealed layer still sends the actions the capsule fires.
+    conceal(play);
 
     static BOOL logged;
-    if (!logged && container.window) {
+    if (!logged && info.window && (title || play)) {
         logged = YES;
-        SGLog(@"redesign playlist: action row %@, shuffle %@, play %@, add %@, more %@", NSStringFromCGRect(container.bounds),
-              shuffle ? @"found" : @"missing", playButton ? @"found" : @"missing", add ? @"found" : @"missing",
-              more ? @"in the row" : @"not in the page");
+        SGLog(@"redesign playlist: own block \"%@\" by %@, \"%@\"; shuffle %@, play %@, %@; model %@",
+              title, creatorIn(block) ?: @"nobody", lengthIn(block) ?: @"no length", shuffle ? @"found" : @"missing",
+              play ? @"found" : @"missing", save ? @"save" : (download ? @"download" : @"nothing on the right"),
+              model ? NSStringFromClass([model class]) : @"missing");
     }
 }
+
+// The block's own content goes, whole, and the redesign's takes its place. Spotify adds to the block as the page
+// loads and shows parts of it again when Play is pressed, so everything of Spotify's in it is concealed on every
+// pass and again from the block's own pass; concealing is idempotent and costs nothing once done.
+static SGRHeaderInfo *applyInfo(UIView *block, UIView *headerRoot, UIViewController *headerVC) {
+    // One per page, kept on the header's root: if Spotify ever hands over another block, the same view moves
+    // into it rather than a second one being drawn beside the first.
+    SGRHeaderInfo *info = objc_getAssociatedObject(headerRoot, &kInfoKey);
+    if (!info) {
+        info = [[SGRHeaderInfo alloc] initWithFrame:CGRectZero];
+        objc_setAssociatedObject(headerRoot, &kInfoKey, info, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    if (info.superview != block) {
+        if (info.superview) SGLog(@"redesign playlist: the block moved, %@ -> %@", NSStringFromCGRect(info.superview.frame), NSStringFromCGRect(block.frame));
+        [block addSubview:info];
+    }
+    else if (block.subviews.lastObject != info) [block bringSubviewToFront:info];
+    for (UIView *sub in block.subviews) {
+        if (sub != info) conceal(sub);
+    }
+    // The page's width, centred on the screen: Spotify's block is 16pt narrower than the page (386 of 402).
+    CGFloat x = -[block convertPoint:CGPointZero toView:headerRoot].x;
+    CGRect frame = CGRectMake(round(x), 0, headerRoot.bounds.size.width, block.bounds.size.height);
+    if (!CGRectEqualToRect(info.frame, frame)) info.frame = frame;
+    showPlaylist(info, block, headerRoot, viewModelOf(headerVC));
+
+    if (!objc_getAssociatedObject(block, &kBlockWatchedKey)) {
+        objc_setAssociatedObject(block, &kBlockWatchedKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        __weak UIView *weakRoot = headerRoot;
+        __weak UIViewController *weakVC = headerVC;
+        SGRObserveLayout(block, ^(UIView *view) {
+            // A block the view has since left is Spotify's to lay out alone.
+            if (!weakRoot || !weakVC || [objc_getAssociatedObject(weakRoot, &kInfoKey) superview] != view) return;
+            applyInfo(view, weakRoot, weakVC);
+        });
+    }
+    return info;
+}
+
 
 #pragma mark - the header's pass
 
@@ -532,11 +444,15 @@ static UIView *applyBackground(UIView *layout) {
     return plane;
 }
 
-// The layout holds the cover square and, under it, the block of text and controls.
+// The layout holds the cover square and, under it, the block of text and controls: the one child nearly as
+// wide as the page. Taken by width, not by being lowest: Liked Songs' layout also holds a 45pt slot for its
+// icon, which while the page loads sits below the block, and taken for it the header was drawn twice, once
+// in the slot and once in the block (device, 2026-09-18).
 static UIView *blockIn(UIView *layout, UIView *cover) {
     UIView *block = nil;
+    CGFloat wide = layout.bounds.size.width * 0.6;
     for (UIView *sub in layout.subviews) {
-        if (sub == cover || [sub isKindOfClass:SGRPlaylistHero.class]) continue;
+        if (sub == cover || [sub isKindOfClass:SGRPlaylistHero.class] || sub.bounds.size.width < wide) continue;
         if (!block || CGRectGetMinY(sub.frame) > CGRectGetMinY(block.frame)) block = sub;
     }
     return block;
@@ -554,30 +470,18 @@ static void applyHeader(UIView *layout) {
     UIView *plane = applyBackground(layout);
     applyToolbar(headerRoot);
     applyScrims(headerRoot);
-    if (cover) applyHero(layout, cover, plane, block);
+    SGRHeaderInfo *info = applyInfo(block, headerRoot, headerVC);
 
-    // The column and the action row lay their own children out after this pass; each is watched once so the
-    // redesign has the last word on both.
-    UIView *metadata = SGRFindByIdentifier(block, @"Components.Header.UI.Metadata", &kMetaKey);
-    UIView *column = columnOf(metadata, block);
-    if (column) {
-        applyColumn(column);
-        if (!objc_getAssociatedObject(column, &kColumnWatchedKey)) {
-            objc_setAssociatedObject(column, &kColumnWatchedKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-            SGRObserveLayout(column, ^(UIView *view) { applyColumn(view); });
-        }
-    }
-
-    applyActions(block, headerRoot);
-    UIView *row = SGRFindByIdentifier(block, @"HeaderActionsRow", &kRowKey);
-    if (row && !objc_getAssociatedObject(row, &kRowWatchedKey)) {
-        objc_setAssociatedObject(row, &kRowWatchedKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        __weak UIView *weakBlock = block, *weakRoot = headerRoot;
-        SGRObserveLayout(row, ^(UIView *view) {
-            if (weakBlock && weakRoot) applyActions(weakBlock, weakRoot);
-        });
-    }
+    // How far into the block the picture reaches: to where the content's top is at rest, plus the title and
+    // the creator. The block's height at rest is the tallest it has been -- collapsing shrinks it (136 against
+    // 178, trees/continuous/2.txt) and loading the description grows it -- so like the hero's top it only grows,
+    // and the picture does not change size while the header moves.
+    CGFloat rest = MAX([objc_getAssociatedObject(block, &kBlockHeightKey) doubleValue], block.bounds.size.height);
+    objc_setAssociatedObject(block, &kBlockHeightKey, @(rest), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    CGFloat reach = rest - SGRHeaderInfoBottom - [info contentHeightForWidth:info.bounds.size.width] + SGRHeaderInfoTitleRise;
+    if (cover) applyHero(layout, cover, plane, block, reach);
 }
+
 
 // The content layout of the page `root` belongs to, kept weakly on it: the header lays out on every step of
 // its collapse and a walk of its tree each time would be the redesign's own cost.
@@ -622,6 +526,14 @@ static UIView *layoutIn(UIView *root) {
 
 %hook SPTFreeTierPlaylistEncoreHeaderViewController
 - (void)viewDidLayoutSubviews {
+    %orig;
+    UIView *layout = layoutIn(((UIViewController *)self).viewIfLoaded);
+    if (layout) applyHeader(layout);
+}
+
+// What the page's model says changes without a layout pass of the header's: the saves count comes in after the
+// page opens (0, then 4647, device 2026-09-18), and a Save or an edit to the name updates it again.
+- (void)update {
     %orig;
     UIView *layout = layoutIn(((UIViewController *)self).viewIfLoaded);
     if (layout) applyHeader(layout);

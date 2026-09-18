@@ -95,6 +95,9 @@ void SGLyricsMigrateLegacyKeys(void);
 NSURL *SGLyricsURL(NSString *base, NSDictionary<NSString *, NSString *> *query);
 void SGLyricsGetJSON(NSURL *url, NSDictionary<NSString *, NSString *> *headers, void (^done)(id root));
 void SGLyricsGetText(NSURL *url, void (^done)(NSString *text));
+// Every source's reply goes through this, so a walk that lost a request to the network or a busy
+// server is not kept as "no lyrics". The two above call it themselves.
+void SGLyricsNoteReply(NSURLResponse *response, NSError *error);
 
 // SGTTML.m. Apple Music's TTML as timed lines, the voices already turned into alignments; nil when
 // the document holds no line the page could show.

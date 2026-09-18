@@ -5,16 +5,33 @@
 // written to hand itself back to Spotify for that animation, from NowPlaying_ViewPageImpl's
 // Show/CloseFullscreenAnimatedTransitioning, but Spotify 9.1.78 never runs the player through those,
 // so the handback never happened and is gone; if the morph ever reads as a cut, the place to start is
-// Shared/Player/PlayerEvents.h, which does fire.
+// Shared/Player/PlayerEvents.h, which does fire. What does move with the player is a stand-in of the
+// bar, which BarTransition.x keeps glass behind.
 //
 // Tree (trees/home.txt): NowPlayingBarContainerViewController.view 402x56 > NowPlayingBarViewController.view
 //   at {8,0} 386x56 > UIView 386x56 (the painted card) > artwork 40x40 r=4, title stack,
 //   progress line 370x2 at the bottom. The glass pane goes on the container's view.
 #import "Core/SGCore.h"
 #import "Redesigned/Kit/SGRRepaint.h"
+#import "NowPlayingBar.h"
 
 static const CGFloat kCardRadius = 24;
 static char kGlassKey;
+static __weak UIVisualEffectView *sg_cardGlass;
+static __weak UIView *sg_cardArtwork;
+
+CGRect SGRNowPlayingCardFrameIn(UIView *host, CGFloat *radius) {
+    UIVisualEffectView *glass = sg_cardGlass;
+    if (!glass.superview || !glass.window || !host) return CGRectNull;
+    if (radius) *radius = MIN(kCardRadius, glass.bounds.size.height / 2);
+    return [host convertRect:glass.bounds fromView:glass];
+}
+
+CGRect SGRNowPlayingArtworkFrameIn(UIView *host) {
+    UIView *artwork = sg_cardArtwork;
+    if (!artwork.window || !host) return CGRectNull;
+    return [host convertRect:artwork.bounds fromView:artwork];
+}
 
 static UIView *detectColoredCard(UIView *bar) {
     __block UIView *best = nil;
@@ -50,11 +67,18 @@ static void restyleCardContent(UIView *card) {
     SGForEachView(card, ^(UIView *v) {
         CGSize size = v.bounds.size;
         BOOL square = size.width >= 36 && size.width <= 48 && fabs(size.width - size.height) < 1;
-        if (!square || v.layer.cornerRadius <= 0 || v.layer.cornerRadius >= size.width / 2) return;
+        if (!square || v.layer.cornerRadius <= 0) return;
+        if (v.layer.cornerRadius >= size.width / 2) {
+            if (!sg_cardArtwork) sg_cardArtwork = v;
+            return;
+        }
+        UIView *outer = v;
         for (UIView *u = v; u && u != card && CGSizeEqualToSize(u.bounds.size, size); u = u.superview) {
             roundView(u, size.width / 2);
             u.clipsToBounds = YES;
+            outer = u;
         }
+        sg_cardArtwork = outer;
     });
     SGForEachView(card, ^(UIView *v) {
         CGRect f = v.frame;
@@ -90,6 +114,7 @@ static void styleNowPlayingBar(UIViewController *container) {
     }
 
     UIVisualEffectView *glass = SGGlassFor(container.view, &kGlassKey);
+    sg_cardGlass = glass;
     glass.frame = frame;
     SGShapeGlass(glass, radius, NO);
 

@@ -101,6 +101,24 @@ CGRect SGRPlayerArtworkAreaIn(UIView *host) {
     return CGRectNull;
 }
 
+// The cover hidden for a stand-in, so the same one comes back if the list moved on meanwhile.
+static __weak UIView *sg_hiddenCover, *sg_hiddenPlate;
+
+void SGRPlayerSetCoverHidden(BOOL hidden) {
+    sg_hiddenCover.alpha = 1;
+    sg_hiddenPlate.alpha = 1;
+    sg_hiddenCover = sg_hiddenPlate = nil;
+    if (!hidden) return;
+    UIView *tilt = showingTilt();
+    UIView *cover = coverIn(tilt);
+    if (!cover) return;
+    UIView *plate = SGRShadowPlateIn(tilt, &kPlateKey);
+    cover.alpha = 0;
+    plate.alpha = 0;
+    sg_hiddenCover = cover;
+    sg_hiddenPlate = plate;
+}
+
 #pragma mark - the paused shrink
 
 static void scaleEveryCover(BOOL animated) {

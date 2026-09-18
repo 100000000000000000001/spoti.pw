@@ -17,7 +17,10 @@ static const CGFloat kGlyphSide = 44, kCapsuleLead = 4, kCapsuleTrail = 20;
 // The mirrored glyph, the size Spotify draws one inside a 48pt round button.
 static const CGFloat kMirrorGlyph = 24;
 
-static char kCapsuleGlassKey, kMirrorGlassKey, kGlyphWatchedKey;
+static char kCapsuleGlassKey, kMirrorGlassKey, kWordGlassKey, kGlyphWatchedKey;
+
+// A word button's padding either side of the word.
+static const CGFloat kWordPadding = 18;
 
 #pragma mark - firing Spotify's button
 
@@ -92,8 +95,21 @@ static NSString *wordIn(UIView *button) {
 - (void)layoutSubviews {
     [super layoutSubviews];
     CGRect bounds = self.bounds;
-    SGRGlassCapsuleInside(self, &kCapsuleGlassKey, bounds.size, YES);
-    _glyph.frame = CGRectMake(kCapsuleLead, round((bounds.size.height - kGlyphSide) / 2), kGlyphSide, kGlyphSide);
+    if (self.fillColor) {
+        if (![self.backgroundColor isEqual:self.fillColor]) self.backgroundColor = self.fillColor;
+        self.layer.cornerRadius = bounds.size.height / 2;
+        self.layer.cornerCurve = kCACornerCurveContinuous;
+    } else {
+        SGRGlassCapsuleInside(self, &kCapsuleGlassKey, bounds.size, YES);
+    }
+    // Given more room than the word asks for, the glyph and the word stay together in the middle.
+    CGFloat lead = kCapsuleLead + MAX(0, round((bounds.size.width - [self sgr_width]) / 2));
+    _glyph.frame = CGRectMake(lead, round((bounds.size.height - kGlyphSide) / 2), kGlyphSide, kGlyphSide);
+    // Spotify's glyph comes on a 48pt canvas and is scaled down into the frame; one drawn tight is shown at
+    // its own size instead of blown up to fill it.
+    CGSize image = _glyph.image.size;
+    UIViewContentMode mode = image.width <= kGlyphSide && image.height <= kGlyphSide ? UIViewContentModeCenter : UIViewContentModeScaleAspectFit;
+    if (_glyph.contentMode != mode) _glyph.contentMode = mode;
     [_title sizeToFit];
     CGSize text = _title.bounds.size;
     _title.frame = CGRectMake(CGRectGetMaxX(_glyph.frame), round((bounds.size.height - text.height) / 2),
@@ -112,13 +128,14 @@ static NSString *wordIn(UIView *button) {
 
     UIFont *font = SGRFont(UIFontTextStyleSubheadline, UIFontWeightSemibold, UIContentSizeCategoryLarge);
     if (![_title.font isEqual:font]) _title.font = font;
-    if (![_title.textColor isEqual:SGRAccent()]) _title.textColor = SGRAccent();
+    UIColor *content = self.contentColor ?: SGRAccent();
+    if (![_title.textColor isEqual:content]) _title.textColor = content;
     if (word && ![_title.text isEqualToString:word]) {
         _title.text = word;
         self.accessibilityLabel = word;
         [self setNeedsLayout];
     }
-    if (![_glyph.tintColor isEqual:SGRAccent()]) _glyph.tintColor = SGRAccent();
+    if (![_glyph.tintColor isEqual:content]) _glyph.tintColor = content;
 
     if (glyph.image && _glyph.image != glyph.image) {
         _glyph.image = [glyph.image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate];
@@ -155,8 +172,20 @@ static NSString *wordIn(UIView *button) {
 
 #pragma mark - a button standing in for Spotify's
 
+// The text a button shows: the first label under it with something in it.
+static NSString *labelTextIn(UIView *button) {
+    __block NSString *text = nil;
+    SGForEachView(button, ^(UIView *v) {
+        if (text || ![v isKindOfClass:UILabel.class]) return;
+        NSString *candidate = [((UILabel *)v).text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+        if (candidate.length) text = candidate;
+    });
+    return text;
+}
+
 @implementation SGRMirrorButton {
     UIImageView *_glyph;
+    UILabel *_word;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame {
@@ -174,9 +203,23 @@ static NSString *wordIn(UIView *button) {
     return self;
 }
 
+- (CGFloat)sgr_width {
+    if (!self.showsWord || !_word.text.length) return SGRActionHeight;
+    [_word sizeToFit];
+    return MAX(SGRActionHeight, ceil(_word.bounds.size.width) + 2 * kWordPadding);
+}
+
 - (void)layoutSubviews {
     [super layoutSubviews];
     CGRect bounds = self.bounds;
+    if (self.showsWord && _word.text.length) {
+        SGRGlassCapsuleInside(self, &kWordGlassKey, bounds.size, NO);
+        [_word sizeToFit];
+        CGSize text = _word.bounds.size;
+        _word.frame = CGRectMake(kWordPadding, round((bounds.size.height - text.height) / 2),
+                                 MAX(0, bounds.size.width - 2 * kWordPadding), text.height);
+        return;
+    }
     SGRGlassInside(self, &kMirrorGlassKey, SGRGlassCircleSize);
     _glyph.frame = CGRectMake(round((bounds.size.width - kMirrorGlyph) / 2), round((bounds.size.height - kMirrorGlyph) / 2),
                               kMirrorGlyph, kMirrorGlyph);
@@ -188,11 +231,35 @@ static NSString *wordIn(UIView *button) {
     if (!source) return;
     _source = source;
 
+    if (self.showsWord) {
+        if (!_word) {
+            _word = [UILabel new];
+            _word.userInteractionEnabled = NO;
+            _word.textAlignment = NSTextAlignmentCenter;
+            _word.font = SGRFont(UIFontTextStyleSubheadline, UIFontWeightSemibold, UIContentSizeCategoryExtraLarge);
+            _word.textColor = SGRPrimary();
+            [self addSubview:_word];
+            _glyph.hidden = YES;
+        }
+        NSString *text = labelTextIn(source);
+        if (text && ![_word.text isEqualToString:text]) {
+            _word.text = text;
+            self.accessibilityLabel = source.accessibilityLabel ?: text;
+            [self setNeedsLayout];
+            [self.superview setNeedsLayout];
+        }
+        return;
+    }
+
     UIImageView *glyph = glyphIn(source, 0);
     NSString *word = source.accessibilityLabel ?: wordIn(source);
     if (word && ![self.accessibilityLabel isEqualToString:word]) self.accessibilityLabel = word;
     if (glyph.image && _glyph.image != glyph.image) _glyph.image = glyph.image;
     if (glyph.tintColor && ![_glyph.tintColor isEqual:glyph.tintColor]) _glyph.tintColor = glyph.tintColor;
+    if (!glyph && self.fallbackGlyph && _glyph.image != self.fallbackGlyph) {
+        _glyph.image = self.fallbackGlyph;
+        _glyph.tintColor = SGRPrimary();
+    }
 
     if (glyph && !objc_getAssociatedObject(glyph, &kGlyphWatchedKey)) {
         objc_setAssociatedObject(glyph, &kGlyphWatchedKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
@@ -214,6 +281,15 @@ static NSString *wordIn(UIView *button) {
 
 - (void)sgr_tap {
     fire(self.source);
+    // A word is the button's state, and Spotify changes it without laying out anything the page hears.
+    if (!self.showsWord) return;
+    __weak SGRMirrorButton *weakSelf = self;
+    for (NSNumber *delay in @[@0.3, @1.0]) {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay.doubleValue * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            SGRMirrorButton *button = weakSelf;
+            if (button.source) [button feedFrom:button.source];
+        });
+    }
 }
 
 @end

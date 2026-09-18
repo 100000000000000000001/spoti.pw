@@ -2,16 +2,16 @@
 set -e
 SRC=/Users/vojta/Documents/quick/custom_spotify/custom_spotify/tweak/Sources
 OUT=$(dirname "$0")/build
-rm -rf "$OUT"; mkdir -p "$OUT/gen" "$OUT/AlbumHarness.app"
+rm -rf "$OUT"; mkdir -p "$OUT/gen" "$OUT/ArtistHarness.app"
 
-for f in Redesigned/Album/AlbumField.x Redesigned/Album/AlbumHeader.x Redesigned/Album/AlbumRows.x Redesigned/Album/AlbumSections.x; do
+for f in Redesigned/Artist/ArtistField.x Redesigned/Artist/ArtistHeader.x Redesigned/Artist/ArtistSections.x; do
     name=$(basename "$f" .x)
     "$THEOS/bin/logos.pl" -c generator=internal "$SRC/$f" > "$OUT/gen/$name.m"
 done
 
 SDK=$(xcrun --sdk iphonesimulator --show-sdk-path)
 xcrun -sdk iphonesimulator clang -target arm64-apple-ios17.0-simulator -fobjc-arc -g -O0 \
-    -I"$SRC" -I"$SRC/Redesigned/Album" -I"$OUT/gen" -isysroot "$SDK" \
+    -I"$SRC" -I"$SRC/Redesigned/Artist" -I"$OUT/gen" -isysroot "$SDK" \
     -Wno-deprecated-declarations \
     "$(dirname "$0")/main.m" "$(dirname "$0")/stubs.m" \
     "$OUT"/gen/*.m \
@@ -22,15 +22,15 @@ xcrun -sdk iphonesimulator clang -target arm64-apple-ios17.0-simulator -fobjc-ar
     "$SRC"/Redesigned/Kit/SGRActionRow.m "$SRC"/Redesigned/Kit/SGRHeaderInfo.m \
     "$SRC"/Redesigned/Kit/SGRedesign.m \
     -framework UIKit -framework QuartzCore -framework CoreGraphics -framework CoreImage -framework Foundation -framework Symbols \
-    -o "$OUT/AlbumHarness.app/AlbumHarness"
+    -o "$OUT/ArtistHarness.app/ArtistHarness"
 
-cat > "$OUT/AlbumHarness.app/Info.plist" <<'PLIST'
+cat > "$OUT/ArtistHarness.app/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-<key>CFBundleExecutable</key><string>AlbumHarness</string>
-<key>CFBundleIdentifier</key><string>com.vojta.albumharness</string>
-<key>CFBundleName</key><string>AlbumHarness</string>
+<key>CFBundleExecutable</key><string>ArtistHarness</string>
+<key>CFBundleIdentifier</key><string>com.vojta.artistharness</string>
+<key>CFBundleName</key><string>ArtistHarness</string>
 <key>CFBundleVersion</key><string>1</string>
 <key>CFBundleShortVersionString</key><string>1.0</string>
 <key>UIUserInterfaceStyle</key><string>Dark</string>
@@ -40,4 +40,4 @@ cat > "$OUT/AlbumHarness.app/Info.plist" <<'PLIST'
 </dict>
 </dict></plist>
 PLIST
-echo "built $OUT/AlbumHarness.app"
+echo "built $OUT/ArtistHarness.app"

@@ -25,6 +25,10 @@ At 1.5 s it measures the footer the way the page's collection does, asking every
 answers 0 for what it drops, and the log says how much footer was left (108pt of 1230pt, the album's
 own line and its copyright).
 
+Since 2026-09-18 the header is the Kit's `SGRHeaderInfo` over Spotify's blanked column, so what follows no
+longer tests anything the redesign moves; it still shows Spotify's column staying blank. The metadata row's
+cells arrive after the header's pass, which is what `AlbumHeader.x`'s re-read answers.
+
 At 3.5 s it puts Spotify's own frames back on the title block, its stack and the action row and asks
 both groups for a layout pass, which is what the redesign's `SGRObserveLayout` watches have to survive.
 The log says what the redesign answered with.
