@@ -48,7 +48,9 @@
 @implementation MockRightHost
 - (void)layoutSubviews {
     [super layoutSubviews];
-    self.subviews.firstObject.frame = CGRectMake(52, 0, 48, 48);
+    // As Auto Layout does it: centre and bounds, never the frame or the transform.
+    self.subviews.firstObject.bounds = CGRectMake(0, 0, 48, 48);
+    self.subviews.firstObject.center = CGPointMake(76, 24);
 }
 @end
 

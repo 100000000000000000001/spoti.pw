@@ -39,7 +39,6 @@ static const CGFloat kMinHero = 120, kMinCover = 80;
 static char kCoverKey, kRowKey, kMetaKey, kPlayKey, kGlassKey, kLayoutKey;
 static char kShuffleKey, kAddKey, kMoreKey, kToolbarKey, kScrimKey, kBarScrimKey;
 static char kHeroKey, kHeroHeightKey, kCapsuleKey, kColumnWatchedKey, kRowWatchedKey, kCoverWatchedKey;
-static char kParentWatchedKey;
 
 #pragma mark - finding things
 
@@ -105,12 +104,20 @@ static UIView *wrapperFor(UIView *button, UIView *stop) {
     return wrapper;
 }
 
-// A rect of `container`'s, set on a view that hangs somewhere else in the header. Nothing on the way down to
-// the action row clips, so a control placed from its own parent lands where the row wants it.
+// A rect of `container`'s, given to a view that hangs somewhere else in the header, as a translation from where
+// Spotify lays it out rather than as a frame. Spotify's layout writes frames -- Auto Layout its centre and
+// bounds, a stack its arranged views' frames -- and never a transform, so a pass of Spotify's that puts the
+// view back in the same place leaves it where the row wants it. Set as a frame, Liked Songs' shuffle went back
+// to the right of Play whenever its box laid out after the row had been arranged (device, 2026-09-18), and
+// watching that box as well raced the page being built and left the row half arranged. Nothing on the way
+// down to the action row clips, so the control still takes its touches where it is drawn.
 static void place(UIView *view, CGRect target, UIView *container) {
     if (!view.superview || CGRectIsEmpty(target)) return;
     CGRect local = [view.superview convertRect:target fromView:container];
-    if (!CGRectEqualToRect(view.frame, local)) view.frame = local;
+    CGPoint center = view.center;
+    CGAffineTransform move = CGAffineTransformMakeTranslation(round(CGRectGetMidX(local) - center.x),
+                                                              round(CGRectGetMidY(local) - center.y));
+    if (!CGAffineTransformEqualToTransform(view.transform, move)) view.transform = move;
 }
 
 static void styleLabels(UIView *root, UIColor *color, UIFont *font, NSTextAlignment alignment) {
@@ -384,23 +391,6 @@ static UIView *columnOf(UIView *metadata, UIView *block) {
 
 #pragma mark - the action row
 
-// A control moved by frame goes back where Spotify put it the next time its own parent lays out, and that
-// can come after every pass the redesign sees: Liked Songs' shuffle sits in a stack of its own on the right
-// of the row, and a page opening showed it there for a moment before the next header pass took it to the
-// left of Play (device, 2026-09-18). So the parent is watched too. One watch per view, which is why the row
-// itself -- already watched from the header's pass -- is left alone; Swift parents cannot be watched and are
-// only marked, so the pass does not try again.
-static void applyActions(UIView *block, UIView *headerRoot);
-static void watchParent(UIView *item, UIView *block, UIView *headerRoot) {
-    UIView *parent = item.superview;
-    if (!parent || objc_getAssociatedObject(parent, &kRowWatchedKey) || objc_getAssociatedObject(parent, &kParentWatchedKey)) return;
-    objc_setAssociatedObject(parent, &kParentWatchedKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    __weak UIView *weakBlock = block, *weakRoot = headerRoot;
-    SGRObserveLayout(parent, ^(UIView *view) {
-        if (weakBlock && weakRoot) applyActions(weakBlock, weakRoot);
-    });
-}
-
 // Shuffle, Play and add, centred, with more beside them when Spotify has not moved it into the navigation
 // bar. Glass goes inside each of Spotify's round buttons (the Kit's way: the shape is the button's own
 // subview, so it goes wherever the button is put); the capsule carries its own.
@@ -416,7 +406,9 @@ static void applyActions(UIView *block, UIView *headerRoot) {
         container = v;
         break;
     }
-    if (!container) return;
+    // A row not yet laid out is 0pt tall, and a capsule centred on it sat 24pt above it, over the length,
+    // until something laid the header out again (device, 2026-09-18). Its own pass comes once it has a size.
+    if (!container || container.bounds.size.height < SGRActionHeight - 1) return;
 
     UIView *shuffle = SGRFindByIdentifier(block, @"Components.UI.ShuffleButton", &kShuffleKey);
     UIView *add = SGRFindByIdentifier(block, @"Components.UI.AddToButton", &kAddKey);
@@ -474,7 +466,6 @@ static void applyActions(UIView *block, UIView *headerRoot) {
             if (!CGRectEqualToRect(capsule.frame, target)) capsule.frame = target;
         } else {
             place(item, target, container);
-            watchParent(item, block, headerRoot);
         }
         x += slot + SGRActionSpacing;
     }
