@@ -38,6 +38,7 @@ static void glassInside(UIViewController *unit, NSArray<NSString *> *identifiers
             continue;
         }
         SGRGlassInside(button, &kGlassKey, SGRGlassCircleSize);
+        if ([identifiers[i] isEqualToString:@"Context menu"]) SGRPlayerMenuWatchMoreButton(button);
         found++;
     }
 

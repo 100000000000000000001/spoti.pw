@@ -108,7 +108,10 @@ Redesigned:
     Navbar/       the glass tab bar (TabBar.x) over its own composition (Navbar.x, NavbarLayout.m) and editor, the glass search field
     NowPlayingBar/ the glass now playing bar (NowPlayingBar.x), with Spotify's device button on it hidden on request
                   (BarConnect.x, its own key and its own Now playing page, apart from the native look's)
-    Player/       the redesigned full screen player (Player.h lists its files)
+    Player/       the redesigned full screen player (Player.h lists its files), and in its more menu Speed and pitch:
+                  both done to Spotify's audio by Apple's time and pitch unit, put between its mixer and its RemoteIO unit
+                  by taking over the connection Spotify makes between them (PlayerSpeedPitch.x, SGRTimePitch.m). Tested on the Mac against harness/pitch/ and
+                  harness/menu/
     Lyrics/       the full screen lyrics page on glass with Apple Music style lyrics over it, always on (SGRKaraokeView,
                   which the player shows in itself too, Player/PlayerLyrics.x)
     Home/         Home decluttered to music on black (an allow list of its sections: shortcuts, the DJ without its heading and
