@@ -14,6 +14,7 @@
 //     PlayerScroll.x     the list pinned to the top, so the player is one screen and cannot be scrolled
 //     PlayerLyrics.x     the lyrics in the player: the cover as a thumbnail, the title up beside it
 //     PlayerGestures.x   the gestures' hookup
+//     PlayerMorph.x      the open and close grown out of the now playing bar's card, the cover flown
 //     PlayerMenu.x       Speed and pitch, an expandable row with two sliders in the more button's menu
 //     PlayerSpeedPitch.x speed and pitch done to Spotify's audio, between its mixer and its speaker unit
 //     SGRTimePitch.m     Apple's time and pitch unit, pulling the mixer or working in place
@@ -37,6 +38,9 @@ CGRect SGRPlayerCoverFrameIn(UIView *host);
 // The band that cover sits in -- the room the player gives its artwork, between the header row and the
 // title -- in `host`'s coordinates; CGRectNull when no cover has laid out.
 CGRect SGRPlayerArtworkAreaIn(UIView *host);
+// Hides the cover on screen and its shadow, or shows them again, for a stand-in to fly in its place
+// (PlayerMorph.x).
+void SGRPlayerSetCoverHidden(BOOL hidden);
 
 #pragma mark - the lyrics in the player (PlayerLyrics.x)
 
