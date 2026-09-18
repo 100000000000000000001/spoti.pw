@@ -1,7 +1,7 @@
-Package: com.vojta.spotifyglass
-Name: spotifyglass
+Package: com.spotipw
+Name: spoti.pw
 Architecture: iphoneos-arm
 Description: Liquid Glass for the Spotify iOS app
-Maintainer: vojta
-Author: vojta
+Maintainer: spoti.pw
+Author: spoti.pw
 Section: Tweaks
