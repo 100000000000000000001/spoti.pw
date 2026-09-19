@@ -117,7 +117,10 @@ Redesigned:
     Kit/          what the redesign builds on (SGRKit.h lists it), the flags it forces (SGRedesign.h, SGRGlassDesign.x for
                   Spotify's own glass design), its repaint hook (SGRRepaint.x), soft top edge, AMOLED black (always on,
                   SGRAmoled.x) and its own accent colour (SGRAccent.x, stored apart from the native look's)
-    Navbar/       the glass tab bar (TabBar.x) over its own composition (Navbar.x, NavbarLayout.m) and editor, the glass search field
+    Navbar/       the glass tab bar (TabBar.x) over its own composition (Navbar.x, NavbarLayout.m) and editor, the glass search field.
+                  Spotify is made to leave the glass bar its height where its own bar is shorter (a phone with a home button,
+                  Offline or Private Session under the bar), so the now playing bar and the pages move up with it. Laid out on
+                  the Mac against harness/tabbar/
     NowPlayingBar/ the glass now playing bar (NowPlayingBar.x), with Spotify's device button on it hidden on request
                   (BarConnect.x, its own key and its own Now playing page, apart from the native look's)
     Player/       the redesigned full screen player (Player.h lists its files), and in its more menu Speed and pitch:
