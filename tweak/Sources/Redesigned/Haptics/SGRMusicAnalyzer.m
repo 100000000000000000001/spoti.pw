@@ -158,7 +158,6 @@ static int listen(SGRMusicAnalyzer *analyzer, SGRMusicBand *band, const BandTuni
             float over = 10 * log10(band->pendingRatio / tuning->ratio);
             float strength = clamp01(over / tuning->rangeDb);
             float loud = clamp01((band->pendingDb - (loudDbOf(band, tuning) - kLoudRangeDb)) / kLoudRangeDb);
-            event->kind = SGRMusicEventTap;
             event->hostTime = band->pendingTime;
             event->intensity = (0.45f + 0.55f * strength) * (0.3f + 0.7f * loud);
             event->sharpness = band->pendingBright;
@@ -212,12 +211,14 @@ static void endHop(SGRMusicAnalyzer *analyzer, SGRMusicEmit emit, void *context)
     SGRMusicEvent event;
     analyzer->sinceKick++;
     if (listen(analyzer, &analyzer->kick, &kKickTuning, low, time, bright, midRatio, &event)) {
+        event.kind = SGRMusicEventKick;
         event.sharpness = 0.15f + 0.3f * event.sharpness;
         analyzer->sinceKick = 0;
         emit(&event, context);
     }
     if (listen(analyzer, &analyzer->snap, &kSnapTuning, high, time, bright, midRatio, &event)) {
         if (analyzer->sinceKick * hop > kSnapAfterKickSeconds) {
+            event.kind = SGRMusicEventSnare;
             event.intensity *= 0.8f;
             event.sharpness = 0.55f + 0.4f * event.sharpness;
             emit(&event, context);

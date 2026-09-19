@@ -84,7 +84,7 @@ UIViewController *SGPlayerSettingsPage(void) {
     [pages addObject:SGWithSymbol(SGPageRow(@"Lock screen widget", ^UIViewController *{ return SGLockScreenWidgetPage(); }), @"lock")];
     [sections addObject:SGSection(nil, pages)];
     if (native) [sections addObjectsFromArray:SGNativePlayerScreenSections()];
-    else [sections addObject:SGRVibrationsSection()];
+    else [sections addObjectsFromArray:SGRVibrationsSections()];
 
     NSString *intro = native ? @"Changes apply after you restart Spotify. Gestures and Blocked artists apply straight away."
                              : @"Changes apply after you restart Spotify. Gestures, Blocked artists and Vibrations apply straight away.";

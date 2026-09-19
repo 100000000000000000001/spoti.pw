@@ -16,8 +16,10 @@
 // allocates, locks, logs or sends a message. Compiles on the Mac as is, for tuning against a file.
 #import <Foundation/Foundation.h>
 
+// A hit says which band it came from, so what Music Haptics follows (Haptics.h) can leave some out.
 typedef NS_ENUM(uint8_t, SGRMusicEventKind) {
-    SGRMusicEventTap,     // a hit: one transient
+    SGRMusicEventKick,    // a hit in the bass (a kick, an 808): one transient
+    SGRMusicEventSnare,   // a hit in the top (a snare, a clap): one transient
     SGRMusicEventLevel,   // the continuous vibration from here on, sent about 60 times a second
 };
 

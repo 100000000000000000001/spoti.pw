@@ -8,7 +8,8 @@
                                 functions Spotify imports hooked by rebinding its import slots (SGRebind.h)
     tweak/Sources/Headers/      reverse-engineered Spotify classes, one header each, only the selectors used
     tweak/Sources/Settings/     the Mod Settings framework: SGPage (a page on Spotify's stack), SGModPage (sections
-                                of rows), SGPageStyle (Spotify's list look), SGGlowSwitch
+                                of rows: switches, choices, sliders, links, and rows shown only while a switch
+                                is on), SGPageStyle (Spotify's list look), SGGlowSwitch
     tweak/Sources/Shared/       what works the same with either look, see Layers below
     tweak/Sources/Native/       tweaks on Spotify's own screens, running only while Redesigned UI is off
     tweak/Sources/Redesigned/   the redesign, running only while Redesigned UI is on
@@ -159,11 +160,14 @@ Redesigned:
                   files). Laid out on the Mac against harness/album/
     Haptics/      Vibrations (Haptics.h lists its files): a tap of UIKit's feedback generators for the player's and the now
                   playing bar's controls, the scrubber's tenths and ends, cover swipes, gestures and the lyrics page's tap to
-                  seek (ControlHaptics.x, SGRFeedback.m); and Music Haptics, Core Haptics playing along with the song:
-                  Spotify's import of AudioOutputUnitStart is rebound so its RemoteIO output unit gets a render notify, the
-                  samples go through a drum and bass analyzer on the render thread (SGRMusicAnalyzer.m, plain C), and a
-                  thread of its own schedules the taps and the rumble for when the sound is heard (MusicHaptics.x). Both
-                  switches apply at once; nothing plays while Spotify is not the active app
+                  seek, at the strength set for them (ControlHaptics.x, SGRFeedback.m); and Music Haptics, Core Haptics
+                  playing along with the song: Spotify's import of AudioOutputUnitStart is rebound so its RemoteIO output
+                  unit gets a render notify, the samples, in the unit's output format (the hardware's), go through a drum
+                  and bass analyzer on the render thread (SGRMusicAnalyzer.m, plain C), and a thread of its own schedules
+                  the taps and the rumble for when the sound is heard, at their strength and leaving out what Follows
+                  leaves out (MusicHaptics.x). Everything applies at once; nothing plays while Spotify is not the active
+                  app. The analyzer is scored on the Mac against harness/haptics/, the hook in the simulator against its
+                  sim/, the settings against harness/haptics-page/
     LiveActivity/ a Live Activity on the lock screen and in the Dynamic Island in one of three views, the line being
                   sung with the next one under it, the tracks up next (a tap on one skipping ahead to it), or a control
                   menu of tabs, Controls (previous, play and pause, next, shuffle, repeat), Queue and a sleep Timer of
@@ -218,9 +222,13 @@ naming the source in the redesign, the lock screen, and glass lyrics in the nati
 in the native look also Now playing bar (its device button and its flags), Queue & devices, and
 Spotify's own player screen (artwork background, glass header buttons, Disable Canvas and the sheet,
 header, slider and sticky header flags, the cards under the player and the lyrics preview and player
-buttons to hide); in the redesign instead Now playing (its device button), Vibrations, Controls (on until switched off) and Music Haptics
-(off until switched on, with an ⓘ saying it follows the sound this iPhone plays while Spotify is open), both
-applying straight away. Live Activity, in the redesign only: its switch and which view it shows, Lyrics, Queue or Control menu, both
+buttons to hide); in the redesign instead Now playing (its device button) and Vibrations, a card for
+Controls (on until switched off) and one for Music Haptics (off until switched on, with an ⓘ saying it
+follows the sound this iPhone plays while Spotify is open), each opening out while its switch is on:
+Controls into its Strength (10 to 100%, a tap at the new strength with each step), Music Haptics into its
+Strength (20 to 200%, 100% being how it first shipped) and Follows, Everything (a tap on each kick and
+snare and a rumble under the bass), Beat (the taps without the rumble) or Bass (the kicks' taps and the
+rumble), all applying straight away. Live Activity, in the redesign only: its switch and which view it shows, Lyrics, Queue or Control menu, both
 applying straight away, the row reading out the view or Off. Audio effects, in either look (Shared/JamesDSP/JamesDSPPage.m):
 JamesDSP's switch with what the engine is doing under it, then a card per effect in RootlessJamesDSP's order, each
 opening out into its sliders, choices, curve or file library while its switch is on, everything applying as it
@@ -261,8 +269,8 @@ icons alone and applies straight away too.
    Spotify's paint, and end with `%ctor { %init; SGRequireClasses(@[...]); }`, gated first on the layer's look
    (`SGNativeUI()` or `SGRedesignedUI()`) in Native/ and Redesigned/.
 4. Add `<Feature>Settings.m` returning an `SGModPage` of `SGSection`s of `SGSwitchRow`/`SGHideRow`/
-   `SGFlagRow` (Settings/SGModPage.h), and put it on the page of the part of Spotify it changes in `App/Pages.m`
-   or `App/ModSettings.x`.
+   `SGFlagRow`/`SGChoiceRow`/`SGSliderRow` (Settings/SGModPage.h), and put it on the page of the part of
+   Spotify it changes in `App/Pages.m` or `App/ModSettings.x`.
 5. `make install`. Log lines are prefixed `[spotifyglass]`. A FLEX build serves the visible screen's
    tree on the phone's port 8085, which `make trees` reaches over USB through iproxy.
 
