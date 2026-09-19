@@ -74,11 +74,13 @@ Shared:
     Gestures/     the double tap zones on the player: the grid, what each cell does, the recognizer (each look hooks it on)
     Lyrics/       the lyrics engine for the redesign's Apple Music style lyrics and the lock screen: lines read from
                   color-lyrics and the player's clock (KaraokeSource.x), words timed by estimate inside Spotify's line
-                  times (KaraokeTiming.m), and the Lyrics page's parts
+                  times (KaraokeTiming.m), which line to name where two voices sing at once (the one that came in first,
+                  for the lock screen and the Live Activity), and the Lyrics page's parts
     LyricsSources/ the sources lyrics come from, asked in the order the Lyrics page puts them in and merged into the
                   best answer (LyricsSources.m, the list to drag in LyricsSourcesPage.m): Apple Music's TTML from
                   BiniLyrics.m and Unison.m, read by SGTTML.m, which is the only shape carrying a second voice and the
-                  backing vocals; Musixmatch.m, matched by Spotify's track id with an anonymous token, word timed where
+                  backing vocals, and in its head Apple's translation and its pronunciation of a line, the pronunciation
+                  timed word by word (the translation taken in the Lyrics page's language); Musixmatch.m, matched by Spotify's track id with an anonymous token, word timed where
                   it has richsync; NetEase.m, word timing from yrc for what the others only line time; LrcLib.m, open and
                   keyless and timed by the line, the floor under the rest. color-lyrics is answered with whichever won
                   (LyricsHook.x): Spotify's own 200 gets our lines swapped in; a track Spotify's metadata says has none has
@@ -129,7 +131,12 @@ Redesigned:
                   by taking over the connection Spotify makes between them (PlayerSpeedPitch.x, SGRTimePitch.m). Tested on the Mac against harness/pitch/ and
                   harness/menu/
     Lyrics/       the full screen lyrics page on glass with Apple Music style lyrics over it, always on (SGRKaraokeView,
-                  which the player shows in itself too, Player/PlayerLyrics.x)
+                  which the player shows in itself too, Player/PlayerLyrics.x): lines sung over each other lit together,
+                  the stack moving on once the first is sung out; an instrumental break of 7 s or more held by three dots
+                  that breathe and fill over its length on a Core Animation timeline laid against the song's clock; and
+                  a line's pronunciation (under the words it spells) and translation, switched on from a glass button in
+                  the lyrics' corner that shows only for a song that has them, in the order of sizes the Lyrics page sets
+                  (LyricsText.h). Laid out on the Mac against harness/lyrics/
     Home/         Home decluttered to music on black (an allow list of its sections: shortcuts, the DJ without its heading and
                   transcript, the shelves of cards), a large title where the filter pills were with the avatar at the trailing
                   edge, the shelves' headings at the Music app's size, each shortcut tile's cover run across it blurred
@@ -218,7 +225,8 @@ is set. Redesigned UI is the one switch between the two looks (see Layers): it g
 The pages show only what the stored look has: a page opened after flipping the switch already shows
 what the restart will bring. Then a card of parts. Navbar: the tab editor of the stored look, each with
 its own list of tabs. Player: Gestures, Lyrics (the ordered list of lyrics sources, lyrics for every track,
-naming the source in the redesign, the lock screen, and glass lyrics in the native look), Blocked artists (with the count on the row) and Lock screen widget, which work with either look;
+naming the source in the redesign, the lock screen, and glass lyrics in the native look; in the redesign also
+which of the lyrics, their pronunciation and their translation is set largest, and the translation's language), Blocked artists (with the count on the row) and Lock screen widget, which work with either look;
 in the native look also Now playing bar (its device button and its flags), Queue & devices, and
 Spotify's own player screen (artwork background, glass header buttons, Disable Canvas and the sheet,
 header, slider and sticky header flags, the cards under the player and the lyrics preview and player

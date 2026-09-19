@@ -23,3 +23,8 @@ SGModSection *SGLyricsSourcesSection(BOOL namingSource) {
 SGModRow *SGLockScreenLyricsRow(void) {
     return SGOptionRow(@"Replace artist with lyrics", @"The line being sung shows in place of the artist, so lyrics show up on the lock screen and in CarPlay", SGKeyLockScreenLyrics);
 }
+
+SGModRow *SGLyricsTranslationLanguageRow(void) {
+    return SGChoiceRow(@"Translation language", @"Of the translations the lyrics come with, the one to show; Any shows the first",
+                       SGKeyLyricsTranslationLanguage, SGLyricsTranslationLanguageNames(), 0);
+}

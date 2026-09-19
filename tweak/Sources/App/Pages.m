@@ -12,6 +12,7 @@
 #import "Native/Player/NowPlaying.h"
 #import "Redesigned/Haptics/Haptics.h"
 #import "Redesigned/LiveActivity/LiveActivity.h"
+#import "Redesigned/Lyrics/LyricsText.h"
 #import "Redesigned/Navbar/Navbar.h"
 #import "Redesigned/NowPlayingBar/NowPlayingBar.h"
 #import "Redesigned/Kit/SGRAccent.h"
@@ -52,13 +53,18 @@ UIViewController *SGNavbarPage(void) {
     return SGRedesignedUIStored() ? SGRNavbarSettingsPage() : SGNavbarSettingsPage();
 }
 
-// The redesign always draws Apple Music style lyrics, and only it names their source; the native look
-// has its glass card and page instead.
+// The redesign always draws Apple Music style lyrics, and only it names their source and shows the
+// pronunciation and the translation a source has; the native look has its glass card and page instead.
 static UIViewController *lyricsPage(void) {
     BOOL redesigned = SGRedesignedUIStored();
     NSMutableArray<SGModRow *> *more = [NSMutableArray arrayWithObject:SGLockScreenLyricsRow()];
     if (!redesigned) [more insertObject:SGGlassLyricsRow() atIndex:0];
-    NSArray<SGModSection *> *sections = @[SGLyricsSourcesSection(redesigned), SGSection(nil, more)];
+    NSMutableArray<SGModSection *> *sections = [NSMutableArray arrayWithObject:SGLyricsSourcesSection(redesigned)];
+    if (redesigned) {
+        [sections addObject:SGNotedSection(@"Pronunciation and translation", @[SGRLyricsTextSizesRow(), SGLyricsTranslationLanguageRow()],
+                                           @"BiniLyrics and Unison carry Apple Music's own for many songs. The button in the corner of the lyrics shows them.")];
+    }
+    [sections addObject:SGSection(nil, more)];
     return [[SGModPage alloc] initWithTitle:@"Lyrics" intro:SGRestartNote sections:sections footer:nil];
 }
 
