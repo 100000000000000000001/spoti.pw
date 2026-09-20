@@ -85,9 +85,14 @@ Shared:
                   for the lock screen and the Live Activity), and the Lyrics page's parts
     LyricsSources/ the sources lyrics come from, asked in the order the Lyrics page puts them in and merged into the
                   best answer (LyricsSources.m, the list to drag in LyricsSourcesPage.m): Apple Music's TTML from
-                  BiniLyrics.m and Unison.m, read by SGTTML.m, which is the only shape carrying a second voice and the
+                  BiniLyrics.m and Unison.m, read by SGTTML.m, which carries a second voice and the
                   backing vocals, and in its head Apple's translation and its pronunciation of a line, the pronunciation
-                  timed word by word (the translation taken in the Lyrics page's language); Musixmatch.m, matched by Spotify's track id with an anonymous token, word timed where
+                  timed word by word (the translation taken in the Lyrics page's language); SpicyLyrics.m (spicylyrics.org),
+                  matched by Spotify's track id and carrying Apple Music's syllables, the backing vocals and the two sides
+                  of a duet as the TTML does, answered in a packed shape of its own (every distinct value once, then an
+                  opcode stream rebuilding the document) and only to a caller that sends the app's own Spotify token, which
+                  SGKaraokeSpotifyAuthorization() lends it — the one source told anything of the account, which is why
+                  the page says so; Musixmatch.m, matched by Spotify's track id with an anonymous token, word timed where
                   it has richsync; NetEase.m, word timing from yrc for what the others only line time; LrcLib.m, open and
                   keyless and timed by the line, the floor under the rest. color-lyrics is answered with whichever won
                   (LyricsHook.x): Spotify's own 200 gets our lines swapped in; a track Spotify's metadata says has none has

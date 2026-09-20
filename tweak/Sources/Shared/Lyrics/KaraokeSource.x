@@ -89,6 +89,10 @@ NSArray<SGKaraokeLine *> *SGKaraokeLinesForTrack(NSString *trackID) {
     return trackID ? sg_lyrics[trackID] : nil;
 }
 
+NSString *SGKaraokeSpotifyAuthorization(void) {
+    return sg_spclientHeaders[@"authorization"];
+}
+
 static void requestFromSpotify(NSString *trackID) {
     NSDictionary<NSString *, NSString *> *headers = sg_spclientHeaders;
     if (!headers) return;

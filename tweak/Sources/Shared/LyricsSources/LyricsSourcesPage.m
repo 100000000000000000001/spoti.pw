@@ -47,9 +47,11 @@ typedef NS_ENUM(NSInteger, SGSourcesSection) {
     self.tableView.allowsSelectionDuringEditing = YES;
     _footer = SGNote(@"Each source is asked in turn until every word is timed. A source that only has "
                       "the plain words does not shut out a later one that times them.\n\n"
-                      "Musixmatch is sent the track's id with an anonymous token; the rest are sent the "
-                      "title, artist and length. None of them is told anything of your Spotify account. "
-                      "Changes apply after you restart Spotify.");
+                      "Musixmatch is sent the track's id with an anonymous token; BiniLyrics, Unison, "
+                      "NetEase and LRCLIB are sent the title, artist and length. None of those is told "
+                      "anything of your Spotify account. Spicy Lyrics is the one exception: it answers "
+                      "only a signed-in Spotify client, so it is sent this app's own access token along "
+                      "with the track's id. Changes apply after you restart Spotify.");
     self.tableView.tableFooterView = _footer;
 }
 
