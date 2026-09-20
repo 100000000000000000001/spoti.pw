@@ -14,6 +14,19 @@ public final class SGLiveActivityBridge: NSObject {
 
     @objc public static var isShowing: Bool { current != nil }
 
+    // Updates and the end run one after another, in the order they were asked for: a Task apiece could
+    // land out of order, and a state one tick old would then be the one the activity is left showing.
+    // Only touched from the main thread, where the tweak's timer runs.
+    private static var pending: Task<Void, Never>?
+
+    private static func enqueue(_ work: @escaping @Sendable () async -> Void) {
+        let before = pending
+        pending = Task {
+            await before?.value
+            await work()
+        }
+    }
+
     // A new activity can only be requested while the app is in the foreground; an update works from the background.
     // One call per new state. View and tab are SGLiveActivityView's and SGLiveActivityTab's values;
     // titles, artists and URIs pair up by index, the tracks up next; timerEnd is nil without a timer.
@@ -31,7 +44,7 @@ public final class SGLiveActivityBridge: NSObject {
             shuffle: shuffle, repeatMode: repeatMode, timerEnd: timerEnd, timerEndOfTrack: timerEndOfTrack)
         let content = ActivityContent(state: state, staleDate: nil)
         if let activity = current {
-            Task { await activity.update(content) }
+            enqueue { await activity.update(content) }
             return
         }
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
@@ -48,7 +61,7 @@ public final class SGLiveActivityBridge: NSObject {
 
     @objc public static func end() {
         for activity in Activity<SGLyricsAttributes>.activities {
-            Task { await activity.end(nil, dismissalPolicy: .immediate) }
+            enqueue { await activity.end(nil, dismissalPolicy: .immediate) }
         }
     }
 }
