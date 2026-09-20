@@ -35,6 +35,8 @@
         if ([args containsObject:@"liked"]) {
             model.playlistName = @"Liked Songs";
             model.formatListType = @"liked-songs";
+        } else if ([args containsObject:@"mix"]) {
+            model.playlistName = @"Indie Rock Mix";
         } else if ([args containsObject:@"other"]) {
             model.playlistName = @"Barre Beats";
             model.playlistDescription = @"All music for beat-driven barre classes. Some cool-downs too! I&#x27;m always adding to the list";
@@ -53,6 +55,10 @@
 
 @interface _TtC28EncoreConsumerMobile_BaseKit19HeaderContentLayout : UIView @end
 @implementation _TtC28EncoreConsumerMobile_BaseKit19HeaderContentLayout @end
+
+// What a mix Spotify makes gets instead of the cover square (trees/continuous/4.txt:1066).
+@interface _TtC28EncoreConsumerMobile_BaseKit26HeaderFullbleedCentralView : UIView @end
+@implementation _TtC28EncoreConsumerMobile_BaseKit26HeaderFullbleedCentralView @end
 
 @interface _TtC19LegacyUI_ECMCoreKit19AutoLayoutStackView : UIView @end
 @implementation _TtC19LegacyUI_ECMCoreKit19AutoLayoutStackView @end
@@ -210,7 +216,7 @@ static void buildLikedSongs(UIViewController *page, CGFloat W) {
         NSMutableArray *stack = [NSMutableArray arrayWithObject:page.view];
         while (stack.count) {
             UIView *v = stack.lastObject; [stack removeLastObject];
-            if ([NSStringFromClass(v.class) isEqualToString:@"SGRPlaylistInfo"]) infos++;
+            if ([NSStringFromClass(v.class) isEqualToString:@"SGRHeaderInfo"]) infos++;
             [stack addObjectsFromArray:v.subviews];
         }
         NSLog(@"[harness] liked: after loading, %lu redesign blocks on the page", (unsigned long)infos);
@@ -381,13 +387,36 @@ static void buildLikedSongs(UIViewController *page, CGFloat W) {
     UIView *contentView = box(contentContainer, UIView.class, CGRectMake(0, 134, W, 505.33), @"_contentViewContainer");
     UIView *layout = box(contentView, _TtC28EncoreConsumerMobile_BaseKit19HeaderContentLayout.class, contentView.bounds, nil);
 
-    // the cover square
-    UIView *cover = box(layout, UIView.class, CGRectMake(round((W - 182) / 2), 68, 182, 182), @"Components.Header.UI.ArtworkImage");
-    UIView *coverImage = box(cover, UIView.class, cover.bounds, @"Encore.ImageView");
-    UIImageView *coverPicture = [[UIImageView alloc] initWithFrame:coverImage.bounds];
-    coverPicture.image = artwork();
-    coverPicture.contentMode = UIViewContentModeScaleAspectFill;
-    [coverImage addSubview:coverPicture];
+    // The cover: a mix's full bleed picture, or a playlist's square. `mix` on the launch line builds the
+    // header a playlist Spotify makes gets (trees/continuous/4.txt:1066): no Components.Header.UI.ArtworkImage
+    // anywhere, and in its place a HeaderFullbleedCentralView holding the picture, the fade under it and
+    // Spotify's own big title. It is the layout's first child and as wide as the page, which is what the
+    // block used to be taken for.
+    BOOL mix = [NSProcessInfo.processInfo.arguments containsObject:@"mix"];
+    UIView *cover = nil, *fullbleed = nil;
+    if (mix) {
+        fullbleed = box(layout, _TtC28EncoreConsumerMobile_BaseKit26HeaderFullbleedCentralView.class,
+                        CGRectMake(0, 0, W, 311), nil);
+        fullbleed.clipsToBounds = YES;
+        UIView *slot = box(fullbleed, UIView.class, CGRectMake(-10, 0, W + 20, W + 20), nil);
+        UIView *slotImage = box(slot, UIView.class, slot.bounds, @"Encore.ImageView");
+        UIImageView *slotPicture = [[UIImageView alloc] initWithFrame:slotImage.bounds];
+        slotPicture.image = artwork();
+        slotPicture.contentMode = UIViewContentModeScaleAspectFill;
+        [slotImage addSubview:slotPicture];
+        UIView *fade = box(fullbleed, _TtC19LegacyUI_ECMCoreKit13GradientView.class, CGRectMake(0, 225, W, 86), nil);
+        fade.backgroundColor = [UIColor colorWithWhite:0 alpha:0.5];
+        UIView *titleStack = box(fullbleed, _TtC19LegacyUI_ECMCoreKit19AutoLayoutStackView.class,
+                                 CGRectMake(16, 249, W - 32, 54), nil);
+        label(titleStack, titleStack.bounds, @"Indie Rock Mix", 45, UIColor.whiteColor, @"Encore.Label");
+    } else {
+        cover = box(layout, UIView.class, CGRectMake(round((W - 182) / 2), 68, 182, 182), @"Components.Header.UI.ArtworkImage");
+        UIView *coverImage = box(cover, UIView.class, cover.bounds, @"Encore.ImageView");
+        UIImageView *coverPicture = [[UIImageView alloc] initWithFrame:coverImage.bounds];
+        coverPicture.image = artwork();
+        coverPicture.contentMode = UIViewContentModeScaleAspectFill;
+        [coverImage addSubview:coverPicture];
+    }
 
     // the block: the column, then the action row
     UIView *block = box(layout, UIView.class, CGRectMake(0, 266.67, W - 16, 178.33), nil);
@@ -476,6 +505,21 @@ static void buildLikedSongs(UIViewController *page, CGFloat W) {
     disc.clipsToBounds = YES;
     [condensed addSubview:disc];
 
+    // The pass that used to lose the picture: while Spotify is still measuring, the block has no width of
+    // its own, and the full bleed view is then the only child of the layout wide enough to be taken for it.
+    // Taken for the block, everything it holds -- the picture with it -- was concealed, and concealing does
+    // not come undone, so the hero stayed black for as long as the page was open (trees/continuous/3.txt
+    // against 4.txt, 2026-09-20). The mix runs that pass before any other, so a regression shows here too.
+    if (mix) {
+        CGRect settled = block.frame;
+        block.frame = CGRectMake(0, 266.67, 0, 0);
+        [layout setNeedsLayout];
+        [layout layoutIfNeeded];
+        block.frame = settled;
+        NSLog(@"[harness] the measuring pass is done: the full bleed view is %@",
+              fullbleed.layer.hidden ? @"concealed" : @"still drawn");
+    }
+
     [self.window makeKeyAndVisible];
 
     // The header collapsing, and the page pulled down past the top, with the frames Spotify sets in each
@@ -496,12 +540,17 @@ static void buildLikedSongs(UIViewController *page, CGFloat W) {
         contentView.frame = CGRectMake(0, 134, W, collapsed ? 110 : 474);
         layout.frame = CGRectMake(0, 0, W, collapsed ? 110 : 474);
         cover.frame = collapsed ? CGRectMake(148.67, 68, 104.67, 104.67) : CGRectMake(round((W - 243) / 2), 68, 243, 243);
+        // The full bleed picture is clipped away rather than shrunk: collapsed it is the width of the page
+        // and no height at all, with the picture inside it still at its own size (trees/continuous/3.txt:1066).
+        fullbleed.frame = collapsed ? CGRectMake(0, 0, W, 0) : CGRectMake(0, 0, W, 311);
         block.frame = collapsed ? CGRectMake(0, -26.33, W - 16, 136.33) : CGRectMake(0, 327, W - 16, 178.33);
         [layout setNeedsLayout];
         [layout layoutIfNeeded];
         UIView *hero = wash.subviews.firstObject;
-        NSLog(@"[harness] state %@: hero %@ in the plane, %@ in the window", state,
-              NSStringFromCGRect(hero.frame), NSStringFromCGRect([wash convertRect:hero.frame toView:nil]));
+        UIImageView *picture = (UIImageView *)hero.subviews.firstObject;
+        NSLog(@"[harness] state %@: hero %@ in the plane, %@ in the window, picture %@", state,
+              NSStringFromCGRect(hero.frame), NSStringFromCGRect([wash convertRect:hero.frame toView:nil]),
+              [picture isKindOfClass:UIImageView.class] && picture.image ? @"drawn" : @"EMPTY");
     };
     for (NSUInteger i = 0; i < 3; i++) {
         NSString *state = @[@"rest", @"collapsed", @"pulled"][i];
