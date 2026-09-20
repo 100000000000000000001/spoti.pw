@@ -13,6 +13,12 @@
 // The pills over the first row of a playlist of one's own (Add, Mix, Notes, Video, Edit, Sort, Name &
 // details -- own-playlist/01.txt:33) are a cell of the list. ListUXPlatform_LayoutKit.ListLayout gives every
 // item its height, so the cell can only close up where the layout asks it how tall it wants to be.
+//
+// Not every cell of the list is a track row. Under the tracks Spotify puts the extender -- Recommended
+// songs, its rows and Refresh (ListUXPlatformConsumers_PlaylistExtenderImpl) -- and its heading and its
+// Refresh cell paint the base surface over the field, where the black made bands of them (device,
+// trees/continuous/2.txt 2026-09-20). So the paint comes off every cell of the page, the Kit's way, and
+// only the row below is a row.
 #import "Core/SGCore.h"
 #import "Redesigned/Kit/SGRKit.h"
 #import "Playlist.h"
@@ -81,7 +87,10 @@ static void applyRow(UIView *cell) {
 %hook _TtC35ListUXPlatform_FreeTierPlaylistImpl25ElementCollectionViewCell
 - (void)layoutSubviews {
     %orig;
-    if (SGRPlaylistHeaderOf((UIView *)self)) applyRow((UIView *)self);
+    UIView *cell = (UIView *)self;
+    if (!SGRPlaylistHeaderOf(cell)) return;
+    SGRClearCellPaint(cell);
+    applyRow(cell);
 }
 
 - (UICollectionViewLayoutAttributes *)preferredLayoutAttributesFittingAttributes:(UICollectionViewLayoutAttributes *)attributes {

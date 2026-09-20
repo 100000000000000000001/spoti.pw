@@ -272,6 +272,27 @@ SGRShadowPlate *SGRShadowPlateIn(UIView *host, const void *key) {
 
 #pragma mark - Spotify's controls and pages
 
+// Nearly as wide as the cell. The bands are the width of the page -- a row's surface, a carousel's
+// collection, a "see more" fade (artist, trees/continuous/3.txt 2026-09-18; episode page and the
+// playlist's Recommended songs, trees/continuous/1.txt and 2.txt 2026-09-20) -- while a badge's black
+// disc is 26pt and an avatar's ring the same.
+static const CGFloat kPaintedShare = 0.75;
+
+static void clearPaint(UIView *view, UIView *cell, CGFloat wide) {
+    if (view != cell && [view isKindOfClass:UICollectionViewCell.class]) return;
+    if (view.bounds.size.width >= wide) {
+        UIColor *color = view.backgroundColor;
+        if (color && SGIsBaseSurface(color.CGColor)) view.backgroundColor = UIColor.clearColor;
+        if (!view.layer.mask && [NSStringFromClass(view.class) containsString:@"GradientView"]) view.layer.mask = [CALayer layer];
+    }
+    for (UIView *sub in view.subviews) clearPaint(sub, cell, wide);
+}
+
+void SGRClearCellPaint(UIView *cell) {
+    if (!cell) return;
+    clearPaint(cell, cell, cell.bounds.size.width * kPaintedShare);
+}
+
 BOOL SGRFire(UIControl *control) {
     if (![control isKindOfClass:UIControl.class]) return NO;
     __block UIControlEvents registered = control.allControlEvents;

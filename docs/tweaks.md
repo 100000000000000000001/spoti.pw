@@ -164,7 +164,8 @@ Redesigned:
                   there and the row carries the Kit's stand-ins, which draw their glyph and fire them. Under the tracks
                   everything the server sends is dropped -- more by the artist, videos, concerts, merch, you might also
                   like, and whatever it adds next -- but the album's own line and its copyright (Album.h lists its
-                  files). Laid out on the Mac against harness/album/
+                  files). A podcast's episode page is the same template, so it is given the same field, and what it
+                  paints over it is taken off. Laid out on the Mac against harness/album/
     Haptics/      Vibrations (Haptics.h lists its files): a tap of UIKit's feedback generators for the player's and the now
                   playing bar's controls, the scrubber's tenths and ends, cover swipes, gestures and the lyrics page's tap to
                   seek, at the strength set for them (ControlHaptics.x, SGRFeedback.m); and Music Haptics, Core Haptics

@@ -317,6 +317,41 @@ static void buildLikedSongs(UIViewController *page, CGFloat W) {
         label(row, CGRectMake(76, 32, W - 130, 18), tracks[i][1], 14, [UIColor colorWithWhite:1 alpha:0.7], @"Track.Row.Content.Subtitle");
     }
 
+    // The extender under the tracks (device, trees/continuous/2.txt 2026-09-20): Recommended songs, its
+    // rows and Refresh, each cell painting the black the AMOLED made of Spotify's base surface over the
+    // field. Only the paint is mocked -- what the clear has to take off and what it has to leave.
+    CGFloat extenderTop = 512 + tracks.count * 64;
+    UIView *heading = box(list, _TtC35ListUXPlatform_FreeTierPlaylistImpl25ElementCollectionViewCell.class,
+                          CGRectMake(0, extenderTop, W, 68), nil);
+    UIView *headingPaint = box(heading, UIView.class, heading.bounds, @"PlaylistExtender.Heading");
+    headingPaint.backgroundColor = UIColor.blackColor;
+    label(headingPaint, CGRectMake(16, 16, W - 32, 21), @"Recommended songs", 17, UIColor.whiteColor, @"title");
+    label(headingPaint, CGRectMake(16, 37, W - 32, 16), @"Based on the songs of this playlist", 11,
+          [UIColor colorWithWhite:0.7 alpha:1], @"subtitle");
+
+    UIView *extenderRow = box(list, _TtC35ListUXPlatform_FreeTierPlaylistImpl25ElementCollectionViewCell.class,
+                              CGRectMake(0, extenderTop + 68, W, 64), nil);
+    UIView *extenderPaint = box(extenderRow, UIView.class, extenderRow.bounds, @"PlaylistExtender.Row");
+    label(extenderPaint, CGRectMake(76, 22, W - 130, 20), @"Airplanes", 16, UIColor.whiteColor, nil);
+    // A badge's disc is its own black and is not as wide as the cell: it stays.
+    UIView *badge = box(extenderPaint, UIView.class, CGRectMake(W - 72, 19, 26, 26), @"PlaylistExtender.Badge");
+    badge.backgroundColor = UIColor.blackColor;
+    badge.layer.cornerRadius = 13;
+
+    UIView *refresh = box(list, _TtC35ListUXPlatform_FreeTierPlaylistImpl25ElementCollectionViewCell.class,
+                          CGRectMake(0, extenderTop + 132, W, 48), nil);
+    UIView *refreshPaint = box(refresh, UIView.class, refresh.bounds, @"PlaylistExtender.Refresh");
+    refreshPaint.backgroundColor = UIColor.blackColor;
+    UIView *button = box(refreshPaint, UIView.class, CGRectMake(W / 2 - 36, 8, 72, 32), @"section-header-button");
+    button.backgroundColor = UIColor.whiteColor;
+    button.layer.cornerRadius = 16;
+
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        NSLog(@"[harness] extender paint: heading %@ row-badge %@ refresh %@",
+              headingPaint.backgroundColor ?: @"clear", badge.backgroundColor ?: @"clear",
+              refreshPaint.backgroundColor ?: @"clear");
+    });
+
     if ([NSProcessInfo.processInfo.arguments containsObject:@"liked"]) {
         buildLikedSongs(page, W);
         [self.window makeKeyAndVisible];
