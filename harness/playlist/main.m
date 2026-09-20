@@ -431,7 +431,11 @@ static void buildLikedSongs(UIViewController *page, CGFloat W) {
 
     // The curation row over the first track (own-playlist/01.txt:33): Add, Mix, Notes, Video, Edit, Sort and
     // Name & details in a scroll view, of which the redesign keeps Sort and Mix.
-    UIView *curation = box(list, _TtC35ListUXPlatform_FreeTierPlaylistImpl25ElementCollectionViewCell.class,
+    // `nohandover` builds the row in a cell the redesign's hook never sees, the way the device has it when
+    // the collection has not laid the closed-up cell out yet: the sheet then has to find the row itself.
+    BOOL handover = ![NSProcessInfo.processInfo.arguments containsObject:@"nohandover"];
+    UIView *curation = box(list, handover ? _TtC35ListUXPlatform_FreeTierPlaylistImpl25ElementCollectionViewCell.class
+                                          : UICollectionViewCell.class,
                            CGRectMake(0, tracksTop - 52, W, 52), nil);
     UIView *toolbar = box(curation, UIView.class, curation.bounds, @"PlaylistCuration.Row.CurationActionsToolbar");
     toolbar.layer.backgroundColor = [UIColor colorWithWhite:0.07 alpha:1].CGColor;
@@ -740,12 +744,14 @@ static void buildLikedSongs(UIViewController *page, CGFloat W) {
         }
         // The list asks every cell how tall it wants to be, which is where the curation row answers 0 and
         // closes up: the harness's list is a plain scroll view, so it asks the way ListLayout does.
-        UICollectionViewLayoutAttributes *wanted = [UICollectionViewLayoutAttributes layoutAttributesForCellWithIndexPath:
-                                                    [NSIndexPath indexPathForItem:0 inSection:0]];
-        wanted.frame = curation.frame;
-        CGSize answered = [(UICollectionViewCell *)curation preferredLayoutAttributesFittingAttributes:wanted].size;
-        curation.frame = CGRectMake(0, curation.frame.origin.y, answered.width, answered.height);
-        NSLog(@"[harness] the curation row answered %.0fpt tall", answered.height);
+        if (handover) {
+            UICollectionViewLayoutAttributes *wanted = [UICollectionViewLayoutAttributes layoutAttributesForCellWithIndexPath:
+                                                        [NSIndexPath indexPathForItem:0 inSection:0]];
+            wanted.frame = curation.frame;
+            CGSize answered = [(UICollectionViewCell *)curation preferredLayoutAttributesFittingAttributes:wanted].size;
+            curation.frame = CGRectMake(0, curation.frame.origin.y, answered.width, answered.height);
+            NSLog(@"[harness] the curation row answered %.0fpt tall", answered.height);
+        }
     });
 
     // The ⋯ sheet: tapping the pinned button records the page, and the menu that opens a moment later takes
@@ -756,6 +762,7 @@ static void buildLikedSongs(UIViewController *page, CGFloat W) {
         for (UIView *sub in page.view.subviews) {
             if ([NSStringFromClass(sub.class) isEqualToString:@"SGRMirrorButton"]) pinnedMore = (UIControl *)sub;
         }
+        [pinnedMore sendActionsForControlEvents:UIControlEventTouchDown];
         [pinnedMore sendActionsForControlEvents:UIControlEventTouchUpInside];
         _TtC24ContextMenu_InternalImpl25ContextMenuViewController *menu =
             [_TtC24ContextMenu_InternalImpl25ContextMenuViewController new];
@@ -769,8 +776,9 @@ static void buildLikedSongs(UIViewController *page, CGFloat W) {
                 if (!row.hidden) [rows addObject:[NSString stringWithFormat:@"%@ %@", row.accessibilityLabel,
                                                   NSStringFromCGRect(row.frame)]];
             }
-            NSLog(@"[harness] the sheet's header is %@ %.0fpt: %@", block ? NSStringFromClass(block.class) : @"MISSING",
-                  block.bounds.size.height, [rows componentsJoinedByString:@", "]);
+            NSLog(@"[harness] the sheet's header is %@ %.0fpt: %@ (handover %d)",
+                  block ? NSStringFromClass(block.class) : @"MISSING", block.bounds.size.height,
+                  [rows componentsJoinedByString:@", "], handover);
             for (UIView *row in block.subviews) {
                 if (!row.hidden) [(UIControl *)row sendActionsForControlEvents:UIControlEventTouchUpInside];
             }

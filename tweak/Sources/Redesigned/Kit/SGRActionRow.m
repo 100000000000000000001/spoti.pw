@@ -344,6 +344,10 @@ static const CGFloat kCornerSide = 16;
 // The page whose pinned ⋯ was last tapped, and when: what tells the sheet that opens a moment later which
 // page's menu it is. The same trick Shared/Player/SpeedPitchMenu.x plays on the player's more button, but
 // from this side of it, since this button is the redesign's own and knows its own page.
+//
+// Recorded on touch down rather than on touch up: the button's own -sgr_tap is registered first and fires
+// Spotify's ⋯ from the same event, so a sheet Spotify puts up in that same turn would ask which page it
+// belonged to before a target added after -sgr_tap had answered.
 static __weak UIView *sg_morePage;
 static NSTimeInterval sg_moreTappedAt;
 static char kRecorderKey;
@@ -374,7 +378,7 @@ SGRMirrorButton *SGRPinnedMore(UIView *page, const void *key, UIView *source) {
         // Held by the button, which is held by the page, so the recorder lives exactly as long as both.
         SGRPinnedMoreRecorder *recorder = [SGRPinnedMoreRecorder new];
         objc_setAssociatedObject(button, &kRecorderKey, recorder, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        [button addTarget:recorder action:@selector(sgr_moreTapped:) forControlEvents:UIControlEventTouchUpInside];
+        [button addTarget:recorder action:@selector(sgr_moreTapped:) forControlEvents:UIControlEventTouchDown];
         objc_setAssociatedObject(page, key, button, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
     // Over the page's list and its header both, and put back on top whenever Spotify adds to the page.

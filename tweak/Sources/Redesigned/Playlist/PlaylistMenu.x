@@ -296,13 +296,28 @@ static UITableView *tableIn(UIView *root, int depth) {
     return nil;
 }
 
-// The page this sheet belongs to, decided once: the pinned ⋯ that opened it says which page it is on, and
-// only for the few seconds after its tap.
+// The curation row of the page, held from the cell's own pass where there has been one, and looked for on
+// the page where there has not: the row is a cell closed up to nothing, and a collection view lays out
+// what it has to draw, so a page opened and left alone can reach the sheet before that cell has ever run
+// a pass. It was the only thing keeping Mix off the sheet, and the sheet only came right after the menu
+// had been opened and closed a few times (device 2026-09-20). The walk is the page's live views, which is
+// the cells on screen and no more, and it is done once per sheet.
+static UIView *curationIn(UIView *page) {
+    UIView *held = objc_getAssociatedObject(page, &kToolbarKey);
+    if (held) return held;
+    UIView *found = SGRFindByIdentifier(page, SGRPlaylistCurationIdentifier, NULL);
+    if (found) objc_setAssociatedObject(page, &kToolbarKey, found, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    return found;
+}
+
+// The page this sheet belongs to, decided once and only from the ⋯ that opened it. What the page has to
+// show is decided pass by pass below, never here: a sheet turned down because the page was not ready yet
+// would stay turned down for as long as it was open.
 static UIView *pageFor(UIViewController *menu) {
     id decided = objc_getAssociatedObject(menu, &kDecidedKey);
     if (decided) return decided == NSNull.null ? nil : decided;
     UIView *page = SGRPinnedMoreRecentPage();
-    if (page && !objc_getAssociatedObject(page, &kToolbarKey)) page = nil;
+    if (page) curationIn(page);
     objc_setAssociatedObject(menu, &kDecidedKey, page ?: (id)NSNull.null, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     return page;
 }
@@ -338,11 +353,10 @@ static void install(UIViewController *menu) {
     pillsIn(objc_getAssociatedObject(page, &kToolbarKey), &sort, &mix);
     sort = objc_getAssociatedObject(page, &kSortKey) ?: sort;
     [block showSort:sort mix:mix];
+    // Nothing to show yet is not an answer: the page fills in as it lays out, and the next pass is asked
+    // again rather than the sheet being written off.
     CGFloat height = [block wantedHeight];
-    if (height < 1) {
-        objc_setAssociatedObject(menu, &kDecidedKey, NSNull.null, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        return;
-    }
+    if (height < 1) return;
 
     CGRect frame = CGRectMake(0, 0, width, height);
     UIView *placed = inFooter ? table.tableFooterView : table.tableHeaderView;
