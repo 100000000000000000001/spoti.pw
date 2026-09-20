@@ -68,9 +68,14 @@ SGRShadowPlate *SGRShadowPlateIn(UIView *host, const void *key);
 // cell's own layout pass, and is cheap enough to.
 //
 // Only what is nearly as wide as the cell: a badge's black disc, a card's grey and an image's placeholder
-// are their own. A cell nested inside the cell (a card in a carousel) is not walked into: its own row
-// decides for it.
+// are their own. A cell nested inside the cell and narrower than that (a card in a carousel) is not walked
+// into: its own row decides for it.
 void SGRClearCellPaint(UIView *cell);
+
+// Fires one of Spotify's own buttons the way a tap on it would: the first control under `source`, through
+// SGRFire, and through -accessibilityActivate when that control answers its touches some other way. For a
+// control the redesign conceals and draws itself (the action row's buttons, a header's creator line).
+void SGRActivate(UIView *source);
 
 // Fires a control's action the way a tap would: the actions registered for primary action triggered,
 // else those for touch up inside. NO when the control has neither (an Encore control that reads its

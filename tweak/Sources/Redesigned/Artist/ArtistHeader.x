@@ -25,8 +25,8 @@
 // Explore, and the headline go with it -- the headline's pre-save is also the list's own Release Countdown
 // section. The Kit's SGRHeaderInfo reads the name and the listeners off Spotify's concealed labels and draws
 // and fires Spotify's shuffle, play and Follow, whose word ("Follow", "Following") is its state in the app's
-// language. More stays in Spotify's row, where the row needs it (ArtistField.x), and is drawn by a glass
-// button of the redesign's in the top trailing corner, level with the back button, firing it.
+// language. More stays in Spotify's row, where the row needs it (ArtistField.x), and the Kit's pinned ⋯
+// (SGRPinnedMore) draws and fires it from the top trailing corner of the page, level with the back button.
 #import "Core/SGCore.h"
 #import "Redesigned/Kit/SGRKit.h"
 #import "Artist.h"
@@ -41,9 +41,6 @@ static const CGFloat kBar = 100, kFade = 150;
 
 static char kInfoKey, kHeroKey, kHeroHeightKey, kContainerHeightKey, kRowWatchedKey;
 static char kTitleKey, kMetaKey, kShuffleKey, kPlayKey, kFollowKey, kArtworkKey, kBarKey, kMoreKey, kMoreButtonKey;
-
-// The back button's glass sits this far under the top of the safe area; more lines up with it.
-static const CGFloat kCornerTop = 2, kCornerSide = 12;
 
 #pragma mark - Spotify's views
 
@@ -277,27 +274,17 @@ static void applyHeader(UIView *header) {
     [info showShuffle:shuffle play:play trailing:follow trailingFallback:[UIImage systemImageNamed:@"person.badge.plus"]
             playColor:SGRArtistFieldColor(container)];
 
-    // More, in the top trailing corner of the page. It scrolls away with the photo; collapsed, the page is a
-    // list and its rows carry their own more.
+    // More, in the top trailing corner of the page itself rather than of the container, which scrolls away
+    // with the photo: pinned there it is the same button in the same place on the album and the playlist,
+    // and the page keeps it however far down the list one is (issue #57).
     UIView *more = SGRFindByIdentifier(header, @"Components.UI.ContextMenuButton*", &kMoreKey);
-    SGRMirrorButton *moreButton = objc_getAssociatedObject(container, &kMoreButtonKey);
-    if (!moreButton) {
-        moreButton = [[SGRMirrorButton alloc] initWithFrame:CGRectZero];
-        moreButton.fallbackGlyph = [UIImage systemImageNamed:@"ellipsis"];
-        objc_setAssociatedObject(container, &kMoreButtonKey, moreButton, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    }
-    if (moreButton.superview != container) [container addSubview:moreButton];
-    else if (container.subviews.lastObject != moreButton) [container bringSubviewToFront:moreButton];
-    if (more) [moreButton feedFrom:more];
-    moreButton.hidden = more == nil;
-    CGFloat top = container.window.safeAreaInsets.top + kCornerTop;
-    setFrame(moreButton, CGRectMake(container.bounds.size.width - kCornerSide - SGRActionHeight, top, SGRActionHeight, SGRActionHeight));
+    SGRPinnedMore(SGRArtistPageOf(container), &kMoreButtonKey, more);
 
     // Collapsing, the text would pass over Spotify's bar with the name in it: it goes over the last kFade of
-    // the collapse, from the header's own height, which this pass runs on every step of.
+    // the collapse, from the header's own height, which this pass runs on every step of. More stays: it is
+    // outside the header and has nothing to pass over.
     CGFloat alpha = MAX(0, MIN(1, (header.bounds.size.height - kBar) / kFade));
     if (fabs(info.alpha - alpha) > 0.01) info.alpha = alpha;
-    if (fabs(moreButton.alpha - alpha) > 0.01) moreButton.alpha = alpha;
 
     // The picture reaches to where the content's top is at rest, plus the name. The container keeps its
     // height as the header collapses, and only ever grows as the page loads.

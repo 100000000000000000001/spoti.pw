@@ -37,7 +37,7 @@ static const CGFloat kMinHero = 120, kMinCover = 80;
 
 static char kHeaderKey, kCoverKey, kTitleKey, kParentKey, kMetaKey, kAddKey, kDownloadKey, kPlayKey, kShuffleKey;
 static char kHeroKey, kHeroHeightKey, kHeaderHeightKey, kInfoKey, kHeaderWatchedKey, kRetryKey;
-static char kExploreKey, kRowWatchedKey;
+static char kExploreKey, kRowWatchedKey, kMoreKey, kPinnedMoreKey;
 
 #pragma mark - moving Spotify's views
 
@@ -325,6 +325,14 @@ static SGRHeaderInfo *applyInfo(UIView *header, UIView *page) {
             if (weakHeader && weakPage) applyHeader(weakHeader, weakPage);
         });
     }
+
+    // The artist under the title, opened from the line that names them. ParentRow is one control for the
+    // whole line however many artists are on the album, so several of them open Spotify's own picker
+    // (issue #56).
+    [info showCreatorLink:parent];
+
+    // More, pinned over the page rather than left in the header, which is blanked and scrolls away.
+    SGRPinnedMore(page, &kPinnedMoreKey, SGRFindByIdentifier(header, @"Components.UI.ContextMenuButton*", &kMoreKey));
 
     UIView *play = floatingIn(page, @"header-play-button", &kPlayKey);
     UIView *shuffle = floatingIn(page, @"Components.UI.ShuffleButton", &kShuffleKey);

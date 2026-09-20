@@ -373,11 +373,22 @@ SGRShadowPlate *SGRShadowPlateIn(UIView *host, const void *key) {
 // disc is 26pt and an avatar's ring the same.
 static const CGFloat kPaintedShare = 0.75;
 
+// The layer's colour, not the view's. -[UIView backgroundColor] answers only what was set through the
+// view; a view painted straight on its layer reads back nil there, and the first pass of this left the
+// playlist's Refresh band black while everything beside it cleared (device, trees/continuous/1.txt
+// 2026-09-20). The layer is where the paint really is, and where the Kit's repaint hook watches for it.
+//
+// A cell nested inside the cell is walked into only while it is as wide as the band being looked for:
+// a card in a carousel is its own and narrower, while the element framework wraps a cell's content in
+// views of its own that are the full width, and stopping at one of those is stopping before the paint.
 static void clearPaint(UIView *view, UIView *cell, CGFloat wide) {
-    if (view != cell && [view isKindOfClass:UICollectionViewCell.class]) return;
-    if (view.bounds.size.width >= wide) {
-        UIColor *color = view.backgroundColor;
-        if (color && SGIsBaseSurface(color.CGColor)) view.backgroundColor = UIColor.clearColor;
+    BOOL full = view.bounds.size.width >= wide;
+    if (view != cell && !full && [view isKindOfClass:UICollectionViewCell.class]) return;
+    if (full) {
+        // Read off the layer, written through the view, so the two are left saying the same thing: the
+        // clear colour lands on both, and reads back with an alpha the next pass does not take for paint.
+        CGColorRef color = view.layer.backgroundColor;
+        if (color && SGIsBaseSurface(color)) view.backgroundColor = UIColor.clearColor;
         if (!view.layer.mask && [NSStringFromClass(view.class) containsString:@"GradientView"]) view.layer.mask = [CALayer layer];
     }
     for (UIView *sub in view.subviews) clearPaint(sub, cell, wide);
@@ -386,6 +397,27 @@ static void clearPaint(UIView *view, UIView *cell, CGFloat wide) {
 void SGRClearCellPaint(UIView *cell) {
     if (!cell) return;
     clearPaint(cell, cell, cell.bounds.size.width * kPaintedShare);
+}
+
+// The way a tap on Spotify's own button would fire it: the first control under it, through the actions
+// it registered, and through accessibility for an Encore control that reads its touches from a gesture
+// recognizer instead -- which is every one of Spotify's own Swift controls.
+void SGRActivate(UIView *source) {
+    if (!source) return;
+    __block UIControl *control = nil;
+    SGForEachView(source, ^(UIView *v) {
+        if (!control && [v isKindOfClass:UIControl.class]) control = (UIControl *)v;
+    });
+    if (control && SGRFire(control)) return;
+    id target = control ?: source;
+    static NSMutableSet<NSString *> *logged;
+    if (!logged) logged = [NSMutableSet set];
+    NSString *name = NSStringFromClass([target class]);
+    if (![logged containsObject:name]) {
+        [logged addObject:name];
+        SGLog(@"redesign kit: %@ fired through accessibility", name);
+    }
+    [target accessibilityActivate];
 }
 
 BOOL SGRFire(UIControl *control) {

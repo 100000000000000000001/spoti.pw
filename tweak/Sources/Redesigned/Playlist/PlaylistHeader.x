@@ -42,7 +42,7 @@ static const CGFloat kMinHero = 120, kMinCover = 80;
 
 static char kCoverKey, kMetaKey, kPlayKey, kLayoutKey, kToolbarKey, kScrimKey, kBarScrimKey;
 static char kShuffleKey, kAddKey, kDownloadKey, kInfoKey, kBlockHeightKey, kBlockWatchedKey;
-static char kHeroKey, kHeroHeightKey, kRowKey, kRowWatchedKey;
+static char kHeroKey, kHeroHeightKey, kRowKey, kRowWatchedKey, kMoreKey, kCreatorKey, kPinnedMoreKey, kSortKey;
 
 #pragma mark - finding things
 
@@ -51,6 +51,17 @@ static char kHeroKey, kHeroHeightKey, kRowKey, kRowWatchedKey;
 @end
 @implementation SGRWeakView
 @end
+
+// The page the header is on: FTPViewController's own view, which holds the field, the list and the header
+// and does not scroll. Walked from the header rather than taken off sgr_playlistRoot, so a playlist under
+// another one on the stack pins its own ⋯ and not the one on top.
+UIView *SGRPlaylistPageOf(UIView *view) {
+    for (UIResponder *r = view; r; r = r.nextResponder) {
+        if (![r isKindOfClass:UIViewController.class]) continue;
+        if ([NSStringFromClass(r.class) containsString:@"FTPViewController"]) return ((UIViewController *)r).viewIfLoaded;
+    }
+    return nil;
+}
 
 UIViewController *SGRPlaylistHeaderOf(UIView *view) {
     for (UIResponder *r = view; r; r = r.nextResponder) {
@@ -365,6 +376,17 @@ static void showPlaylist(SGRHeaderInfo *info, UIView *block, UIView *root, id mo
      trailingFallback:[UIImage systemImageNamed:save ? @"plus" : @"arrow.down"] playColor:SGRPlaylistFieldColor(info)];
     // Only what the button draws goes: a concealed layer still sends the actions the capsule fires.
     conceal(play);
+
+    // Whoever made the playlist, opened from the line that names them. Spotify's own button carries the
+    // facepile and the name and takes the tap to a profile -- or, for a playlist several people are on, to
+    // the picker it opens itself (issue #56).
+    [info showCreatorLink:SGRFindByIdentifier(block, @"Components.PlaylistHeader.collaboratorsButton", &kCreatorKey)];
+
+    // More, pinned over the page rather than left in the block, which is concealed and scrolls away; and
+    // Spotify's own Sort, from the find-on-page toolbar this header conceals, for the ⋯ sheet to fire.
+    UIView *page = SGRPlaylistPageOf(root);
+    SGRPinnedMore(page, &kPinnedMoreKey, SGRFindByIdentifier(block, @"Components.UI.ContextMenuButton*", &kMoreKey));
+    SGRPlaylistTakeSort(page, SGRFindByIdentifier(root, @"Components.Header.UI.Toolbar.Button", &kSortKey));
 
     static BOOL logged;
     if (!logged && info.window && (title || play)) {

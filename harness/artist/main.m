@@ -311,6 +311,14 @@ static NSArray<NSArray *> *musicList(void) {
         UIView *card = band.subviews.lastObject;
         NSLog(@"[harness] carousel bg %@, fade masked %d, card bg %@", band.backgroundColor, fade.layer.mask != nil, card.backgroundColor);
         NSLog(@"[harness] strip a=%.2f, pages moved %.0f, list bg %@", strip.alpha, pages.transform.ty, list.backgroundColor);
+        // ⋯ is pinned to the page now, not to the header's container, so it holds its place as the page
+        // scrolls and the header collapses (issue #57), and it is the back button's 44pt glass.
+        UIView *pinned = nil;
+        for (UIView *sub in page.subviews) {
+            if ([NSStringFromClass(sub.class) isEqualToString:@"SGRMirrorButton"]) pinned = sub;
+        }
+        NSLog(@"[harness] pinned more: %@ on the page, a=%.2f",
+              pinned ? NSStringFromCGRect(pinned.frame) : @"MISSING", pinned.alpha);
     });
     return YES;
 }
