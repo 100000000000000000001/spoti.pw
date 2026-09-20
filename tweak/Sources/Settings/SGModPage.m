@@ -1,3 +1,4 @@
+#import <CoreText/SFNTLayoutTypes.h>
 #import "SGModPage.h"
 #import "SGPageStyle.h"
 #import "SGGlowSwitch.h"
@@ -86,25 +87,30 @@ SGModRow *SGPageRow(NSString *title, UIViewController *(^page)(void)) {
     return row;
 }
 
-// The list a choice row opens: the names it was given, a green checkmark against the one set.
-// Picking one writes the index and goes back, where the row it came from reads the new name out
-// and the page it sits on rebuilds around it.
+// The list a choice row opens: the names it was given, each over its note where it has one, a green
+// checkmark against the one set. Picking one writes the index, tells the row, and goes back, where the row
+// it came from reads the new name out and the page it sits on rebuilds around it.
 @interface SGChoicePage : SGPage
-- (instancetype)initWithTitle:(NSString *)title key:(NSString *)key choices:(NSArray<NSString *> *)choices fallback:(NSInteger)fallback;
+- (instancetype)initWithTitle:(NSString *)title key:(NSString *)key choices:(NSArray<NSString *> *)choices notes:(NSArray<NSString *> *)notes
+                     fallback:(NSInteger)fallback chosen:(void (^)(NSInteger index))chosen;
 @end
 
 @implementation SGChoicePage {
     NSString *_key;
-    NSArray<NSString *> *_choices;
+    NSArray<NSString *> *_choices, *_notes;
     NSInteger _fallback;
+    void (^_chosen)(NSInteger index);
 }
 
-- (instancetype)initWithTitle:(NSString *)title key:(NSString *)key choices:(NSArray<NSString *> *)choices fallback:(NSInteger)fallback {
+- (instancetype)initWithTitle:(NSString *)title key:(NSString *)key choices:(NSArray<NSString *> *)choices notes:(NSArray<NSString *> *)notes
+                     fallback:(NSInteger)fallback chosen:(void (^)(NSInteger index))chosen {
     if (!(self = [super initWithStyle:UITableViewStyleInsetGrouped])) return nil;
     self.title = title;
     _key = key;
     _choices = choices;
+    _notes = notes;
     _fallback = fallback;
+    _chosen = chosen;
     return self;
 }
 
@@ -128,7 +134,8 @@ SGModRow *SGPageRow(NSString *title, UIViewController *(^page)(void)) {
 
 - (UITableViewCell *)tableView:(UITableView *)table cellForRowAtIndexPath:(NSIndexPath *)path {
     UITableViewCell *cell = SGDequeueCell(table, @"choice");
-    SGFillCell(cell, _choices[(NSUInteger)path.row], nil, nil, nil);
+    NSUInteger index = (NSUInteger)path.row;
+    SGFillCell(cell, _choices[index], index < _notes.count ? _notes[index] : nil, nil, nil);
     cell.selectionStyle = UITableViewCellSelectionStyleDefault;
     if (path.row == SGInt(_key, _fallback)) {
         UIImageView *tick = SGSymbolView(@"checkmark", 13, UIImageSymbolWeightSemibold, 16);
@@ -141,6 +148,7 @@ SGModRow *SGPageRow(NSString *title, UIViewController *(^page)(void)) {
 - (void)tableView:(UITableView *)table didSelectRowAtIndexPath:(NSIndexPath *)path {
     [table deselectRowAtIndexPath:path animated:NO];
     SGSetInt(_key, path.row);
+    if (_chosen) _chosen(path.row);
     [table reloadData];
     [self.navigationController popViewControllerAnimated:YES];
 }
@@ -148,7 +156,8 @@ SGModRow *SGPageRow(NSString *title, UIViewController *(^page)(void)) {
 @end
 
 // No key on the row: the key lives in the blocks, so the page draws the row as the link it is
-// rather than as a switch.
+// rather than as a switch. The notes and the callback are read off the row when its list opens, so they
+// can be set after this returns.
 SGModRow *SGChoiceRow(NSString *title, NSString *subtitle, NSString *key, NSArray<NSString *> *choices, NSInteger fallback) {
     SGModRow *row = [SGModRow new];
     row.title = title;
@@ -157,9 +166,24 @@ SGModRow *SGChoiceRow(NSString *title, NSString *subtitle, NSString *key, NSArra
         NSInteger index = SGInt(key, fallback);
         return index >= 0 && index < (NSInteger)choices.count ? choices[(NSUInteger)index] : choices.firstObject;
     };
+    __weak SGModRow *weakRow = row;
     row.page = ^UIViewController *{
-        return [[SGChoicePage alloc] initWithTitle:title key:key choices:choices fallback:fallback];
+        return [[SGChoicePage alloc] initWithTitle:title key:key choices:choices notes:weakRow.choiceNotes fallback:fallback chosen:weakRow.chosen];
     };
+    return row;
+}
+
+SGModRow *SGSliderRow(NSString *title, NSString *subtitle, double minimum, double maximum, double step,
+                      double (^get)(void), void (^set)(double value), NSString *(^format)(double value)) {
+    SGModRow *row = [SGModRow new];
+    row.title = title;
+    row.subtitle = subtitle;
+    row.minimum = minimum;
+    row.maximum = maximum;
+    row.step = step;
+    row.number = get;
+    row.setNumber = set;
+    row.format = format;
     return row;
 }
 
@@ -234,8 +258,147 @@ static BOOL lockedRowOn(SGModRow *row) {
     return value ? [value boolValue] != row.forceOff : YES;
 }
 
+#pragma mark - the slider row
+
+// On the row's step, counted from its minimum, without the float noise of getting there.
+static double snapped(SGModRow *row, double value) {
+    if (row.step > 0) value = row.minimum + round(round((value - row.minimum) / row.step) * row.step * 1e6) / 1e6;
+    return MAX(row.minimum, MIN(row.maximum, value));
+}
+
+// Figures that do not shift sideways as they change, in whatever face the titles are in.
+static UIFont *tabular(UIFont *font) {
+    UIFontDescriptor *descriptor = [font.fontDescriptor fontDescriptorByAddingAttributes:@{
+        UIFontDescriptorFeatureSettingsAttribute: @[@{UIFontFeatureTypeIdentifierKey: @(kNumberSpacingType),
+                                                     UIFontFeatureSelectorIdentifierKey: @(kMonospacedNumbersSelector)}],
+    }];
+    return [UIFont fontWithDescriptor:descriptor size:font.pointSize];
+}
+
+// A step at a time for VoiceOver, or a twentieth of the range where the steps are too fine to swipe through.
+@interface SGModSlider : UISlider
+@property (nonatomic) float spokenStep;
+@end
+
+@implementation SGModSlider
+
+- (void)accessibilityIncrement {
+    self.value += self.spokenStep;
+    [self sendActionsForControlEvents:UIControlEventValueChanged];
+}
+
+- (void)accessibilityDecrement {
+    self.value -= self.spokenStep;
+    [self sendActionsForControlEvents:UIControlEventValueChanged];
+}
+
+@end
+
+// The Audio effects page's slider row (Shared/JamesDSP/JamesDSPPage.m), for any page: the title and the
+// value over a slider in the accent colour, a subtitle between them when there is one, each step stored
+// as the thumb reaches it.
+@interface SGModSliderCell : UITableViewCell
++ (CGFloat)heightFor:(SGModRow *)row;
+- (void)showRow:(SGModRow *)row;
+@end
+
+@implementation SGModSliderCell {
+    SGModRow *_row;
+    UILabel *_title, *_subtitle, *_value;
+    SGModSlider *_slider;
+    double _shown;
+    BOOL _detents;   // few enough steps that the thumb jumps between them as it is dragged
+}
+
+static const CGFloat kSliderTop = 12, kSliderLine = 18, kSliderSubtitle = 14, kSliderGap = 6, kSliderHeight = 28, kSliderBottom = 10;
+
++ (CGFloat)heightFor:(SGModRow *)row {
+    return kSliderTop + kSliderLine + (row.subtitle ? kSliderSubtitle : 0) + kSliderGap + kSliderHeight + kSliderBottom;
+}
+
+- (instancetype)initWithStyle:(UITableViewCellStyle)style reuseIdentifier:(NSString *)identifier {
+    if (!(self = [super initWithStyle:style reuseIdentifier:identifier])) return nil;
+    self.selectionStyle = UITableViewCellSelectionStyleNone;
+    _title = [UILabel new];
+    _title.textColor = UIColor.whiteColor;
+    _title.isAccessibilityElement = NO;
+    _subtitle = [UILabel new];
+    _subtitle.textColor = SGGrey();
+    _subtitle.isAccessibilityElement = NO;
+    _value = [UILabel new];
+    _value.textColor = SGGrey();
+    _value.textAlignment = NSTextAlignmentRight;
+    _value.isAccessibilityElement = NO;
+    _slider = [SGModSlider new];
+    _slider.maximumTrackTintColor = [UIColor colorWithWhite:1 alpha:0.16];
+    [_slider addTarget:self action:@selector(moved) forControlEvents:UIControlEventValueChanged];
+    [_slider addTarget:self action:@selector(released) forControlEvents:UIControlEventTouchUpInside | UIControlEventTouchUpOutside | UIControlEventTouchCancel];
+    for (UIView *view in @[_title, _subtitle, _value, _slider]) [self.contentView addSubview:view];
+    return self;
+}
+
+- (void)showRow:(SGModRow *)row {
+    _row = row;
+    NSInteger count = row.step > 0 ? (NSInteger)lround((row.maximum - row.minimum) / row.step) : 0;
+    _detents = count > 0 && count <= 24;
+    _title.font = SGTitleFont();
+    _subtitle.font = SGSubtitleFont();
+    _value.font = tabular(SGTitleFont());
+    _title.text = row.title;
+    _subtitle.text = row.subtitle;
+    _subtitle.hidden = !row.subtitle;
+    _slider.minimumTrackTintColor = SGGreen();
+    _slider.minimumValue = (float)row.minimum;
+    _slider.maximumValue = (float)row.maximum;
+    _slider.spokenStep = (float)(count > 0 && count <= 40 ? row.step : snapped(row, row.minimum + (row.maximum - row.minimum) / 20) - row.minimum);
+    _shown = snapped(row, row.number());
+    _slider.value = (float)_shown;
+    _slider.accessibilityLabel = row.title;
+    _slider.accessibilityHint = row.subtitle;
+    [self showValue];
+}
+
+- (void)showValue {
+    _value.text = _row.format ? _row.format(_shown) : [NSString stringWithFormat:@"%g", _shown];
+    _slider.accessibilityValue = _value.text;
+    [self setNeedsLayout];
+}
+
+- (void)layoutSubviews {
+    [super layoutSubviews];
+    CGFloat width = self.contentView.bounds.size.width, side = 16, y = kSliderTop;
+    [_value sizeToFit];
+    CGFloat valueWidth = MAX(_value.bounds.size.width, 44);
+    _value.frame = CGRectMake(width - side - valueWidth, y, valueWidth, kSliderLine);
+    _title.frame = CGRectMake(side, y, CGRectGetMinX(_value.frame) - side - 8, kSliderLine);
+    y += kSliderLine;
+    if (_row.subtitle) {
+        _subtitle.frame = CGRectMake(side, y, width - 2 * side, kSliderSubtitle);
+        y += kSliderSubtitle;
+    }
+    _slider.frame = CGRectMake(side, y + kSliderGap, width - 2 * side, kSliderHeight);
+}
+
+- (void)moved {
+    double value = snapped(_row, _slider.value);
+    if (_detents) _slider.value = (float)value;
+    if (value == _shown) return;
+    _shown = value;
+    if (_row.setNumber) _row.setNumber(value);
+    [self showValue];
+}
+
+- (void)released {
+    [_slider setValue:(float)_shown animated:YES];
+}
+
+@end
+
+#pragma mark - the page
+
 @implementation SGModPage {
     NSArray<SGModSection *> *_sections;
+    NSArray<NSArray<SGModRow *> *> *_shown;   // each section's rows that show now (SGModRow.visible)
     UIView *_intro;
     UIView *_footer;
     NSTimer *_ticker;
@@ -246,12 +409,65 @@ static BOOL lockedRowOn(SGModRow *row) {
     if (!(self = [super initWithStyle:UITableViewStyleInsetGrouped])) return nil;
     self.title = title;
     _sections = sections;
+    _shown = [self rowsToShow];
     _intro = intro ? SGNote(intro) : nil;
     _footer = footer ? SGNote(footer) : nil;
     // A page row reads its value out when the page appears rather than on the ticker, so only the
     // rows whose numbers climb on their own keep one running.
     for (SGModSection *s in sections) for (SGModRow *row in s.rows) _live |= row.value && !row.page;
     return self;
+}
+
+- (NSArray<NSArray<SGModRow *> *> *)rowsToShow {
+    NSMutableArray<NSArray<SGModRow *> *> *shown = [NSMutableArray arrayWithCapacity:_sections.count];
+    for (SGModSection *s in _sections) {
+        NSMutableArray<SGModRow *> *rows = [NSMutableArray arrayWithCapacity:s.rows.count];
+        for (SGModRow *row in s.rows) if (!row.visible || row.visible()) [rows addObject:row];
+        [shown addObject:rows];
+    }
+    return shown;
+}
+
+// The rows that are to show now fade in where they sit and the others fade out, and whatever came in is
+// scrolled into view: it opens under the switch that brought it, which may be the page's last row. Answers
+// whether anything moved; `done` runs once it has, and only then.
+- (BOOL)showRowsThen:(void (^)(void))done {
+    NSArray<NSArray<SGModRow *> *> *next = [self rowsToShow];
+    if ([next isEqualToArray:_shown]) return NO;
+    NSMutableArray<NSIndexPath *> *gone = [NSMutableArray array], *coming = [NSMutableArray array];
+    [_sections enumerateObjectsUsingBlock:^(SGModSection *s, NSUInteger section, BOOL *stop) {
+        NSArray<SGModRow *> *before = self->_shown[section], *after = next[section];
+        [before enumerateObjectsUsingBlock:^(SGModRow *row, NSUInteger i, BOOL *stop) {
+            if (![after containsObject:row]) [gone addObject:[NSIndexPath indexPathForRow:(NSInteger)i inSection:(NSInteger)section]];
+        }];
+        [after enumerateObjectsUsingBlock:^(SGModRow *row, NSUInteger i, BOOL *stop) {
+            if (![before containsObject:row]) [coming addObject:[NSIndexPath indexPathForRow:(NSInteger)i inSection:(NSInteger)section]];
+        }];
+    }];
+    UITableView *table = self.tableView;
+    [table performBatchUpdates:^{
+        self->_shown = next;
+        [table deleteRowsAtIndexPaths:gone withRowAnimation:UITableViewRowAnimationFade];
+        [table insertRowsAtIndexPaths:coming withRowAnimation:UITableViewRowAnimationFade];
+    } completion:^(BOOL finished) {
+        if (coming.count) {
+            CGRect rows = CGRectNull;
+            for (NSIndexPath *path in coming) rows = CGRectUnion(rows, [table rectForRowAtIndexPath:path]);
+            CGFloat room = table.bounds.size.height - table.adjustedContentInset.top - table.adjustedContentInset.bottom;
+            rows.size.height = MIN(rows.size.height, room);
+            [table scrollRectToVisible:rows animated:YES];
+        }
+        if (done) done();
+    }];
+    return YES;
+}
+
+// The row a switch or an ⓘ belongs to, by the cell it sits in: rows coming and going move the rows under
+// them, so a position remembered when the cell was made may be stale.
+- (NSIndexPath *)pathOf:(UIView *)control {
+    UIView *view = control;
+    while (view && ![view isKindOfClass:UITableViewCell.class]) view = view.superview;
+    return view ? [self.tableView indexPathForCell:(UITableViewCell *)view] : nil;
 }
 
 - (void)viewDidLoad {
@@ -274,7 +490,8 @@ static BOOL lockedRowOn(SGModRow *row) {
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
     // Reloaded whether or not anything ticks: a choice row is showing whatever was picked on the
-    // page it opened, which is gone by the time this one comes back.
+    // page it opened, which is gone by the time this one comes back, and may bring rows or take them.
+    _shown = [self rowsToShow];
     [self.tableView reloadData];
     if (!_live) return;
     // The counters climb while the page is open; the labels are written straight into the cells so
@@ -302,7 +519,7 @@ static BOOL lockedRowOn(SGModRow *row) {
 }
 
 - (SGModRow *)rowAt:(NSIndexPath *)path {
-    return _sections[(NSUInteger)path.section].rows[(NSUInteger)path.row];
+    return _shown[(NSUInteger)path.section][(NSUInteger)path.row];
 }
 
 - (NSInteger)numberOfSectionsInTableView:(UITableView *)table {
@@ -310,7 +527,13 @@ static BOOL lockedRowOn(SGModRow *row) {
 }
 
 - (NSInteger)tableView:(UITableView *)table numberOfRowsInSection:(NSInteger)section {
-    return (NSInteger)_sections[(NSUInteger)section].rows.count;
+    return (NSInteger)_shown[(NSUInteger)section].count;
+}
+
+// A slider row is laid out by hand; every other row sizes itself.
+- (CGFloat)tableView:(UITableView *)table heightForRowAtIndexPath:(NSIndexPath *)path {
+    SGModRow *row = [self rowAt:path];
+    return row.number ? [SGModSliderCell heightFor:row] : UITableViewAutomaticDimension;
 }
 
 - (UIView *)tableView:(UITableView *)table viewForHeaderInSection:(NSInteger)section {
@@ -334,6 +557,12 @@ static BOOL lockedRowOn(SGModRow *row) {
 
 - (UITableViewCell *)tableView:(UITableView *)table cellForRowAtIndexPath:(NSIndexPath *)path {
     SGModRow *row = [self rowAt:path];
+    if (row.number) {
+        SGModSliderCell *cell = [table dequeueReusableCellWithIdentifier:@"slider"] ?: [[SGModSliderCell alloc] initWithStyle:UITableViewCellStyleDefault reuseIdentifier:@"slider"];
+        cell.backgroundColor = SGCardBackground();
+        [cell showRow:row];
+        return cell;
+    }
     UITableViewCell *cell = SGDequeueCell(table, @"row");
     SGFillCell(cell, row.title, row.subtitle, row.color, row.symbol);
     UIListContentConfiguration *content = (UIListContentConfiguration *)cell.contentConfiguration;
@@ -365,9 +594,8 @@ static BOOL lockedRowOn(SGModRow *row) {
         toggle.enabled = !locked;
         // A disabled switch would swallow the tap; letting it through is what gets the row asked.
         toggle.userInteractionEnabled = !locked;
-        toggle.tag = path.section * 1000 + path.row;
         [toggle addTarget:self action:@selector(toggled:) forControlEvents:UIControlEventValueChanged];
-        cell.accessoryView = row.info ? [self infoButtonBeside:toggle tag:toggle.tag] : toggle;
+        cell.accessoryView = row.info ? [self infoButtonBeside:toggle] : toggle;
         cell.selectionStyle = locked ? UITableViewCellSelectionStyleDefault : UITableViewCellSelectionStyleNone;
     } else if (row.page) {
         cell.accessoryView = row.value ? valueAndChevron(row.value()) : SGSymbolView(@"chevron.right", 13, UIImageSymbolWeightSemibold, 16);
@@ -401,12 +629,11 @@ static BOOL lockedRowOn(SGModRow *row) {
 }
 
 // The ⓘ to the left of the switch, the grey of a subtitle, 30pt across so it is easy to hit next to it.
-- (UIView *)infoButtonBeside:(UIControl *)toggle tag:(NSInteger)tag {
+- (UIView *)infoButtonBeside:(UIControl *)toggle {
     UIButton *info = [UIButton buttonWithType:UIButtonTypeSystem];
     UIImageSymbolConfiguration *symbol = [UIImageSymbolConfiguration configurationWithPointSize:17 weight:UIImageSymbolWeightRegular];
     [info setImage:[UIImage systemImageNamed:@"info.circle" withConfiguration:symbol] forState:UIControlStateNormal];
     info.tintColor = SGGrey();
-    info.tag = tag;
     info.accessibilityLabel = @"About this switch";
     [info addTarget:self action:@selector(infoTapped:) forControlEvents:UIControlEventTouchUpInside];
     [toggle sizeToFit];
@@ -420,7 +647,9 @@ static BOOL lockedRowOn(SGModRow *row) {
 }
 
 - (void)infoTapped:(UIButton *)button {
-    SGModRow *row = [self rowAt:[NSIndexPath indexPathForRow:button.tag % 1000 inSection:button.tag / 1000]];
+    NSIndexPath *path = [self pathOf:button];
+    if (!path) return;
+    SGModRow *row = [self rowAt:path];
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:row.title message:row.info preferredStyle:UIAlertControllerStyleAlert];
     [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
     [self presentViewController:alert animated:YES completion:nil];
@@ -429,15 +658,20 @@ static BOOL lockedRowOn(SGModRow *row) {
 // A UISwitch or an SGGlowSwitch, both answering isOn.
 - (void)toggled:(UIControl *)toggle {
     BOOL on = [(UISwitch *)toggle isOn];
-    SGModRow *row = [self rowAt:[NSIndexPath indexPathForRow:toggle.tag % 1000 inSection:toggle.tag / 1000]];
+    NSIndexPath *path = [self pathOf:toggle];
+    if (!path) return;
+    SGModRow *row = [self rowAt:path];
     if (row.flag) SGSetFlagOverride(row.key, on ? @(!row.forceOff) : nil);
     else SGSetEnabled(row.key, on);
-    if (row.changed) {
-        row.changed(on);
-        // A glowing switch is let finish its slide before the reload puts a new one in its place.
-        NSTimeInterval wait = [toggle isKindOfClass:SGGlowSwitch.class] ? 0.45 : 0;
+    if (row.changed) row.changed(on);
+    // A glowing switch is let finish its slide before the reload puts a new one in its place; rows coming
+    // or going are let finish first too.
+    NSTimeInterval wait = [toggle isKindOfClass:SGGlowSwitch.class] ? 0.45 : 0;
+    void (^reload)(void) = ^{
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(wait * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ [self.tableView reloadData]; });
-    }
+    };
+    BOOL moved = [self showRowsThen:row.changed ? reload : nil];
+    if (row.changed && !moved) reload();
     if (on && row.warning) [self warn:row];
 }
 

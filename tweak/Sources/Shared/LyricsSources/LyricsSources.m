@@ -441,6 +441,29 @@ __attribute__((constructor)) static void registerForcer(void) {
     SGRegisterFlagForcer(NO, ^id(NSString *key) { return SGLyricsForcedFlag(key); }, nil);
 }
 
+#pragma mark - the language of translations
+
+NSArray<NSString *> *SGLyricsTranslationLanguages(void) {
+    return @[@"", @"ar", @"zh-Hans", @"zh-Hant", @"cs", @"da", @"nl", @"en", @"fi", @"fr", @"de", @"el", @"he",
+             @"hi", @"hu", @"id", @"it", @"ja", @"ko", @"nb", @"pl", @"pt", @"ro", @"ru", @"sk", @"es", @"sv",
+             @"th", @"tr", @"uk", @"vi"];
+}
+
+NSArray<NSString *> *SGLyricsTranslationLanguageNames(void) {
+    NSLocale *english = [NSLocale localeWithLocaleIdentifier:@"en"];
+    NSMutableArray<NSString *> *names = [NSMutableArray array];
+    for (NSString *tag in SGLyricsTranslationLanguages()) {
+        [names addObject:tag.length ? [english localizedStringForLocaleIdentifier:tag] ?: tag : @"Any"];
+    }
+    return names;
+}
+
+NSString *SGLyricsTranslationLanguage(void) {
+    NSArray<NSString *> *tags = SGLyricsTranslationLanguages();
+    NSInteger index = SGInt(SGKeyLyricsTranslationLanguage, 0);
+    return index > 0 && index < (NSInteger)tags.count ? tags[(NSUInteger)index] : nil;
+}
+
 NSString *SGLyricsCreditFor(NSString *trackID) {
     setUp();
     @synchronized (sg_credits) { return trackID ? sg_credits[trackID] : nil; }

@@ -67,8 +67,7 @@ static NSString *lineFor(NSDictionary *info, double elapsed) {
         return nil;
     }
     NSInteger position = (NSInteger)(elapsed * 1000);
-    NSInteger index = -1;
-    while (index + 1 < (NSInteger)lines.count && lines[index + 1].start <= position) index++;
+    NSInteger index = SGKaraokeLeadLine(lines, position);
     if (index < 0) return nil;
     BOOL nextFarOff = index + 1 == (NSInteger)lines.count || lines[index + 1].start - position > kBreakMs;
     if (position > lines[index].end + kBreakMs && nextFarOff) return nil;

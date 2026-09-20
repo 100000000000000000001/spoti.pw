@@ -29,6 +29,11 @@ Since 2026-09-18 the header is the Kit's `SGRHeaderInfo` over Spotify's blanked 
 longer tests anything the redesign moves; it still shows Spotify's column staying blank. The metadata row's
 cells arrive after the header's pass, which is what `AlbumHeader.x`'s re-read answers.
 
+`late` on the launch line (`xcrun simctl launch booted com.vojta.albumharness late`) opens the album the way a
+first open has it, with no add in the row, and adds it at 2.5 s as an arranged subview of the row, which lays out
+nothing above the row. At 3 s the log says what the row shows on Play's right: "Add" once `AlbumHeader.x` watches
+the row, "Download" before it did (issue #19).
+
 At 3.5 s it puts Spotify's own frames back on the title block, its stack and the action row and asks
 both groups for a layout pass, which is what the redesign's `SGRObserveLayout` watches have to survive.
 The log says what the redesign answered with.

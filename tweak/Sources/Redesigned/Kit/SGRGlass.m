@@ -28,6 +28,7 @@ static UIView *newShape(SGRGlassMode mode) {
             shape.backgroundColor = SGRSolidGlassFill();
             break;
     }
+    shape.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
     shape.userInteractionEnabled = NO;
     return shape;
 }

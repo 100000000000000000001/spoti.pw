@@ -50,6 +50,9 @@ static void glassBehindRoundButtons(UIViewController *unit) {
         if (f.size.width > f.size.height * 1.4) continue;
         CGFloat side = MAX(kButtonMin, MIN(MAX(f.size.width, f.size.height), kButtonMax));
         UIVisualEffectView *glass = SGGlassAt(host, index++);
+        // Dark whatever the system is set to: the player is presented outside the navigation stacks
+        // Spotify makes dark itself, so its panes took the system's light glass on a phone in light mode.
+        if (glass.overrideUserInterfaceStyle != UIUserInterfaceStyleDark) glass.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
         glass.frame = CGRectMake(CGRectGetMidX(f) - side / 2, CGRectGetMidY(f) - side / 2, side, side);
         SGShapeGlass(glass, side / 2, YES);
     }

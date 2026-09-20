@@ -135,6 +135,24 @@ static UIView *actionButton(UIView *row, CGRect frame, NSString *identifier, NSS
 
 @end
 
+// What the redesign's row shows on Play's right: the label of the Kit's last round button, the trailing one.
+static NSString *trailingLabel(UIView *root) {
+    NSMutableArray<UIView *> *stack = [NSMutableArray arrayWithObject:root];
+    while (stack.count) {
+        UIView *v = stack.lastObject;
+        [stack removeLastObject];
+        if ([NSStringFromClass(v.class) isEqualToString:@"SGRHeaderInfo"]) {
+            UIView *trailing = nil;
+            for (UIView *sub in v.subviews) {
+                if ([NSStringFromClass(sub.class) isEqualToString:@"SGRMirrorButton"]) trailing = sub;
+            }
+            return trailing && !trailing.hidden ? trailing.accessibilityLabel : @"nothing";
+        }
+        [stack addObjectsFromArray:v.subviews];
+    }
+    return @"no header";
+}
+
 #pragma mark - the page
 
 @interface SGRHarnessDelegate : UIResponder <UIApplicationDelegate>
@@ -235,7 +253,10 @@ static UIView *actionButton(UIView *row, CGRect frame, NSString *identifier, NSS
                          @[@"Components.UI.AddToButton", @"plus", @"Add", @62, @0, @48, @48],
                          @[@"DownloadButton.Granular.None", @"arrow.down.circle", @"Download", @110, @0, @48, @48],
                          @[@"Components.UI.ContextMenuButton-3OxfaVgvTxUTy7276t7SPU", @"ellipsis", @"More options", @158, @0, @48, @48]];
+    // `late` on the launch line: add is not in the row yet, the way an album opened for the first time has it.
+    BOOL late = [NSProcessInfo.processInfo.arguments containsObject:@"late"];
     for (NSArray *action in actions) {
+        if (late && [action[0] isEqualToString:@"Components.UI.AddToButton"]) continue;
         CGRect frame = CGRectMake([action[3] doubleValue], [action[4] doubleValue], [action[5] doubleValue], [action[6] doubleValue]);
         [_actionItems addObject:actionButton(_actionRow, frame, action[0], action[1], action[2])];
         [_actionFrames addObject:[NSValue valueWithCGRect:frame]];
@@ -340,6 +361,20 @@ static UIView *actionButton(UIView *row, CGRect frame, NSString *identifier, NSS
     [condensed addSubview:disc];
 
     [self.window makeKeyAndVisible];
+
+    // In `late`, add arrives at 2.5 s, after every pass of the header's and the metadata's re-reads: an arranged
+    // subview of the row, which lays out the row and nothing above it.
+    if (late) {
+        UIStackView *row = (UIStackView *)_actionRow;
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            [row insertArrangedSubview:actionButton(row, CGRectMake(62, 0, 48, 48), @"Components.UI.AddToButton", @"plus", @"Add")
+                               atIndex:0];
+            NSLog(@"[harness] late: add arrived in the row");
+        });
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            NSLog(@"[harness] late: Play's right shows \"%@\"", trailingLabel(root.view));
+        });
+    }
 
     // The list is measured the way the page's collection measures it: every cell is asked how tall it wants
     // to be, which is where AlbumSections.x answers 0 for what the redesign drops, and the answers are

@@ -23,7 +23,9 @@
 //
 // When the connection is never seen, pitch falls back to the way it first shipped: a render notify on the
 // RemoteIO unit (after Music Haptics' own rebinding of AudioOutputUnitStart) runs each finished buffer
-// through a unit working in place; speed is then unavailable.
+// through a unit working in place; speed is then unavailable. Those buffers are in the unit's output format,
+// the hardware's, not the one Spotify hands the unit (harness/jamesdsp/sim), so the fallback's unit is made
+// for that one.
 //
 // Speed and pitch last until Spotify quits.
 //
@@ -59,9 +61,13 @@ static _Atomic(SGRTimePitch *) sg_pull, sg_inPlace;
 static atomic_bool sg_engaged, sg_busy;
 static pthread_mutex_t sg_buildLock = PTHREAD_MUTEX_INITIALIZER;
 
-// The output's format when Spotify started it, for the in place fallback.
-static atomic_uint_fast64_t sg_rateBits;
-static atomic_uint sg_formatFlags, sg_formatChannels, sg_formatBytes;
+// The formats when Spotify started its output: the one it hands the RemoteIO unit, which the chain's unit
+// feeds, and the unit's output side, the hardware's, which the in place fallback's notify gets.
+typedef struct {
+    atomic_uint_fast64_t rateBits;
+    atomic_uint flags, channels, bytes;
+} Format;
+static Format sg_client, sg_hardware;
 
 static BOOL tapped(void) {
     return atomic_load(&sg_source) != NULL;
@@ -179,8 +185,8 @@ static inline void writeSample(void *data, UInt32 index, float value, UInt32 byt
 }
 
 static void shiftInPlace(SGRTimePitch *unit, AudioUnitRenderActionFlags *flags, UInt32 frames, AudioBufferList *data) {
-    UInt32 formatFlags = atomic_load_explicit(&sg_formatFlags, memory_order_relaxed);
-    UInt32 bytes = atomic_load_explicit(&sg_formatBytes, memory_order_relaxed);
+    UInt32 formatFlags = atomic_load_explicit(&sg_hardware.flags, memory_order_relaxed);
+    UInt32 bytes = atomic_load_explicit(&sg_hardware.bytes, memory_order_relaxed);
     UInt32 channels = SGRTimePitchChannels(unit);
     BOOL isFloat = (formatFlags & kAudioFormatFlagIsFloat) != 0;
     BOOL split = (formatFlags & kAudioFormatFlagIsNonInterleaved) != 0;
@@ -265,24 +271,33 @@ static OSStatus setProperty(AudioUnit unit, AudioUnitPropertyID property, AudioU
 
 static OSStatus (*sg_startOutput)(AudioUnit unit);
 
-static void readFormat(AudioUnit unit) {
-    AudioStreamBasicDescription format = {0};
-    UInt32 size = sizeof format;
-    OSStatus status = AudioUnitGetProperty(unit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input, 0, &format, &size);
-    static int logged;
-    if (status != noErr || format.mFormatID != kAudioFormatLinearPCM || format.mSampleRate <= 0) {
-        if (logged++ < 6) SGLog(@"redesign speed: the output is not linear PCM (%d)", (int)status);
-        return;
-    }
+// One side of the RemoteIO unit's element 0 into `into`; a side that is not linear PCM is left as it was.
+static BOOL readScope(AudioUnit unit, AudioUnitScope scope, Format *into, AudioStreamBasicDescription *format) {
+    UInt32 size = sizeof *format;
+    OSStatus status = AudioUnitGetProperty(unit, kAudioUnitProperty_StreamFormat, scope, 0, format, &size);
+    if (status != noErr || format->mFormatID != kAudioFormatLinearPCM || format->mSampleRate <= 0) return NO;
     uint64_t bits;
-    memcpy(&bits, &format.mSampleRate, sizeof bits);
-    atomic_store(&sg_rateBits, bits);
-    atomic_store(&sg_formatFlags, format.mFormatFlags);
-    atomic_store(&sg_formatChannels, format.mChannelsPerFrame);
-    atomic_store(&sg_formatBytes, format.mBitsPerChannel / 8);
-    if (logged++ < 6) SGLog(@"redesign speed: Spotify's output is %.0f Hz, %u channels, %u bits, flags 0x%x, slices of %u, %@",
-                            format.mSampleRate, (unsigned)format.mChannelsPerFrame, (unsigned)format.mBitsPerChannel,
-                            (unsigned)format.mFormatFlags, atomic_load(&sg_chunk), tapped() ? @"fed through the menu's unit" : @"not taken over");
+    memcpy(&bits, &format->mSampleRate, sizeof bits);
+    atomic_store(&into->rateBits, bits);
+    atomic_store(&into->flags, format->mFormatFlags);
+    atomic_store(&into->channels, format->mChannelsPerFrame);
+    atomic_store(&into->bytes, format->mBitsPerChannel / 8);
+    return YES;
+}
+
+static void readFormat(AudioUnit unit) {
+    AudioStreamBasicDescription client = {0}, hardware = {0};
+    BOOL clientRead = readScope(unit, kAudioUnitScope_Input, &sg_client, &client);
+    BOOL hardwareRead = readScope(unit, kAudioUnitScope_Output, &sg_hardware, &hardware);
+    static int logged;
+    if (!clientRead || !hardwareRead) {
+        if (logged++ < 6) SGLog(@"redesign speed: the output is not linear PCM (Spotify's side %@, the hardware's %@)", clientRead ? @"is" : @"is not", hardwareRead ? @"is" : @"is not");
+        if (!clientRead) return;
+    }
+    if (logged++ < 6) SGLog(@"redesign speed: Spotify's output is %.0f Hz, %u channels, %u bits, flags 0x%x, into the hardware's %.0f Hz, %u channels, %u bits, flags 0x%x, slices of %u, %@",
+                            client.mSampleRate, (unsigned)client.mChannelsPerFrame, (unsigned)client.mBitsPerChannel, (unsigned)client.mFormatFlags,
+                            hardware.mSampleRate, (unsigned)hardware.mChannelsPerFrame, (unsigned)hardware.mBitsPerChannel, (unsigned)hardware.mFormatFlags,
+                            atomic_load(&sg_chunk), tapped() ? @"fed through the menu's unit" : @"not taken over");
 }
 
 static void apply(void);
@@ -311,15 +326,16 @@ static void disengage(void) {
 // The unit for the output's format and the way in use, made when there is none or the format changed. A
 // replaced one is never freed: the render thread may still hold it, and a format change is rare.
 static SGRTimePitch *unitForFormat(void) {
-    double rate;
-    uint64_t bits = atomic_load(&sg_rateBits);
-    memcpy(&rate, &bits, sizeof rate);
-    UInt32 channels = atomic_load(&sg_formatChannels);
     BOOL pull = tapped();
+    Format *format = pull ? &sg_client : &sg_hardware;
+    double rate;
+    uint64_t bits = atomic_load(&format->rateBits);
+    memcpy(&rate, &bits, sizeof rate);
+    UInt32 channels = atomic_load(&format->channels);
     if (pull) {
         // In the chain the unit hands its buffers to the RemoteIO unit as they are: float, one per channel.
-        UInt32 flags = atomic_load(&sg_formatFlags);
-        BOOL canonical = (flags & kAudioFormatFlagIsFloat) && (flags & kAudioFormatFlagIsNonInterleaved) && atomic_load(&sg_formatBytes) == 4;
+        UInt32 flags = atomic_load(&format->flags);
+        BOOL canonical = (flags & kAudioFormatFlagIsFloat) && (flags & kAudioFormatFlagIsNonInterleaved) && atomic_load(&format->bytes) == 4;
         if (!canonical) {
             static int logged;
             if (logged++ < 3) SGLog(@"redesign speed: the output is not float per channel (flags 0x%x), speed cannot apply", (unsigned)flags);

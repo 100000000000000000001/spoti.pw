@@ -46,6 +46,9 @@ static UIView *clearAncestors(UIView *view) {
     sg_lyricsPageRoot = clearAncestors(page);
 
     UIVisualEffectView *glass = SGGlassFor(page, &kPageGlassKey);
+    // Dark whatever the system is set to, as the player's header panes are (Native/Player/Player.x):
+    // light glass under white lyrics otherwise, on a phone in light mode.
+    if (glass.overrideUserInterfaceStyle != UIUserInterfaceStyleDark) glass.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
     glass.frame = page.bounds;
     glass.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     // Full bleed, so the shape is spelled out: a fresh pane does not promise square corners.

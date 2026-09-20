@@ -98,8 +98,8 @@ static NSString *lyricsLine(NSString *trackID, NSString **next) {
         }
     }
     NSInteger position = SGKaraokePositionMs();
-    NSInteger index = -1;
-    while (index + 1 < (NSInteger)lines.count && lines[index + 1].start <= position) index++;
+    // With two voices at once, the one that came in first, and the one singing over it as the next.
+    NSInteger index = SGKaraokeLeadLine(lines, position);
     *next = index + 1 < (NSInteger)lines.count ? SGKaraokeLineText(lines[index + 1]) : @"";
     if (index < 0) return @"♪";
     SGKaraokeLine *current = lines[index];

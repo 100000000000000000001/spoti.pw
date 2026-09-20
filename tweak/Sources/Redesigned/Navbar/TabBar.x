@@ -1,7 +1,8 @@
 // Tab bar: Spotify's own bar stays where it is but goes invisible, and a system UITabBar sits on top
 // of it. On iOS 26+ with UIDesignRequiresCompatibility off, UIKit draws that bar as real Liquid Glass
 // (selection bubble, lensing, light/dark adaptation) with no glass API of ours. Spotify's bar keeps
-// its frame, so the page insets and the now playing bar stay where Spotify puts them.
+// its frame, so the page insets and the now playing bar stay where Spotify puts them; where the system
+// bar is taller than Spotify's, Spotify is made to leave it the room (see "room for the glass bar").
 //
 // A tab picked on the system bar is passed on as a tap on the hidden Spotify item it mirrors, and the
 // system bar's selection follows whichever Spotify label is painted white. Navbar.x composes the
@@ -16,8 +17,9 @@
 #import "Headers/SPTEncoreIconView.h"
 #import <objc/message.h>
 
-static char kBarKey;
+static char kBarKey, kHostKey;
 static __weak UIView *sg_stockBar;
+static CGFloat sg_room, sg_glassHeight;   // see "room for the glass bar"
 
 @interface SGRSystemTabBar : UITabBar <UITabBarDelegate, UIGestureRecognizerDelegate>
 @property (nonatomic, weak) UIView *stockBar;
@@ -238,6 +240,21 @@ static void forwardTap(UIView *item) {
 
 @end
 
+// The system bar's own view in Spotify's bar. UIKit measures the system bar and lays it out by the safe
+// area of the view it stands in, and the room made under Spotify's bar is not the phone's: on a phone
+// with a home button it went under the platter as well, squeezing it to 49 pt. So this view hands the
+// bar the safe area without the room.
+@interface SGRTabBarHost : UIView
+@end
+
+@implementation SGRTabBarHost
+- (UIEdgeInsets)safeAreaInsets {
+    UIEdgeInsets insets = [super safeAreaInsets];
+    insets.bottom = MAX(0, insets.bottom - sg_room);
+    return insets;
+}
+@end
+
 @interface SGRHomeHold : UILongPressGestureRecognizer
 @end
 
@@ -261,9 +278,58 @@ static void logBarOnce(UITabBar *bar) {
     static dispatch_once_t once;
     dispatch_once(&once, ^{
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            SGLogLong(@"navbar", [NSString stringWithFormat:@"system tab bar %@\n%@", NSStringFromCGRect(bar.frame), [bar recursiveDescription]]);
+            SGLogLong(@"navbar", [NSString stringWithFormat:@"system tab bar %@\n%@", NSStringFromCGRect(bar.superview.frame), [bar recursiveDescription]]);
         });
     });
+}
+
+#pragma mark - room for the glass bar
+
+// UIKit's glass bar asks for 83 pt, the platter the top 62 of it, over no more safe area than a Face ID
+// phone's 34 (simulator, iOS 26.5 and 27). Spotify's bar is its 49 pt row over the bottom safe area of
+// TabBarContainerImpl's view: a guide from 49 pt above the safe area's bottom to the view's bottom sets
+// its height (its viewDidLoad, 0x100840a2c), the now playing bar stands on that guide's top
+// (MainUIContainer's chrome bottom anchor, 0x100ae0178), the bar slides away by the inset plus 49 when
+// Spotify hides it (0x1037169a4) and the pages get 49 on top of the inset (0x10707bde4). A Face ID
+// phone gives the view 34 and the two bars match. A phone with a home button gives it none, and so does
+// Spotify's message bar (LimitedExperienceIndicatorBar: Offline, Private Session) coming in under the
+// tab bar, which takes the home indicator's inset for itself: the glass bar stood 34 pt above
+// Spotify's, over the now playing bar. So the view gets the rest of the glass bar's height as safe
+// area, and Spotify lays its bar, the now playing bar, the pages and the hide out for the glass bar
+// itself, and moves them all with the message bar.
+static const CGFloat kStockRow = 49;
+
+// UIKit asks for 62 + max(21, inset) on a phone with a home button, max(83, 49 + inset) on a Face ID
+// phone, by the safe area of the view the bar stands in. SGRTabBarHost keeps the room out of that; if
+// it ever reached the bar again, the bar would ask for more room every pass, so what it asks for with
+// no room made is what is kept.
+static CGFloat glassHeight(UITabBar *bar, UIView *stockBar) {
+    if (sg_room < 0.5 || sg_glassHeight <= 0) sg_glassHeight = [bar sizeThatFits:CGSizeMake(stockBar.bounds.size.width, kStockRow)].height;
+    return sg_glassHeight;
+}
+
+static UIViewController *containerOf(UIView *stockBar) {
+    Class containerClass = NSClassFromString(@"_TtC23NavigationUI_TabBarImpl19TabBarContainerImpl");
+    for (UIResponder *r = stockBar.nextResponder; r; r = r.nextResponder) {
+        if ([r isKindOfClass:containerClass]) return (UIViewController *)r;
+    }
+    return nil;
+}
+
+static void makeRoom(UIViewController *container) {
+    UIView *stockBar = sg_stockBar;
+    UITabBar *bar = stockBar ? objc_getAssociatedObject(stockBar, &kBarKey) : nil;
+    if (!bar.window || !container.isViewLoaded || ![stockBar isDescendantOfView:container.view]) return;
+    UIEdgeInsets extra = container.additionalSafeAreaInsets;
+    CGFloat inset = container.view.safeAreaInsets.bottom - extra.bottom;
+    CGFloat height = glassHeight(bar, stockBar);
+    // Spotify's regular width bar is a fixed 76 pt that ignores the inset.
+    BOOL compact = container.traitCollection.horizontalSizeClass == UIUserInterfaceSizeClassCompact;
+    CGFloat room = compact ? MAX(0, ceil(height - kStockRow - inset)) : 0;
+    if (fabs(extra.bottom - room) < 0.5) return;
+    sg_room = extra.bottom = room;
+    container.additionalSafeAreaInsets = extra;
+    SGLog(@"tab bar: %.0f pt of room made under Spotify's bar for the glass bar's %.0f, over an inset of %.0f", room, height, inset);
 }
 
 static void syncBar(UIView *stockBar) {
@@ -272,6 +338,11 @@ static void syncBar(UIView *stockBar) {
     SGRSystemTabBar *bar = objc_getAssociatedObject(stockBar, &kBarKey);
     if (!bar) {
         bar = [[SGRSystemTabBar alloc] initWithFrame:stockBar.bounds];
+        // UIKit draws the glass in the appearance the bar inherits, and the bar is outside the navigation
+        // stacks Spotify makes dark itself (-[SPNavigationController viewDidLoad] while +[SPTLiquidGlass
+        // isEnabled]), so a phone in light mode had it light over Spotify's black. Spotify is dark whatever
+        // the system is, and so is the bar.
+        bar.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
         bar.delegate = bar;
         bar.stockBar = stockBar;
         UILongPressGestureRecognizer *hold = [[UILongPressGestureRecognizer alloc] initWithTarget:bar action:@selector(held:)];
@@ -279,11 +350,15 @@ static void syncBar(UIView *stockBar) {
         [bar addGestureRecognizer:hold];
         bar.hold = hold;
         objc_setAssociatedObject(stockBar, &kBarKey, bar, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        SGRTabBarHost *host = [SGRTabBarHost new];
+        [host addSubview:bar];
+        objc_setAssociatedObject(stockBar, &kHostKey, host, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
     bar.tintColor = SGRAccent();
+    UIView *host = objc_getAssociatedObject(stockBar, &kHostKey);
 
     for (UIView *sub in stockBar.subviews) {
-        if (sub == bar) continue;
+        if (sub == host) continue;
         sub.alpha = 0;
         sub.userInteractionEnabled = NO;
     }
@@ -333,12 +408,14 @@ static void syncBar(UIView *stockBar) {
 
     CGRect bounds = stockBar.bounds;
     CGFloat width = bounds.size.width;
-    CGFloat height = MAX(bounds.size.height, [bar sizeThatFits:CGSizeMake(width, bounds.size.height)].height);
+    CGFloat height = MAX(bounds.size.height, glassHeight(bar, stockBar));
     CGRect frame = CGRectMake(0, CGRectGetMaxY(bounds) - height, width, height);
-    if (!CGRectEqualToRect(bar.frame, frame)) bar.frame = frame;
-    if (bar.superview != stockBar) [stockBar addSubview:bar];
-    else if (stockBar.subviews.lastObject != bar) [stockBar bringSubviewToFront:bar];
+    if (!CGRectEqualToRect(host.frame, frame)) host.frame = frame;
+    if (!CGRectEqualToRect(bar.frame, host.bounds)) bar.frame = host.bounds;
+    if (host.superview != stockBar) [stockBar addSubview:host];
+    else if (stockBar.subviews.lastObject != host) [stockBar bringSubviewToFront:host];
     logBarOnce(bar);
+    makeRoom(containerOf(stockBar));
 }
 
 #pragma mark - hooks
@@ -354,7 +431,7 @@ static UIView *tabBarOf(UIView *item) {
     %orig;
     SGRComposeTabBar((UIView *)self);
     for (UIView *sub in ((UIView *)self).subviews) {
-        if (![sub isKindOfClass:SGRSystemTabBar.class]) [sub layoutIfNeeded];
+        if (![sub isKindOfClass:SGRTabBarHost.class]) [sub layoutIfNeeded];
     }
     holdHome((UIView *)self);
     syncBar((UIView *)self);
@@ -394,6 +471,12 @@ static void itemDidLayOut(UIView *item) {
         UIView *bar = sg_stockBar;
         if (bar) syncBar(bar);
     });
+}
+// The message bar coming or going changes the view's safe area before Spotify lays the bar out for it,
+// so the room follows in that same pass, and inside the message bar's animation.
+- (void)viewSafeAreaInsetsDidChange {
+    %orig;
+    makeRoom((UIViewController *)self);
 }
 %end
 

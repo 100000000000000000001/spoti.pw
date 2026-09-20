@@ -28,6 +28,11 @@ What it does not cover: the real element framework's autolayout, and the flags `
 `other` on the launch line makes it someone else's playlist (save on Play's right instead of download, and a
 description with an HTML entity); the header controller's view model is mocked from the device's values (2026-09-18).
 
+`other late` opens it with no save in the row, the way a first open has it, and adds save at 2.5 s as an arranged
+subview of HeaderActionsRow, which lays out nothing above the row. At 3 s the log says what the row shows on Play's
+right: "Like" once `PlaylistHeader.x` watches the row, "Download" before it did (issue #19). The scripted states
+from 4 s on lay the header out and would hide the difference, so read it before then.
+
 `liked` on the launch line (`xcrun simctl launch booted com.vojta.playlistharness liked`) builds Liked Songs
 instead, from `trees/continuous/1.txt` (2026-09-18): no cover, a 238pt header, the count in a stack of its own,
 the play button 80x48, and `LiquidGlass.gradientContainer`, which it fades in at 3 s as a scroll does.

@@ -29,6 +29,19 @@ NSString *SGKaraokeLineText(SGKaraokeLine *line) {
     return text;
 }
 
+NSInteger SGKaraokeSungEnd(SGKaraokeLine *line) {
+    return line.backing ? MAX(line.end, line.backing.end) : line.end;
+}
+
+NSInteger SGKaraokeLeadLine(NSArray<SGKaraokeLine *> *lines, NSInteger ms) {
+    NSInteger last = -1;
+    while (last + 1 < (NSInteger)lines.count && lines[(NSUInteger)last + 1].start <= ms) last++;
+    for (NSInteger i = 0; i < last; i++) {
+        if (SGKaraokeSungEnd(lines[(NSUInteger)i]) > ms) return i;
+    }
+    return last;
+}
+
 // Japanese, Chinese and Korean, and the punctuation set with them. Kana and Hangul are listed as
 // well as the ideographs: a line of either is written without spaces just the same.
 static NSCharacterSet *unspacedScript(void) {

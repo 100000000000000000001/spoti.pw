@@ -7,9 +7,12 @@
 
 @class SGModRow, SGModSection;
 // LyricsSettings.m: the Lyrics page's parts (App/Pages.m puts the page together): where lyrics come
-// from, naming the source (read by the redesign's lyrics view only), and the lock screen.
+// from, naming the source (read by the redesign's lyrics view only), the lock screen, and which
+// language a line's translation is taken in, of those the lyrics come with (the redesign's lyrics
+// being where translations show).
 SGModSection *SGLyricsSourcesSection(BOOL namingSource);
 SGModRow *SGLockScreenLyricsRow(void);
+SGModRow *SGLyricsTranslationLanguageRow(void);
 
 // Which edge a line is laid against. Apple Music puts a duet's second voice against the far one, so
 // the two sides of the song read apart; a track sung by one voice stays leading throughout.
@@ -37,10 +40,23 @@ typedef NS_ENUM(NSUInteger, SGKaraokeAlign) {
 // The (oh, aye) sung under the line, smaller and dimmer, nil for nearly every line. Its words are
 // timed like any other and it is lit by the same sweep, a beat behind the line it hangs off.
 @property (nonatomic, strong) SGKaraokeLine *backing;
+// How the line sounds, written in the Latin alphabet (Apple Music's pronunciation): its words sung
+// at the times of the line's own, each starting with the word it spells, and the backing's under the
+// backing. nil where the source has none, or where it reads the same as the line.
+@property (nonatomic, strong) SGKaraokeLine *pronunciation;
+// The line in another language, the backing's words with it; nil where the source has none.
+@property (nonatomic, copy) NSString *translation;
 @end
 
 // The line as one string, a space between the words that are not joined.
 NSString *SGKaraokeLineText(SGKaraokeLine *line);
+// When the singing of a line is over: its own end, or its backing's when that runs on past it.
+NSInteger SGKaraokeSungEnd(SGKaraokeLine *line);
+// The one line a place with room for one names as the one being sung at `ms`. Two voices can sing
+// over each other, and a line another voice comes in over keeps its place until it is sung out, so
+// this is the earliest line still being sung; between lines, the last one begun; -1 before the first.
+// The lock screen and the Live Activity show this one.
+NSInteger SGKaraokeLeadLine(NSArray<SGKaraokeLine *> *lines, NSInteger ms);
 // Whether the text is written in a script that does not space its words, so the pieces of a line
 // are words in their own right rather than halves of one.
 BOOL SGKaraokeUnspacedScript(NSString *text);

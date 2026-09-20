@@ -15,6 +15,9 @@
 #define SGKeyLyricsAllTracks @"spotifyglass.lyricsAllTracks"
 // Names the source the shown lines came from, on the full screen page.
 #define SGKeyLyricsCredit @"spotifyglass.lyricsCredit"
+// The language a line's translation is asked for in, as an index into SGLyricsTranslationLanguages;
+// unset or 0 takes whatever translation the source has.
+#define SGKeyLyricsTranslationLanguage @"spotifyglass.lyricsTranslationLanguage"
 
 // What a source answers with, and what the chain merges several of into one.
 @interface SGLyricsResult : NSObject
@@ -99,9 +102,18 @@ void SGLyricsGetText(NSURL *url, void (^done)(NSString *text));
 // server is not kept as "no lyrics". The two above call it themselves.
 void SGLyricsNoteReply(NSURLResponse *response, NSError *error);
 
-// SGTTML.m. Apple Music's TTML as timed lines, the voices already turned into alignments; nil when
-// the document holds no line the page could show.
+// SGTTML.m. Apple Music's TTML as timed lines, the voices already turned into alignments and each
+// line's translation and pronunciation added where the head has them; nil when the document holds no
+// line the page could show.
 NSArray<SGKaraokeLine *> *SGTTMLLines(NSString *xml);
+
+// The languages a translation can be asked for in, as language tags ("en", "es"), the first one ""
+// for whatever the source has; SGKeyLyricsTranslationLanguage indexes it, so it only ever grows at
+// the end. Their names, in English, for the Lyrics page.
+NSArray<NSString *> *SGLyricsTranslationLanguages(void);
+NSArray<NSString *> *SGLyricsTranslationLanguageNames(void);
+// The tag of the language asked for, nil for whatever the source has.
+NSString *SGLyricsTranslationLanguage(void);
 
 
 // The sources themselves, each in its own file.
