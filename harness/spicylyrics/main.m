@@ -78,6 +78,12 @@ int main(void) {
         checkEqual(sg_sentHeaders[@"SpicyLyrics-WebAuth"], sg_token, @"the token goes in the header it names");
         checkEqual(sg_sentHeaders[@"X-mode"], @"2", @"the packed shape is asked for");
         check([sg_sentHeaders[@"SpicyLyrics-Version"] length] > 0, @"a client version is sent");
+        // The server reads the identity Spotify's desktop client's Chromium puts on every request,
+        // and answers a caller without it with plain text instead of syllables.
+        checkEqual(sg_sentHeaders[@"Origin"], @"https://xpui.app.spotify.com", @"the desktop client's origin");
+        check([sg_sentHeaders[@"User-Agent"] containsString:@"Chrome/"], @"a Chromium user agent");
+        check([sg_sentHeaders[@"sec-ch-ua-platform"] length] > 0, @"the client hints go with it");
+        check(sg_sentHeaders[@"Accept-Encoding"] == nil, @"encoding is left to URLSession, which can decode what it asks for");
         NSDictionary *sent = [sg_sentBody[@"queries"] firstObject];
         checkEqual(sent[@"operation"], @"lyrics", @"the operation");
         checkEqual(sent[@"variables"][@"id"], @"0VjIjW4GlUZAMYd2vXMi3b", @"the track id, not a name");

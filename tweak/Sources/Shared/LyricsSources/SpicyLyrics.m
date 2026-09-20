@@ -272,7 +272,59 @@ static NSArray<SGKaraokeLine *> *linesFromLines(NSArray *content) {
     return SGKaraokeEstimatedLines(starts, texts);
 }
 
+// What the server actually sent, named rather than quoted: the field names and counts, never the
+// words. For telling a document that has no timing from one whose timing we failed to read.
+static NSString *shapeOf(NSDictionary *document) {
+    NSMutableString *shape = [NSMutableString stringWithFormat:@"Type=%@ keys=[%@]",
+                              document[@"Type"], [document.allKeys componentsJoinedByString:@" "]];
+    NSArray *content = arrayIn(document[@"Content"]);
+    if (content) [shape appendFormat:@" Content=%lu", (unsigned long)content.count];
+    NSDictionary *first = dictionaryIn(content.firstObject);
+    if (first) [shape appendFormat:@" Content[0]=[%@]", [first.allKeys componentsJoinedByString:@" "]];
+    NSDictionary *lead = dictionaryIn(first[@"Lead"]);
+    if (lead) [shape appendFormat:@" Lead=[%@] syllables=%lu", [lead.allKeys componentsJoinedByString:@" "],
+               (unsigned long)arrayIn(lead[@"Syllables"]).count];
+    NSDictionary *syllable = dictionaryIn(arrayIn(lead[@"Syllables"]).firstObject);
+    if (syllable) [shape appendFormat:@" Syllable[0]=[%@]", [syllable.allKeys componentsJoinedByString:@" "]];
+    NSArray *staticLines = arrayIn(document[@"Lines"]);
+    if (staticLines) [shape appendFormat:@" Lines=%lu", (unsigned long)staticLines.count];
+    // Whose words these are, where the document says so: a static reply is text Spicy is passing on
+    // from somewhere else, and its name tells us why it came without timing.
+    if (document[@"source"]) [shape appendFormat:@" source=%@", document[@"source"]];
+    NSDictionary *staticLine = dictionaryIn(staticLines.firstObject);
+    if (staticLine) [shape appendFormat:@" Lines[0]=[%@]", [staticLine.allKeys componentsJoinedByString:@" "]];
+    return shape;
+}
+
 #pragma mark - the source
+
+// The API answers a browser. The extension runs inside Spotify's desktop client, which is Chromium,
+// and the server reads the identity Chromium puts on every request by itself — none of which a
+// native URLSession sends. Without it the reply is the plain-text tier rather than Apple Music's
+// syllables, which is why hundreds of tracks came back Type=Static.
+//
+// Spicy Lyrics' author was asked directly (2026-09-20) and allowed the mod to present itself this
+// way, on the one condition that it stays open source, which spoti.pw is. He said he would not add a
+// client of his own for us, and that this is the way, as EeveeSpotify already does it.
+static NSDictionary<NSString *, NSString *> *desktopClient(void) {
+    return @{
+        @"Origin": @"https://xpui.app.spotify.com",
+        @"Referer": @"https://xpui.app.spotify.com/",
+        @"User-Agent": @"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/146.0.7680.179 Spotify/1.2.92.148 Safari/537.36",
+        @"sec-ch-ua": @"\"Not-A.Brand\";v=\"24\", \"Chromium\";v=\"146\"",
+        @"sec-ch-ua-mobile": @"?0",
+        @"sec-ch-ua-platform": @"\"Windows\"",
+        @"sec-fetch-site": @"cross-site",
+        @"sec-fetch-mode": @"cors",
+        @"sec-fetch-dest": @"empty",
+        @"Accept": @"*/*",
+        @"Accept-Language": @"en-Latn-US,en-US;q=0.9,en-Latn;q=0.8,en;q=0.7",
+        @"priority": @"u=1, i",
+        // Accept-Encoding is deliberately left to NSURLSession, which asks for what it can actually
+        // decode. Claiming br and zstd as the browser does risks a body nothing here can read.
+    };
+}
 
 SGLyricsAsk SGSpicyLyricsAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResult *result)) {
     NSString *authorization = SGKaraokeSpotifyAuthorization();
@@ -287,11 +339,11 @@ SGLyricsAsk SGSpicyLyricsAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResu
         @"client": @{@"version": kClientVersion},
     };
     NSURL *url = [NSURL URLWithString:kAPI];
-    SGLyricsPostJSON(url, @{
-        @"X-mode": @"2",   // answer in the packed shape unpack() reads
-        @"SpicyLyrics-Version": kClientVersion,
-        kAuthHeader: authorization,   // already a "Bearer ..." of Spotify's own making
-    }, body, ^(id root) {
+    NSMutableDictionary<NSString *, NSString *> *headers = [desktopClient() mutableCopy];
+    headers[@"X-mode"] = @"2";   // answer in the packed shape unpack() reads
+    headers[@"SpicyLyrics-Version"] = kClientVersion;
+    headers[kAuthHeader] = authorization;   // already a "Bearer ..." of Spotify's own making
+    SGLyricsPostJSON(url, headers, body, ^(id root) {
         NSDictionary *job = nil;
         for (id raw in arrayIn(dictionaryIn(root)[@"queries"]) ?: @[]) {
             if ([dictionaryIn(raw)[@"operationId"] isEqual:kOperationID]) {
@@ -318,6 +370,7 @@ SGLyricsAsk SGSpicyLyricsAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResu
             return;
         }
         NSDictionary *document = dictionaryIn(unpack(answer[@"data"]));
+        SGLog(@"spicy: %@ came back as %@", query.trackID, shapeOf(document));
         NSString *type = [document[@"Type"] isKindOfClass:NSString.class] ? document[@"Type"] : nil;
         NSArray *content = arrayIn(document[@"Content"]);
         BOOL wordTimed = [type isEqualToString:@"Syllable"];
