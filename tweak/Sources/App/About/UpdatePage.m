@@ -14,12 +14,14 @@
 @property (nonatomic, copy) NSString *title;
 @property (nonatomic, copy) NSString *subtitle;
 @property (nonatomic, copy) NSString *symbol;
+@property (nonatomic, copy) NSString *key;              // a switch row, on until it is switched off
 @property (nonatomic, copy) NSString *(^value)(void);   // read out on the right, again once a second
 @property (nonatomic, copy) void (^action)(void);
 @end
 
 @interface SGUpdateGroup : NSObject
 @property (nonatomic, copy) NSString *title;
+@property (nonatomic, copy) NSString *footer;
 @property (nonatomic, copy) NSArray<SGUpdateRow *> *rows;
 @end
 
@@ -138,6 +140,14 @@ static NSArray<SGUpdateRelease *> *releasesToShow(void) {
                            @"clock.arrow.circlepath", [SGRepoURL stringByAppendingString:@"/releases"])];
     [groups addObject:group(nil, top)];
 
+    SGUpdateRow *notice = [SGUpdateRow new];
+    notice.title = @"Tell me when one is out";
+    notice.symbol = @"bell";
+    notice.key = SGKeyUpdateNotice;
+    SGUpdateGroup *told = group(nil, @[notice]);
+    told.footer = @"A release newer than this build brings this up once, a few seconds after Spotify opens.";
+    [groups addObject:told];
+
     for (SGUpdateRelease *release in releasesToShow()) {
         NSMutableArray<NSString *> *kinds = [NSMutableArray array];
         NSMutableDictionary<NSString *, NSMutableArray<SGUpdateRow *> *> *byKind = [NSMutableDictionary dictionary];
@@ -176,7 +186,7 @@ static NSArray<SGUpdateRelease *> *releasesToShow(void) {
 - (void)viewDidLoad {
     [super viewDidLoad];
     _intro = SGNote([self introText]);
-    _footer = SGNote(@"Releases are cut from the commits, so every line here is one change and opens it on GitHub. The mod asks for them when Mod Settings opens, at most once every six hours.");
+    _footer = SGNote(@"Releases are cut from the commits, so every line here is one change and opens it on GitHub. The mod asks GitHub for them a few seconds after Spotify opens and whenever Mod Settings does, at most once every six hours.");
     self.tableView.tableHeaderView = _intro;
     self.tableView.tableFooterView = _footer;
 }
@@ -252,11 +262,13 @@ static NSArray<SGUpdateRelease *> *releasesToShow(void) {
 }
 
 - (UIView *)tableView:(UITableView *)table viewForFooterInSection:(NSInteger)section {
-    return nil;
+    NSString *footer = _groups[(NSUInteger)section].footer;
+    return footer ? SGSectionFooter(table, footer) : nil;
 }
 
 - (CGFloat)tableView:(UITableView *)table heightForFooterInSection:(NSInteger)section {
-    return CGFLOAT_MIN;
+    NSString *footer = _groups[(NSUInteger)section].footer;
+    return footer ? SGSectionFooterHeight(table, footer) : CGFLOAT_MIN;
 }
 
 - (UITableViewCell *)tableView:(UITableView *)table cellForRowAtIndexPath:(NSIndexPath *)path {
@@ -270,7 +282,14 @@ static NSArray<SGUpdateRelease *> *releasesToShow(void) {
         cell.contentConfiguration = content;
     }
     cell.separatorInset = UIEdgeInsetsMake(0, row.symbol ? 58 : 16, 0, 0);
-    if (row.value) {
+    if (row.key) {
+        UISwitch *toggle = [UISwitch new];
+        toggle.onTintColor = SGGreen();
+        toggle.on = SGEnabled(row.key);
+        toggle.accessibilityLabel = row.title;
+        [toggle addTarget:self action:@selector(toggled:) forControlEvents:UIControlEventValueChanged];
+        cell.accessoryView = toggle;
+    } else if (row.value) {
         UILabel *label = [UILabel new];
         label.font = SGTitleFont();
         label.textColor = SGGrey();
@@ -281,6 +300,14 @@ static NSArray<SGUpdateRelease *> *releasesToShow(void) {
     cell.selectionStyle = row.action ? UITableViewCellSelectionStyleDefault : UITableViewCellSelectionStyleNone;
     cell.accessibilityTraits = row.action ? UIAccessibilityTraitButton : UIAccessibilityTraitStaticText;
     return cell;
+}
+
+// The switch is read by the cell it sits in, since a rebuilt page moves the rows under it.
+- (void)toggled:(UISwitch *)toggle {
+    UIView *view = toggle;
+    while (view && ![view isKindOfClass:UITableViewCell.class]) view = view.superview;
+    SGUpdateRow *row = [self rowAt:[self.tableView indexPathForCell:(UITableViewCell *)view]];
+    if (row.key) SGSetEnabled(row.key, toggle.on);
 }
 
 - (BOOL)tableView:(UITableView *)table shouldHighlightRowAtIndexPath:(NSIndexPath *)path {

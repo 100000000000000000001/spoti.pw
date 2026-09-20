@@ -247,4 +247,5 @@ static BOOL isSettingsRoot(UIViewController *list) {
     SGRequireClasses(@[@"_TtC21Settings_PlatformImpl26SettingsListViewController", @"_TtC23SideDrawer_ListPageImpl18ListViewController"]);
     SGRegisterPages();
     SGCheckSigningOnce();
+    SGWatchForUpdates();
 }

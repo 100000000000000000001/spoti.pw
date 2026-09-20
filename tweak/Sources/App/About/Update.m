@@ -3,8 +3,9 @@
 // release body is the changelog itself: a "### Features" or "### Fixes" heading over a line per
 // commit, each ending in a link to it. One request brings the last twenty releases rather than only
 // the newest, which is what lets the Updates page show every version between this build and the
-// newest one. Asked when Mod Settings opens, at most once every six hours, and on demand from the
-// page; nothing but the request itself leaves.
+// newest one. Asked a few seconds after Spotify comes up (UpdateNotice.m) and when Mod Settings
+// opens, at most once every six hours either way, and on demand from the page; nothing but the
+// request itself leaves.
 #import "Core/SGCore.h"
 #import "About.h"
 

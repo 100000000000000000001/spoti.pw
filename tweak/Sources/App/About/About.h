@@ -33,6 +33,12 @@ NSString *SGUpdateStatus(void);
 void SGCheckForUpdate(BOOL force);
 UIViewController *SGUpdatePage(void);   // UpdatePage.m: the state and the changelog
 
+// UpdateNotice.m: the sheet a release newer than this build brings on its own, a few seconds after
+// Spotify comes up, once per release. Watched from the settings %ctor; the switch is on the Updates
+// page and takes effect at once.
+#define SGKeyUpdateNotice @"spotifyglass.update.notice"
+void SGWatchForUpdates(void);
+
 
 // Whether the now playing card on the lock screen can open this build. It depends on the signature,
 // not on the mod: iOS launches by the App ID of the application-identifier entitlement, so a build
