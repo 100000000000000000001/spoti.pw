@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.20.0](https://github.com/skopevoj/spoti.pw/compare/v0.19.0...v0.20.0) (2026-09-20)
+
+
+### Features
+
+* a release newer than the build says so on its own, a few seconds after Spotify comes up ([cf29254](https://github.com/skopevoj/spoti.pw/commit/cf292542ccfcc0ef15d63d49433742d1077eb029))
+* Audio effects in Mod Settings, JamesDSP's switch and a card per effect with its sliders, curve or file library ([e41002b](https://github.com/skopevoj/spoti.pw/commit/e41002b1aec18466c6aafe257b3bcfd495ce9152))
+* JamesDSP's effects on everything Spotify plays, run on each buffer its output unit finishes ([546245e](https://github.com/skopevoj/spoti.pw/commit/546245ee73073009ac89da0571e4d66272a912bc))
+* lyrics sung at once lit together, dots through an instrumental break, and a line's pronunciation and translation ([669a0a5](https://github.com/skopevoj/spoti.pw/commit/669a0a5dbc0ce48397f36a8c319e0e99f0e62caf))
+* Spicy Lyrics as a lyrics source, matched by Spotify's track id and timed to the syllable ([1d28754](https://github.com/skopevoj/spoti.pw/commit/1d28754aa19252800627acab4e98900a0403740d))
+* the redesign is offered only on iOS 26, and what does not need its glass works under both looks ([1bbfca2](https://github.com/skopevoj/spoti.pw/commit/1bbfca2235187d9dfb13bc3cf085f7b5e070cc24))
+* the Updates page, the changelog of every release newer than the build, read from the repo's GitHub Releases ([bca0efe](https://github.com/skopevoj/spoti.pw/commit/bca0efeb77e55544d694f8971e7a305d0e011add))
+* Vibrations settings, a strength for the controls' taps and for Music Haptics, and what Music Haptics follows ([94058a0](https://github.com/skopevoj/spoti.pw/commit/94058a06536f8ca3a21d3d7a920564b0bfc489c0))
+
+
+### Fixes
+
+* a playlist Spotify makes shows its picture again instead of a black hero ([419d9dd](https://github.com/skopevoj/spoti.pw/commit/419d9ddb41f775d377efb5610496d461106ade9e))
+* lyrics in right-to-left scripts sit against the right edge and are sung from the right, on the lyrics page and in the Live Activity ([61bd8ee](https://github.com/skopevoj/spoti.pw/commit/61bd8eedc90368a1bddecbf1f54e5381de6c8af2))
+* Spicy Lyrics gives its word timing now the request carries the desktop client's identity ([c3d3047](https://github.com/skopevoj/spoti.pw/commit/c3d3047fc025264ed823d9a1aa0e9a5bec41d1a6))
+* Spicy Lyrics gives its word timing now the request carries the desktop client's identity ([61febbe](https://github.com/skopevoj/spoti.pw/commit/61febbec110d351efd718e1a999f1e4b6bf28dbf))
+* the add to library button shows the first time an album or playlist opens ([4ae246f](https://github.com/skopevoj/spoti.pw/commit/4ae246fb58d1b8ec1fd42cdc081690090ed798c1))
+* the episode page and the playlist's Recommended songs no longer paint black bands over the page colour ([2edcb6c](https://github.com/skopevoj/spoti.pw/commit/2edcb6cede3b8d1d4868d92688189a9a7082b19f))
+* the library's header buttons no longer land on its title when the page first opens ([4e5c576](https://github.com/skopevoj/spoti.pw/commit/4e5c57669c12a28a654b13bd641b5ba9d67c96c7))
+* the now playing bar stays clear of the tab bar on a phone with a home button and under Offline or Private Session ([927b1c6](https://github.com/skopevoj/spoti.pw/commit/927b1c6a4b9229117e66150367b9f489448b47fc))
+* the tab bar, the now playing bar and the mod's glass stay dark when the phone is in light mode ([1b83288](https://github.com/skopevoj/spoti.pw/commit/1b832882485d7f1fe0d50bd005f7a706ac969f8e))
+
 ## [0.19.0](https://github.com/skopevoj/spoti.pw/compare/v0.18.0...v0.19.0) (2026-09-18)
 
 
