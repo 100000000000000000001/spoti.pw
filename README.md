@@ -18,7 +18,8 @@
   <a href="https://spoti.pw">spoti.pw</a> ·
   <a href="#get-it">Get it</a> ·
   <a href="#build-it-yourself">Build it yourself</a> ·
-  <a href="docs/tweaks.md">Hack on it</a>
+  <a href="docs/tweaks.md">Hack on it</a> ·
+  <a href="https://ko-fi.com/darkksh">Support</a>
 </p>
 
 <p align="center">
@@ -94,6 +95,15 @@ lock screen player working.
 
 The first build spends a minute reading Spotify's flags out of your IPA, so the flag list matches the
 Spotify you built from. `make flags` regenerates it.
+
+## Support
+
+Free, and staying that way — no paid tier, no supporter-only builds. If it made your phone nicer
+to use, a coffee is a good way to say so.
+
+<a href="https://ko-fi.com/darkksh">
+  <img src="https://img.shields.io/badge/Ko--fi-Buy_me_a_coffee-FF5E5B?style=for-the-badge&logo=kofi&logoColor=white" alt="Support on Ko-fi">
+</a>
 
 ## Star history
 
