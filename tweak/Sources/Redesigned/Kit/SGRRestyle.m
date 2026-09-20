@@ -4,7 +4,7 @@
 #import "SGRRestyle.h"
 #import "SGRTokens.h"
 
-static char kPlateKey, kImageObserverKey, kLayoutObserverKey;
+static char kPlateKey, kImageObserverKey, kLayoutObserverKey, kTextObserverKey;
 
 @interface SGRWeakBox : NSObject
 @property (nonatomic, weak) id value;
@@ -50,6 +50,59 @@ static BOOL adopt(UIView *view, const char *prefix, void (^install)(Class subcla
 static void addOverride(Class subclass, Class original, SEL selector, id block) {
     Method method = class_getInstanceMethod(original, selector);
     if (method) class_addMethod(subclass, selector, imp_implementationWithBlock(block), method_getTypeEncoding(method));
+}
+
+#pragma mark - the class itself
+
+// What an instance of one of Spotify's own classes cannot have -- a subclass of its own -- the class every
+// instance of it shares can: the override goes on the class, the way each of the tweak's %hooks does. The
+// class is taken off the instance rather than named, since Encore's names carry a build hash that moves with
+// every Spotify release, and it is given the override once; an instance that never asked to be watched pays
+// one associated-object lookup for it.
+//
+// `make` is handed the implementation the override stands in front of and answers the block that replaces
+// it; that block must call the one it was given first. The implementation replaced is the class's own where
+// it has one -- so nothing above it in the hierarchy, UIKit's own classes included, is touched -- and the
+// inherited one where it does not.
+static BOOL overrideOnClass(Class cls, SEL selector, id (^make)(IMP replaced)) {
+    if (!cls || !selector) return NO;
+    // Never the class KVO made for one instance: it is swapped away again when the last observer goes, and
+    // the override with it. Everything else here is a class Spotify itself wrote.
+    if (strncmp(class_getName(cls), "NSKVONotifying_", 15) == 0) return NO;
+    // Done already? A class is an object too, and a selector is a pointer unique to its name, so the class
+    // carries its own mark per selector -- a plain lookup, since callers ask again on every pass they make.
+    if (objc_getAssociatedObject(cls, (void *)selector)) return YES;
+
+    Method inherited = class_getInstanceMethod(cls, selector);
+    if (!inherited) return NO;
+    Method own = nil;
+    unsigned int count = 0;
+    Method *methods = class_copyMethodList(cls, &count);
+    for (unsigned int i = 0; i < count; i++) {
+        if (method_getName(methods[i]) == selector) own = methods[i];
+    }
+    free(methods);
+    IMP replaced = own ? method_getImplementation(own)
+                       : class_getMethodImplementation(class_getSuperclass(cls), selector);
+    if (!replaced) return NO;
+
+    IMP override = imp_implementationWithBlock(make(replaced));
+    if (own) method_setImplementation(own, override);
+    else if (!class_addMethod(cls, selector, override, method_getTypeEncoding(inherited))) return NO;
+    objc_setAssociatedObject(cls, (void *)selector, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    return YES;
+}
+
+// Said once per class: what could not be watched at all, and what had to be watched through its class.
+static void logWatch(UIView *view, SEL selector, BOOL kept, BOOL onClass) {
+    static NSMutableSet<NSString *> *logged;
+    if (!logged) logged = [NSMutableSet set];
+    NSString *name = NSStringFromClass(object_getClass(view));
+    NSString *mark = [NSString stringWithFormat:@"%@ %s", name, sel_getName(selector)];
+    if ([logged containsObject:mark]) return;
+    [logged addObject:mark];
+    if (!kept) SGLog(@"redesign kit: %@ cannot be watched for %s", name, sel_getName(selector));
+    else if (onClass) SGLog(@"redesign kit: %@ watched for %s through its class", name, sel_getName(selector));
 }
 
 #pragma mark - views
@@ -135,27 +188,69 @@ void SGRMonospacedDigits(UILabel *label) {
     keepMonospaced(label, original);
 }
 
+// Only the views that asked: everything else of the class carrying the override goes straight back out.
+static void reportImage(UIImageView *view) {
+    void (^block)(UIImageView *) = objc_getAssociatedObject(view, &kImageObserverKey);
+    if (block) block(view);
+}
+
 BOOL SGRObserveImage(UIImageView *view, void (^changed)(UIImageView *view)) {
     if (![view isKindOfClass:UIImageView.class]) return NO;
+    BOOL first = objc_getAssociatedObject(view, &kImageObserverKey) == nil;
     objc_setAssociatedObject(view, &kImageObserverKey, changed, OBJC_ASSOCIATION_COPY_NONATOMIC);
     BOOL kept = adopt(view, "SGRImageObserved_", ^(Class subclass, Class original) {
         addOverride(subclass, original, @selector(setImage:), ^(UIImageView *self, UIImage *image) {
             struct objc_super parent = {self, original};
             ((void (*)(struct objc_super *, SEL, id))objc_msgSendSuper)(&parent, @selector(setImage:), image);
-            void (^block)(UIImageView *) = objc_getAssociatedObject(self, &kImageObserverKey);
-            if (block) block(self);
+            reportImage(self);
         });
     });
+    // Encore's image views, which is what every picture Spotify loads arrives in, are Swift classes: no
+    // instance of one can be given a subclass of its own, so the class itself carries the override.
+    BOOL onClass = !kept && overrideOnClass(object_getClass(view), @selector(setImage:), ^id(IMP replaced) {
+        return ^(UIImageView *self, UIImage *image) {
+            ((void (*)(id, SEL, id))replaced)(self, @selector(setImage:), image);
+            reportImage(self);
+        };
+    });
+    if (first) logWatch(view, @selector(setImage:), kept || onClass, onClass);
+    return kept || onClass;
+}
+
+static void reportText(UILabel *label) {
+    void (^block)(UILabel *) = objc_getAssociatedObject(label, &kTextObserverKey);
+    if (block) block(label);
+}
+
+BOOL SGRObserveText(UILabel *label, void (^changed)(UILabel *label)) {
+    if (![label isKindOfClass:UILabel.class]) return NO;
+    BOOL first = objc_getAssociatedObject(label, &kTextObserverKey) == nil;
+    objc_setAssociatedObject(label, &kTextObserverKey, changed, OBJC_ASSOCIATION_COPY_NONATOMIC);
+    BOOL kept = adopt(label, "SGRTextObserved_", ^(Class subclass, Class original) {
+        for (NSString *name in @[@"setText:", @"setAttributedText:"]) {
+            SEL selector = NSSelectorFromString(name);
+            addOverride(subclass, original, selector, ^(UILabel *self, id value) {
+                struct objc_super parent = {self, original};
+                ((void (*)(struct objc_super *, SEL, id))objc_msgSendSuper)(&parent, selector, value);
+                reportText(self);
+            });
+        }
+    });
+    BOOL onClass = NO;
     if (!kept) {
-        static NSMutableSet<NSString *> *logged;
-        if (!logged) logged = [NSMutableSet set];
-        NSString *name = NSStringFromClass(object_getClass(view));
-        if (![logged containsObject:name]) {
-            [logged addObject:name];
-            SGLog(@"redesign kit: %@ cannot be watched for its image", name);
+        Class cls = object_getClass(label);
+        for (NSString *name in @[@"setText:", @"setAttributedText:"]) {
+            SEL selector = NSSelectorFromString(name);
+            onClass |= overrideOnClass(cls, selector, ^id(IMP replaced) {
+                return ^(UILabel *self, id value) {
+                    ((void (*)(id, SEL, id))replaced)(self, selector, value);
+                    reportText(self);
+                };
+            });
         }
     }
-    return kept;
+    if (first) logWatch(label, @selector(setText:), kept || onClass, onClass);
+    return kept || onClass;
 }
 
 // A pass the block itself sets off (a frame it moves) reaches layoutSubviews again before the block has

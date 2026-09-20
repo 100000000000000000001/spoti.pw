@@ -22,10 +22,19 @@ void SGRSuppress(UIView *view);
 // setFont: by a runtime subclass of the instance, like SGRSuppress. Idempotent.
 void SGRMonospacedDigits(UILabel *label);
 
-// `changed` after every setImage: on the image view, Spotify's included, for as long as the view lives, by a
-// runtime subclass of the instance like SGRSuppress. A second call replaces the block. NO when the view
-// cannot be subclassed (a KVO-observed instance): the caller then only sees what its own passes read.
+// `changed` after every setImage: on the image view, Spotify's included, for as long as the view lives: by a
+// runtime subclass of the instance like SGRSuppress, or, for one of Spotify's own classes (Encore's image
+// views, which no instance of can be subclassed), by an override on that class, which only ever reports the
+// instances that asked. A second call replaces the block. NO when neither took, which a log line says once:
+// the caller then only sees what its own passes read.
+//
+// This is how a picture that lands after a screen has been laid out reaches it: setting an image lays no
+// ancestor out, so nothing else tells the screen it is there.
 BOOL SGRObserveImage(UIImageView *view, void (^changed)(UIImageView *view));
+
+// `changed` after every setText: and setAttributedText: on the label, the same way and with the same
+// answer: for a word of Spotify's that is a state it fills in later, such as the artist's Follow.
+BOOL SGRObserveText(UILabel *label, void (^changed)(UILabel *label));
 
 // `laidOut` after every layoutSubviews of the view, Spotify's included, for as long as the view lives, by
 // a runtime subclass of the instance like SGRSuppress. A second call replaces the block, and a pass started

@@ -42,7 +42,7 @@ static const CGFloat kMinHero = 120, kMinCover = 80;
 
 static char kCoverKey, kMetaKey, kPlayKey, kLayoutKey, kToolbarKey, kScrimKey, kBarScrimKey;
 static char kShuffleKey, kAddKey, kDownloadKey, kInfoKey, kBlockHeightKey, kBlockWatchedKey;
-static char kHeroKey, kHeroHeightKey, kCoverWatchedKey, kRowKey, kRowWatchedKey;
+static char kHeroKey, kHeroHeightKey, kRowKey, kRowWatchedKey;
 
 #pragma mark - finding things
 
@@ -96,10 +96,14 @@ static UIView *firstOfClass(UIView *root, Class wanted) {
 @property (nonatomic, readonly) UIImageView *picture;
 @property (nonatomic, copy) UIColor *fieldColor;
 @property (nonatomic) CGFloat coverPixels;   // the widest copy of the artwork it has been shown
+// The cover in Spotify's artwork view, and every cover it puts there afterwards: the hero keeps itself
+// right, rather than being handed a picture on each of the header's passes and staying empty between them.
+- (void)followCover:(UIImageView *)source;
 @end
 
 @implementation SGRPlaylistHero {
     CAGradientLayer *_scrim, *_dissolve;
+    __weak UIImageView *_cover;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame {
@@ -163,30 +167,52 @@ static UIView *firstOfClass(UIView *root, Class wanted) {
     [CATransaction commit];
 }
 
-@end
-
-// The cover Spotify loaded, read from the image view of its artwork square.
-static UIImageView *coverImageIn(UIView *cover) {
-    __block UIImageView *found = nil;
-    SGForEachView(cover, ^(UIView *v) {
-        if (found || ![v isKindOfClass:UIImageView.class]) return;
-        UIImageView *image = (UIImageView *)v;
-        if (image.image && image.bounds.size.width >= kMinCover) found = image;
-    });
-    return found;
+- (void)followCover:(UIImageView *)source {
+    if (!source) return;
+    [self takeCover:source late:NO];
+    if (_cover == source) return;
+    _cover = source;
+    __weak SGRPlaylistHero *weakSelf = self;
+    SGRObserveImage(source, ^(UIImageView *view) { [weakSelf takeCover:view late:YES]; });
 }
 
 // Spotify loads the artwork at the size the cover square is asking for, and the square shrinks as the
 // header collapses: scrolled down it swapped a 105px copy in for the 254px one and the picture across the
 // top of the page went soft with it (trees/continuous/2.txt, 2026-09-17). So a copy is taken only while the
 // square is still at full size, which is the only time Spotify asks for one worth showing.
-static void showCover(SGRPlaylistHero *hero, UIImageView *view, UIView *layout) {
-    UIImage *image = view.image;
-    if (!image || view.bounds.size.width < kMinHero) return;
+//
+// `late` is a cover that arrived after the header had laid out -- a playlist opened for the first time,
+// whose artwork is still being fetched while the page is already on screen. The log line says once that the
+// watch, and not one of the header's passes, is what filled the hero.
+- (void)takeCover:(UIImageView *)source late:(BOOL)late {
+    UIImage *image = source.image;
+    if (!image || source.bounds.size.width < kMinHero || _picture.image == image) return;
 
-    hero.coverPixels = image.size.width;
-    if (hero.picture.image != image) hero.picture.image = image;
-    SGRPlaylistSetArtwork(layout, image);
+    self.coverPixels = image.size.width;
+    _picture.image = image;
+    // The page's field takes its colour from the same picture.
+    SGRPlaylistSetArtwork(self, image);
+    static BOOL logged;
+    if (late && !logged) {
+        logged = YES;
+        SGLog(@"redesign playlist: the cover landed after the header had laid out; the hero took it");
+    }
+}
+
+@end
+
+// The image view of Spotify's artwork square: the one with the cover in it, or, before the cover has been
+// fetched, the empty one it will land in, so it can be watched from the first pass.
+static UIImageView *coverImageIn(UIView *cover) {
+    __block UIImageView *found = nil, *empty = nil;
+    SGForEachView(cover, ^(UIView *v) {
+        if (found || ![v isKindOfClass:UIImageView.class]) return;
+        UIImageView *image = (UIImageView *)v;
+        if (image.bounds.size.width < kMinCover) return;
+        if (image.image) found = image;
+        else if (!empty) empty = image;
+    });
+    return found ?: empty;
 }
 
 // The hero belongs in the plane Spotify's own colour wash is drawn on: that plane keeps its full height and
@@ -241,17 +267,7 @@ static void applyHero(UIView *layout, UIView *cover, UIView *plane, UIView *bloc
     if (!CGRectEqualToRect(hero.frame, frame)) hero.frame = frame;
     hero.fieldColor = SGRPlaylistFieldColor(layout);
 
-    UIImageView *source = coverImageIn(cover);
-    showCover(hero, source, layout);
-    // The cover loads after the header is laid out, and a new image lays nothing out again.
-    if (source && !objc_getAssociatedObject(source, &kCoverWatchedKey)) {
-        objc_setAssociatedObject(source, &kCoverWatchedKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        __weak SGRPlaylistHero *weakHero = hero;
-        __weak UIView *weakLayout = layout;
-        SGRObserveImage(source, ^(UIImageView *view) {
-            if (weakHero && weakLayout) showCover(weakHero, view, weakLayout);
-        });
-    }
+    [hero followCover:coverImageIn(cover)];
     conceal(cover);
 }
 
@@ -408,7 +424,6 @@ static SGRHeaderInfo *applyInfo(UIView *block, UIView *headerRoot, UIViewControl
     return info;
 }
 
-
 #pragma mark - the header's pass
 
 // Find on this page and Sort sit in a header view of their own above the cover, invisible until the page is
@@ -515,7 +530,6 @@ static void applyHeader(UIView *layout) {
     CGFloat reach = rest - SGRHeaderInfoBottom - [info contentHeightForWidth:info.bounds.size.width] + SGRHeaderInfoTitleRise;
     if (cover) applyHero(layout, cover, plane, block, reach);
 }
-
 
 // The content layout of the page `root` belongs to, kept weakly on it: the header lays out on every step of
 // its collapse and a walk of its tree each time would be the redesign's own cost.

@@ -17,7 +17,7 @@ static const CGFloat kGlyphSide = 44, kCapsuleLead = 4, kCapsuleTrail = 20;
 // The mirrored glyph, the size Spotify draws one inside a 48pt round button.
 static const CGFloat kMirrorGlyph = 24;
 
-static char kCapsuleGlassKey, kMirrorGlassKey, kWordGlassKey, kGlyphWatchedKey;
+static char kCapsuleGlassKey, kMirrorGlassKey, kWordGlassKey;
 
 // A word button's padding either side of the word.
 static const CGFloat kWordPadding = 18;
@@ -66,6 +66,7 @@ static NSString *wordIn(UIView *button) {
 @implementation SGRPlayCapsule {
     UIImageView *_glyph;
     UILabel *_title;
+    __weak UIImageView *_watchedGlyph;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame {
@@ -145,9 +146,10 @@ static NSString *wordIn(UIView *button) {
                   NSStringFromClass(glyph.class), word);
         });
     }
-    // Play becomes pause without the header laying out again.
-    if (glyph && !objc_getAssociatedObject(glyph, &kGlyphWatchedKey)) {
-        objc_setAssociatedObject(glyph, &kGlyphWatchedKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    // Play becomes pause without the header laying out again. Watched per glyph view rather than once for
+    // good, so a glyph Spotify hands to another button reports to the button it is in now.
+    if (glyph && glyph != _watchedGlyph) {
+        _watchedGlyph = glyph;
         __weak SGRPlayCapsule *weakSelf = self;
         __weak UIView *weakSource = source;
         SGRObserveImage(glyph, ^(UIImageView *view) {
@@ -172,6 +174,15 @@ static NSString *wordIn(UIView *button) {
 
 #pragma mark - a button standing in for Spotify's
 
+// The label a button shows its word in, whether it has a word in it yet or not.
+static UILabel *labelIn(UIView *button) {
+    __block UILabel *found = nil;
+    SGForEachView(button, ^(UIView *v) {
+        if (!found && [v isKindOfClass:UILabel.class]) found = (UILabel *)v;
+    });
+    return found;
+}
+
 // The text a button shows: the first label under it with something in it.
 static NSString *labelTextIn(UIView *button) {
     __block NSString *text = nil;
@@ -186,6 +197,8 @@ static NSString *labelTextIn(UIView *button) {
 @implementation SGRMirrorButton {
     UIImageView *_glyph;
     UILabel *_word;
+    __weak UILabel *_watchedWord;
+    __weak UIImageView *_watchedGlyph;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame {
@@ -212,15 +225,22 @@ static NSString *labelTextIn(UIView *button) {
 - (void)layoutSubviews {
     [super layoutSubviews];
     CGRect bounds = self.bounds;
+    // A word button waiting for its word draws the circle, and takes the capsule once the word is there:
+    // only one of the two shapes is asked for on a pass, so the other is put away rather than left under it.
     if (self.showsWord && _word.text.length) {
         SGRGlassCapsuleInside(self, &kWordGlassKey, bounds.size, NO);
+        ((UIView *)objc_getAssociatedObject(self, &kMirrorGlassKey)).hidden = YES;
         [_word sizeToFit];
         CGSize text = _word.bounds.size;
-        _word.frame = CGRectMake(kWordPadding, round((bounds.size.height - text.height) / 2),
-                                 MAX(0, bounds.size.width - 2 * kWordPadding), text.height);
+        // Given less width than the word asked for -- what is left of the row beside a wide Play -- the
+        // capsule spends its own padding on the word before it lets the word be cut ("Following").
+        CGFloat padding = MIN(kWordPadding, MAX(0, floor((bounds.size.width - text.width) / 2)));
+        _word.frame = CGRectMake(padding, round((bounds.size.height - text.height) / 2),
+                                 MAX(0, bounds.size.width - 2 * padding), text.height);
         return;
     }
     SGRGlassInside(self, &kMirrorGlassKey, SGRGlassCircleSize);
+    ((UIView *)objc_getAssociatedObject(self, &kWordGlassKey)).hidden = YES;
     _glyph.frame = CGRectMake(round((bounds.size.width - kMirrorGlyph) / 2), round((bounds.size.height - kMirrorGlyph) / 2),
                               kMirrorGlyph, kMirrorGlyph);
 }
@@ -239,7 +259,6 @@ static NSString *labelTextIn(UIView *button) {
             _word.font = SGRFont(UIFontTextStyleSubheadline, UIFontWeightSemibold, UIContentSizeCategoryExtraLarge);
             _word.textColor = SGRPrimary();
             [self addSubview:_word];
-            _glyph.hidden = YES;
         }
         NSString *text = labelTextIn(source);
         if (text && ![_word.text isEqualToString:text]) {
@@ -248,6 +267,30 @@ static NSString *labelTextIn(UIView *button) {
             [self setNeedsLayout];
             [self.superview setNeedsLayout];
         }
+        // Spotify's word is its state, which it fills in a moment after the button itself is there and
+        // changes without laying out anything the page hears (the artist's Follow, issue #52). So the label
+        // it puts the word in is watched, and the button hears it land.
+        UILabel *source_word = labelIn(source);
+        if (source_word && source_word != _watchedWord) {
+            _watchedWord = source_word;
+            __weak SGRMirrorButton *weakSelf = self;
+            __weak UIView *weakSource = source;
+            SGRObserveText(source_word, ^(UILabel *label) {
+                if (weakSelf && weakSource) [weakSelf feedFrom:weakSource];
+            });
+        }
+        // Until the word is there the button is the glyph it falls back to, which says what it does, rather
+        // than an empty capsule.
+        BOOL hasWord = _word.text.length > 0;
+        if (_glyph.hidden != hasWord) {
+            _glyph.hidden = hasWord;
+            [self setNeedsLayout];
+        }
+        if (!hasWord && self.fallbackGlyph && _glyph.image != self.fallbackGlyph) {
+            _glyph.image = self.fallbackGlyph;
+            _glyph.tintColor = SGRPrimary();
+        }
+        if (!hasWord && !self.accessibilityLabel) self.accessibilityLabel = source.accessibilityLabel;
         return;
     }
 
@@ -261,8 +304,9 @@ static NSString *labelTextIn(UIView *button) {
         _glyph.tintColor = SGRPrimary();
     }
 
-    if (glyph && !objc_getAssociatedObject(glyph, &kGlyphWatchedKey)) {
-        objc_setAssociatedObject(glyph, &kGlyphWatchedKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    // As the capsule does: watched per glyph view, so a reused one reports where it is now.
+    if (glyph && glyph != _watchedGlyph) {
+        _watchedGlyph = glyph;
         __weak SGRMirrorButton *weakSelf = self;
         __weak UIView *weakSource = source;
         SGRObserveImage(glyph, ^(UIImageView *view) {
@@ -281,7 +325,9 @@ static NSString *labelTextIn(UIView *button) {
 
 - (void)sgr_tap {
     fire(self.source);
-    // A word is the button's state, and Spotify changes it without laying out anything the page hears.
+    // The word is watched where Spotify writes it, but a button that rebuilds its content on the state it
+    // just took writes the new word into a label the watch has never seen. So a tap, and only a tap, asks
+    // the button again a moment later, which also moves the watch onto whatever label it ended up with.
     if (!self.showsWord) return;
     __weak SGRMirrorButton *weakSelf = self;
     for (NSNumber *delay in @[@0.3, @1.0]) {

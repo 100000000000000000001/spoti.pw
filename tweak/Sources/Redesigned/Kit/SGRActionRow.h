@@ -36,7 +36,8 @@
 @property (nonatomic, strong) UIImage *fallbackGlyph;
 // The word on Spotify's button instead of a glyph, in a glass capsule as wide as the word asks for: for a
 // text button such as the artist's Follow, whose word is its state ("Follow", "Following") in the app's
-// language. Set before the first -feedFrom:.
+// language. Until Spotify's button has a word, the fallback glyph is drawn in the round shape instead. Set
+// before the first -feedFrom:.
 @property (nonatomic) BOOL showsWord;
 // The width the button wants: SGRActionHeight for a glyph, the word and its padding for a word.
 - (CGFloat)sgr_width;
