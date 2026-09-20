@@ -504,6 +504,14 @@ static void buildLikedSongs(UIViewController *page, CGFloat W) {
     wash.clipsToBounds = YES;
     UIView *gradient = box(wash, _TtC19LegacyUI_ECMCoreKit13GradientView.class, wash.bounds, nil);
     gradient.backgroundColor = [UIColor colorWithRed:0.5 green:0.1 blue:0.3 alpha:1];
+    // The second wash of the plane: a plain view painted the base surface with a gradient of its own in it,
+    // drawn after the hero. Spotify keeps it at alpha 0 on an ordinary playlist and raises it with the Mix
+    // feature on, where its black covered the picture whole (trees/continuous/1.txt 2026-09-20).
+    UIView *mixWash = box(wash, UIView.class, wash.bounds, nil);
+    mixWash.backgroundColor = UIColor.blackColor;
+    mixWash.alpha = [NSProcessInfo.processInfo.arguments containsObject:@"mixon"] ? 1 : 0;
+    UIView *mixGradient = box(mixWash, _TtC19LegacyUI_ECMCoreKit13GradientView.class, CGRectMake(0, 8, 560, 560), nil);
+    mixGradient.backgroundColor = [UIColor colorWithRed:0.1 green:0.4 blue:0.2 alpha:1];
 
     UIView *safeArea = box(clipping, UIView.class, clipping.bounds, @"_safeAreaView");
     UIView *contentContainer = box(safeArea, UIView.class, CGRectMake(0, -134, W, 639.33), @"_headerContentContainer");
@@ -726,6 +734,11 @@ static void buildLikedSongs(UIViewController *page, CGFloat W) {
               pinnedGlyph.tintColor);
         UIView *hit = [page.view hitTest:CGPointMake(CGRectGetMidX(pinned.frame), CGRectGetMidY(pinned.frame)) withEvent:nil];
         NSLog(@"[harness] pinned more takes the touch: %@", NSStringFromClass(hit.class));
+        // The wash over the hero: its gradient concealed and its own black taken off, so the picture shows
+        // through whether the Mix feature raised its alpha or not.
+        NSLog(@"[harness] the plane's second wash: a=%.2f, paint a=%.0f, gradient %@", mixWash.alpha,
+              mixWash.layer.backgroundColor ? CGColorGetAlpha(mixWash.layer.backgroundColor) : 0,
+              mixGradient.layer.mask ? @"masked" : @"DRAWN");
         // The creator line: a tap on the name, nowhere else.
         UIView *info = nil;
         for (UIView *v = block; v; v = nil) {

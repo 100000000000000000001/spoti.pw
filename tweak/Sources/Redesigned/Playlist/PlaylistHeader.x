@@ -482,6 +482,13 @@ static void applyScrims(UIView *headerRoot) {
 
 // Spotify's colour wash goes, so the page's field shows through, and the plane it was drawn on is handed
 // back: it is where the hero belongs (applyHero).
+//
+// The wash is a gradient on a plain view of its own, and that view is painted the base surface. Spotify
+// keeps it at alpha 0 on an ordinary playlist, so concealing the gradient was enough; with the Mix feature
+// turned on it raises the alpha and the view -- opaque black, drawn after the hero -- covered the picture
+// whole (device, trees/continuous/1.txt 2026-09-20, issue #53). So the paint comes off everything on the
+// plane as well, which is the same thing the field does to the rest of the page. The hero is left alone:
+// the picture is drawn in it.
 static UIView *applyBackground(UIView *layout) {
     UIView *container = nil;
     for (UIView *v = layout.superview; v && !container; v = v.superview) {
@@ -490,8 +497,15 @@ static UIView *applyBackground(UIView *layout) {
         }
     }
     UIView *plane = container.subviews.firstObject;
+    SGRPlaylistHero *hero = objc_getAssociatedObject(plane, &kHeroKey);
     SGForEachView(container, ^(UIView *v) {
-        if ([NSStringFromClass(v.class) containsString:@"GradientView"]) conceal(v);
+        if (hero && (v == hero || [v isDescendantOfView:hero])) return;
+        if ([NSStringFromClass(v.class) containsString:@"GradientView"]) {
+            conceal(v);
+            return;
+        }
+        CGColorRef color = v.layer.backgroundColor;
+        if (color && SGIsBaseSurface(color)) v.backgroundColor = UIColor.clearColor;
     });
     return plane;
 }
