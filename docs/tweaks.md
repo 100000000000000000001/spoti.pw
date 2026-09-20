@@ -189,7 +189,9 @@ App:
 
     ModSettings.x  the root page and the rows that open it from Spotify's settings and the side drawer
     Pages.m        the Appearance card with Redesigned UI, the Player and Lyrics pages, which Navbar page opens
-    About/         the update check, backup, the signing warning and the Mod page with the reset
+    About/         the update check against the repo's GitHub Releases and the Updates page it fills (the state,
+                   and the changelog of every release newer than the build, a line per commit), backup, the
+                   signing warning and the Mod page with the reset
     Onboarding/    the welcome page over Home on the first launch, with Redesigned UI, offered again from the Mod page
 
 Every key a feature stores starts with `spotifyglass.`, whatever it holds: Reset all settings on
@@ -250,8 +252,10 @@ an Ad and upsell flags page under them, every switch there forcing a flag Spotif
 Spoof Premium; Block telemetry; then what the ad
 blocking and the telemetry blocking have stopped) and Labs (features Spotify built and did not ship,
 AI Chat (Martini) first). Last, All flags, Spotify's remote-config flags with a search field and an
-Auto / Off / On control per flag (a text field for the number and text ones), and Mod: the update
-check, the build and Spotify's version, the site and the repo, the welcome tour again and Reset all
+Auto / Off / On control per flag (a text field for the number and text ones), and Mod: Updates
+(the row reads out where the build stands and opens the changelog of everything newer than it, read
+from the releases Release Please cuts, with Check now, the release to get and all the releases), the
+build and Spotify's version, the site and the repo, the welcome tour again and Reset all
 settings. A flag switch on a page forces that one flag and off leaves Spotify's own value, so the All
 flags page is where a flag goes back to Auto. Spotify ships its newer design behind several flags at
 once, and the redesign is built on it (the glass navigation bar, the new player slider, the sheet style
