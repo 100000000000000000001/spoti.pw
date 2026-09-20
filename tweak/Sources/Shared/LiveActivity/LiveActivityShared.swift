@@ -6,7 +6,7 @@ import Foundation
 
 @available(iOS 16.1, *)
 struct SGLyricsAttributes: ActivityAttributes {
-    // Which of the three the activity shows, SGRLiveActivityView's values.
+    // Which of the three the activity shows, SGLiveActivityView's values.
     enum View: Int, Codable, Hashable {
         case lyrics, queue, panel
     }
@@ -43,11 +43,11 @@ struct SGLyricsAttributes: ActivityAttributes {
 }
 
 // LiveActivityIntents run in the app's process, where the tweak acts on these notifications.
-let SGRLiveActivityPlayNotification = Notification.Name("SGRLiveActivityPlay")
-let SGRLiveActivityActionNotification = Notification.Name("SGRLiveActivityAction")
+let SGLiveActivityPlayNotification = Notification.Name("SGLiveActivityPlay")
+let SGLiveActivityActionNotification = Notification.Name("SGLiveActivityAction")
 
 @available(iOS 17.0, *)
-struct SGRPlayQueuedTrackIntent: LiveActivityIntent {
+struct SGPlayQueuedTrackIntent: LiveActivityIntent {
     static let title: LocalizedStringResource = "Play a track up next"
     static let isDiscoverable = false
 
@@ -61,14 +61,14 @@ struct SGRPlayQueuedTrackIntent: LiveActivityIntent {
     }
 
     func perform() async throws -> some IntentResult {
-        NotificationCenter.default.post(name: SGRLiveActivityPlayNotification, object: uri)
+        NotificationCenter.default.post(name: SGLiveActivityPlayNotification, object: uri)
         return .result()
     }
 }
 
 // A control menu action: tab:N, toggle, previous, next, shuffle, repeat, timer:15|30|60|track|add|cancel.
 @available(iOS 17.0, *)
-struct SGRLiveActivityActionIntent: LiveActivityIntent {
+struct SGLiveActivityActionIntent: LiveActivityIntent {
     static let title: LocalizedStringResource = "Control menu action"
     static let isDiscoverable = false
 
@@ -82,7 +82,7 @@ struct SGRLiveActivityActionIntent: LiveActivityIntent {
     }
 
     func perform() async throws -> some IntentResult {
-        NotificationCenter.default.post(name: SGRLiveActivityActionNotification, object: action)
+        NotificationCenter.default.post(name: SGLiveActivityActionNotification, object: action)
         return .result()
     }
 }

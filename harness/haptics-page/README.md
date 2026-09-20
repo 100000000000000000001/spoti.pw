@@ -1,8 +1,8 @@
 # Vibrations settings harness
 
-Mod Settings > Player's Vibrations cards (`tweak/Sources/Redesigned/Haptics/HapticsSettings.m`) on an SGModPage laid
+Mod Settings > Player's Vibrations cards (`tweak/Sources/Shared/Haptics/HapticsSettings.m`) on an SGModPage laid
 out like the Player page in the redesign: the real Settings/ framework (its slider row and its rows shown while a
-switch is on), the real control taps (`SGRFeedback.m`, which the simulator plays silently), and `stubs.m` for Music
+switch is on), the real control taps (`SGFeedback.m`, which the simulator plays silently), and `stubs.m` for Music
 Haptics' engine, which logs each call with the strength and the Follows choice the hook would read.
 
     THEOS=$HOME/theos ./build.sh

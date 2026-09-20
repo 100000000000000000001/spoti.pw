@@ -22,7 +22,7 @@
 #import <QuartzCore/QuartzCore.h>
 #import <stdatomic.h>
 #import "Core/SGCore.h"
-#import "Redesigned/Haptics/Haptics.h"
+#import "Shared/Haptics/Haptics.h"
 #import "fakehaptics.h"
 
 static atomic_uint_fast64_t sg_frame;
@@ -191,29 +191,29 @@ static int sg_failures;
     }]];
 #ifndef BEFORE
     void (^set)(NSInteger, NSInteger) = ^(NSInteger follows, NSInteger strength) {
-        SGSetInt(SGRKeyMusicFollows, follows);
-        SGSetInt(SGRKeyMusicStrength, strength);
-        SGRMusicHapticsSettingsChanged();
+        SGSetInt(SGKeyMusicFollows, follows);
+        SGSetInt(SGKeyMusicStrength, strength);
+        SGMusicHapticsSettingsChanged();
     };
     [steps addObjectsFromArray:@[
-        @[@"Beat: no rumble", ^{ set(SGRMusicFollowsBeat, 100); }, ^(double s) {
+        @[@"Beat: no rumble", ^{ set(SGMusicFollowsBeat, 100); }, ^(double s) {
             [self report:@"Beat: no rumble" seconds:s kicks:1 snares:1 rumble:NO intensity:tap100 level:NAN];
         }],
-        @[@"Bass: no snares", ^{ set(SGRMusicFollowsBass, 100); }, ^(double s) {
+        @[@"Bass: no snares", ^{ set(SGMusicFollowsBass, 100); }, ^(double s) {
             [self report:@"Bass: no snares" seconds:s kicks:1 snares:0 rumble:YES intensity:NAN level:level100];
         }],
-        @[@"Everything at 50%", ^{ set(SGRMusicFollowsEverything, 50); }, ^(double s) {
+        @[@"Everything at 50%", ^{ set(SGMusicFollowsEverything, 50); }, ^(double s) {
             [self report:@"Everything at 50%" seconds:s kicks:1 snares:1 rumble:YES intensity:tap100 / 2 level:level100 / 2];
         }],
-        @[@"Everything at 200%", ^{ set(SGRMusicFollowsEverything, 200); }, ^(double s) {
+        @[@"Everything at 200%", ^{ set(SGMusicFollowsEverything, 200); }, ^(double s) {
             [self report:@"Everything at 200%" seconds:s kicks:1 snares:1 rumble:YES intensity:NAN level:MIN(1, level100 * 2)];
         }],
-        @[@"the switch off", ^{ SGRSetMusicHapticsEnabled(NO); }, ^(double s) {
+        @[@"the switch off", ^{ SGSetMusicHapticsEnabled(NO); }, ^(double s) {
             [self report:@"the switch off" seconds:s kicks:0 snares:0 rumble:NO intensity:NAN level:NAN];
         }],
         @[@"on again, Everything, 100%", ^{
-            set(SGRMusicFollowsEverything, 100);
-            SGRSetMusicHapticsEnabled(YES);
+            set(SGMusicFollowsEverything, 100);
+            SGSetMusicHapticsEnabled(YES);
         }, ^(double s) {
             [self report:@"on again, Everything, 100%" seconds:s kicks:1 snares:1 rumble:YES intensity:tap100 level:level100];
         }],
@@ -255,7 +255,7 @@ __attribute__((constructor(101))) static void sgr_harnessDefaults(void) {
         if ([key hasPrefix:@"spotifyglass."]) [defaults removeObjectForKey:key];
     }
     [defaults setBool:YES forKey:SGKeyRedesign];
-    [defaults setBool:YES forKey:SGRKeyMusicHaptics];
+    [defaults setBool:YES forKey:SGKeyMusicHaptics];
 }
 
 int main(int argc, char *argv[]) {

@@ -11,10 +11,10 @@
 #import <AVFoundation/AVFoundation.h>
 #import <stdatomic.h>
 
-double SGRPlayerSpeed(void);
-void SGRSetPlayerSpeed(double speed);
-void SGRSetPlayerPitch(float semitones);
-BOOL SGRPlayerSpeedAllowed(void);
+double SGPlayerSpeed(void);
+void SGSetPlayerSpeed(double speed);
+void SGSetPlayerPitch(float semitones);
+BOOL SGPlayerSpeedAllowed(void);
 
 static const double kRate = 44100;
 static atomic_uint_fast64_t sg_decoded;
@@ -116,7 +116,7 @@ static void check(OSStatus status, const char *what) {
     self.window.rootViewController = [UIViewController new];
     [self.window makeKeyAndVisible];
     [self startChain];
-    NSLog(@"[harness] speed allowed: %d", SGRPlayerSpeedAllowed());
+    NSLog(@"[harness] speed allowed: %d", SGPlayerSpeedAllowed());
     [self after:1 do:^{ [self playerReports]; self->_lastDecoded = atomic_load(&sg_decoded); self->_lastAt = CACurrentMediaTime(); }];
     NSArray *script = @[
         @[@3, @"normal", @1, @0],
@@ -131,8 +131,8 @@ static void check(OSStatus status, const char *what) {
         [self after:[step[0] doubleValue] do:^{
             [self report:label];
             label = step[1];
-            SGRSetPlayerSpeed([step[2] doubleValue]);
-            SGRSetPlayerPitch([step[3] floatValue]);
+            SGSetPlayerSpeed([step[2] doubleValue]);
+            SGSetPlayerPitch([step[3] floatValue]);
         }];
         // A report mid step, the way Spotify's player reports now and then.
         [self after:[step[0] doubleValue] + 1.5 do:^{ [self playerReports]; }];

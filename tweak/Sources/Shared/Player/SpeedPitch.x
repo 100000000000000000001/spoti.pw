@@ -1,8 +1,8 @@
-// The player menu's Speed and Pitch (PlayerMenu.x draws them), both done on Spotify's audio.
+// Speed and Pitch (SpeedPitchMenu.x draws them), both done on Spotify's audio, under either look.
 //
 // Spotify's player takes a speed only for podcasts: for songs its restrictions refuse it (device test,
 // 2026-09-18: the slider read "Unavailable here"), its own music speed being a per track setting kept on
-// playlist items. So speed, like pitch, is done to the sound, by SGRTimePitch between Spotify's mixer and
+// playlist items. So speed, like pitch, is done to the sound, by SGTimePitch between Spotify's mixer and
 // its speaker unit.
 //
 // Spotify's audio (AudioUnitDriver2 in the binary) is a chain of units it wires with MakeConnection:
@@ -38,8 +38,8 @@
 #import "Core/SGCore.h"
 #import "Core/SGRebind.h"
 #import "Headers/SPTPlayer.h"
-#import "Player.h"
-#import "SGRTimePitch.h"
+#import "SpeedPitch.h"
+#import "SGTimePitch.h"
 
 // The unit stays in this long after speed and pitch both came back to normal.
 static const double kOffAfter = 1.5;
@@ -57,7 +57,7 @@ static atomic_uint sg_chunk = 1024;
 static Float64 sg_sourceTime;                // render thread only
 
 // The unit in use and whether the render thread runs it: in the chain (pull), else in place (pitch only).
-static _Atomic(SGRTimePitch *) sg_pull, sg_inPlace;
+static _Atomic(SGTimePitch *) sg_pull, sg_inPlace;
 static atomic_bool sg_engaged, sg_busy;
 static pthread_mutex_t sg_buildLock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -131,8 +131,8 @@ static OSStatus pullForUnit(void *context, UInt32 frames, AudioBufferList *data)
     return pullSource(source, NULL, frames, data);
 }
 
-static BOOL fitsUnit(const AudioBufferList *data, UInt32 frames, SGRTimePitch *unit) {
-    if (data->mNumberBuffers != SGRTimePitchChannels(unit) || frames > kSGRTimePitchMaxFrames) return NO;
+static BOOL fitsUnit(const AudioBufferList *data, UInt32 frames, SGTimePitch *unit) {
+    if (data->mNumberBuffers != SGTimePitchChannels(unit) || frames > kSGTimePitchMaxFrames) return NO;
     for (UInt32 b = 0; b < data->mNumberBuffers; b++) {
         if (!data->mBuffers[b].mData || data->mBuffers[b].mDataByteSize < frames * sizeof(float)) return NO;
     }
@@ -150,8 +150,8 @@ static OSStatus feed(void *refCon, AudioUnitRenderActionFlags *flags, const Audi
     }
     atomic_store(&sg_busy, true);
     OSStatus status = -1;
-    SGRTimePitch *unit = atomic_load(&sg_pull);
-    if (atomic_load(&sg_engaged) && unit && fitsUnit(data, frames, unit)) status = SGRTimePitchRender(unit, frames, data);
+    SGTimePitch *unit = atomic_load(&sg_pull);
+    if (atomic_load(&sg_engaged) && unit && fitsUnit(data, frames, unit)) status = SGTimePitchRender(unit, frames, data);
     if (status != noErr) status = pullSource(source, timestamp, frames, data);
     atomic_store(&sg_busy, false);
     return status;
@@ -159,7 +159,7 @@ static OSStatus feed(void *refCon, AudioUnitRenderActionFlags *flags, const Audi
 
 #pragma mark - the render thread: in place, the fallback
 
-static float sg_scratch[kSGRTimePitchMaxChannels][kSGRTimePitchMaxFrames];
+static float sg_scratch[kSGTimePitchMaxChannels][kSGTimePitchMaxFrames];
 
 static inline float readSample(const void *data, UInt32 index, UInt32 bytes, BOOL isFloat, UInt32 fraction) {
     if (bytes == 4) {
@@ -184,14 +184,14 @@ static inline void writeSample(void *data, UInt32 index, float value, UInt32 byt
     }
 }
 
-static void shiftInPlace(SGRTimePitch *unit, AudioUnitRenderActionFlags *flags, UInt32 frames, AudioBufferList *data) {
+static void shiftInPlace(SGTimePitch *unit, AudioUnitRenderActionFlags *flags, UInt32 frames, AudioBufferList *data) {
     UInt32 formatFlags = atomic_load_explicit(&sg_hardware.flags, memory_order_relaxed);
     UInt32 bytes = atomic_load_explicit(&sg_hardware.bytes, memory_order_relaxed);
-    UInt32 channels = SGRTimePitchChannels(unit);
+    UInt32 channels = SGTimePitchChannels(unit);
     BOOL isFloat = (formatFlags & kAudioFormatFlagIsFloat) != 0;
     BOOL split = (formatFlags & kAudioFormatFlagIsNonInterleaved) != 0;
     UInt32 fraction = (formatFlags & kLinearPCMFormatFlagsSampleFractionMask) >> kLinearPCMFormatFlagsSampleFractionShift;
-    if (frames > kSGRTimePitchMaxFrames || (bytes != 2 && bytes != 4)) return;
+    if (frames > kSGTimePitchMaxFrames || (bytes != 2 && bytes != 4)) return;
     if (split ? data->mNumberBuffers != channels : data->mNumberBuffers != 1 || data->mBuffers[0].mNumberChannels != channels) return;
     for (UInt32 b = 0; b < data->mNumberBuffers; b++) {
         if (!data->mBuffers[b].mData || data->mBuffers[b].mDataByteSize < frames * bytes * (split ? 1 : channels)) return;
@@ -199,7 +199,7 @@ static void shiftInPlace(SGRTimePitch *unit, AudioUnitRenderActionFlags *flags, 
     // Silence still goes through, so the sound the unit holds plays out rather than coming back later.
     BOOL silent = (*flags & kAudioUnitRenderAction_OutputIsSilence) != 0;
 
-    float *lanes[kSGRTimePitchMaxChannels];
+    float *lanes[kSGTimePitchMaxChannels];
     BOOL direct = split && isFloat && bytes == 4 && !silent;
     for (UInt32 c = 0; c < channels; c++) {
         if (direct) {
@@ -212,7 +212,7 @@ static void shiftInPlace(SGRTimePitch *unit, AudioUnitRenderActionFlags *flags, 
             lanes[c][i] = silent ? 0 : readSample(source, split ? i : i * channels + c, bytes, isFloat, fraction);
         }
     }
-    if (!SGRTimePitchProcess(unit, lanes, frames) || direct) return;
+    if (!SGTimePitchProcess(unit, lanes, frames) || direct) return;
     for (UInt32 c = 0; c < channels; c++) {
         void *target = data->mBuffers[split ? c : 0].mData;
         for (UInt32 i = 0; i < frames; i++) writeSample(target, split ? i : i * channels + c, lanes[c][i], bytes, isFloat, fraction);
@@ -225,7 +225,7 @@ static OSStatus rendered(void *refCon, AudioUnitRenderActionFlags *flags, const 
     if (!(*flags & kAudioUnitRenderAction_PostRender) || bus != 0 || !data || !data->mNumberBuffers || !frames) return noErr;
     if (tapped() || !atomic_load(&sg_engaged)) return noErr;
     atomic_store(&sg_busy, true);
-    SGRTimePitch *unit = atomic_load(&sg_inPlace);
+    SGTimePitch *unit = atomic_load(&sg_inPlace);
     if (atomic_load(&sg_engaged) && unit) shiftInPlace(unit, flags, frames, data);
     atomic_store(&sg_busy, false);
     return noErr;
@@ -325,7 +325,7 @@ static void disengage(void) {
 
 // The unit for the output's format and the way in use, made when there is none or the format changed. A
 // replaced one is never freed: the render thread may still hold it, and a format change is rare.
-static SGRTimePitch *unitForFormat(void) {
+static SGTimePitch *unitForFormat(void) {
     BOOL pull = tapped();
     Format *format = pull ? &sg_client : &sg_hardware;
     double rate;
@@ -342,17 +342,17 @@ static SGRTimePitch *unitForFormat(void) {
             return NULL;
         }
     }
-    if (rate <= 0 || channels < 1 || channels > kSGRTimePitchMaxChannels) return NULL;
-    _Atomic(SGRTimePitch *) *slot = pull ? &sg_pull : &sg_inPlace;
+    if (rate <= 0 || channels < 1 || channels > kSGTimePitchMaxChannels) return NULL;
+    _Atomic(SGTimePitch *) *slot = pull ? &sg_pull : &sg_inPlace;
     pthread_mutex_lock(&sg_buildLock);
-    SGRTimePitch *unit = atomic_load(slot);
-    if (!unit || SGRTimePitchSampleRate(unit) != rate || SGRTimePitchChannels(unit) != channels) {
+    SGTimePitch *unit = atomic_load(slot);
+    if (!unit || SGTimePitchSampleRate(unit) != rate || SGTimePitchChannels(unit) != channels) {
         BOOL wasEngaged = atomic_load(&sg_engaged);
         disengage();
-        unit = SGRTimePitchCreate(rate, channels, pull ? pullForUnit : NULL, NULL);
+        unit = SGTimePitchCreate(rate, channels, pull ? pullForUnit : NULL, NULL);
         if (unit) {
-            SGRTimePitchSetRate(unit, pull ? sg_speed : 1);
-            SGRTimePitchSetSemitones(unit, sg_semitones);
+            SGTimePitchSetRate(unit, pull ? sg_speed : 1);
+            SGTimePitchSetSemitones(unit, sg_semitones);
         }
         atomic_store(slot, unit);
         SGLog(@"redesign speed: %@ %@ for %.0f Hz, %u channels", unit ? @"a unit" : @"no unit", pull ? @"in the chain" : @"in place", rate, (unsigned)channels);
@@ -363,11 +363,11 @@ static SGRTimePitch *unitForFormat(void) {
 }
 
 static void report(void) {
-    SGRTimePitch *unit = atomic_load(tapped() ? &sg_pull : &sg_inPlace);
+    SGTimePitch *unit = atomic_load(tapped() ? &sg_pull : &sg_inPlace);
     if (!unit) return;
     SGLog(@"redesign speed: %.2fx, %+.0f st, %u underruns, %u failures, largest pull %u, %.1f s of input", sg_speed, sg_semitones,
-          SGRTimePitchUnderruns(unit), SGRTimePitchFailures(unit), SGRTimePitchLargestPull(unit),
-          SGRTimePitchConsumed(unit) / SGRTimePitchSampleRate(unit));
+          SGTimePitchUnderruns(unit), SGTimePitchFailures(unit), SGTimePitchLargestPull(unit),
+          SGTimePitchConsumed(unit) / SGTimePitchSampleRate(unit));
 }
 
 // Puts the unit in or takes it out for the current speed and pitch.
@@ -382,49 +382,49 @@ static void apply(void) {
             disengage();
         });
     }
-    SGRTimePitch *unit = unitForFormat();
+    SGTimePitch *unit = unitForFormat();
     if (!unit) {
         static int logged;
         if (!normal && logged++ < 3) SGLog(@"redesign speed: Spotify's output has not started, nothing to change yet");
         return;
     }
-    SGRTimePitchSetRate(unit, tapped() ? sg_speed : 1);
-    SGRTimePitchSetSemitones(unit, sg_semitones);
+    SGTimePitchSetRate(unit, tapped() ? sg_speed : 1);
+    SGTimePitchSetSemitones(unit, sg_semitones);
     if (!normal && !atomic_load(&sg_engaged)) {
         disengage();
-        SGRTimePitchReset(unit);
+        SGTimePitchReset(unit);
         atomic_store(&sg_engaged, true);
     }
 }
 
 #pragma mark - the menu's calls
 
-double SGRPlayerSpeed(void) {
+double SGPlayerSpeed(void) {
     return sg_speed;
 }
 
-BOOL SGRPlayerSpeedAllowed(void) {
+BOOL SGPlayerSpeedAllowed(void) {
     return tapped();
 }
 
-void SGRSetPlayerSpeed(double speed) {
+void SGSetPlayerSpeed(double speed) {
     if (!tapped()) return;
     sg_speed = (float)speed;
     storeFloat(&sg_speedBits, sg_speed);
     apply();
 }
 
-float SGRPlayerPitch(void) {
+float SGPlayerPitch(void) {
     return sg_semitones;
 }
 
-void SGRSetPlayerPitch(float semitones) {
+void SGSetPlayerPitch(float semitones) {
     if (!sg_startOutput && !tapped()) return;
     sg_semitones = semitones;
     apply();
 }
 
-BOOL SGRPlayerPitchAvailable(void) {
+BOOL SGPlayerPitchAvailable(void) {
     return sg_startOutput != NULL || tapped();
 }
 
@@ -439,7 +439,6 @@ BOOL SGRPlayerPitchAvailable(void) {
 %end
 
 %ctor {
-    if (!SGRedesignedUI()) return;
     storeFloat(&sg_speedBits, 1);
     if (!SGRebindImport("AudioUnitSetProperty", setProperty, (void **)&sg_setProperty) || !sg_setProperty) {
         sg_setProperty = NULL;

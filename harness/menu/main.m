@@ -12,14 +12,14 @@ static double sg_speed = 1;
 static float sg_pitch;
 static BOOL sg_speedAllowed = YES;
 UIColor *SGRAccentColor(void) { return nil; }
-void SGRPlayFeedback(NSInteger feedback) { NSLog(@"[harness] feedback %ld", (long)feedback); }
-void SGRPrepareFeedback(NSInteger feedback) {}
-double SGRPlayerSpeed(void) { return sg_speed; }
-BOOL SGRPlayerSpeedAllowed(void) { return sg_speedAllowed; }
-void SGRSetPlayerSpeed(double speed) { sg_speed = speed; NSLog(@"[harness] speed %.2f", speed); }
-float SGRPlayerPitch(void) { return sg_pitch; }
-void SGRSetPlayerPitch(float semitones) { sg_pitch = semitones; NSLog(@"[harness] pitch %.0f", semitones); }
-BOOL SGRPlayerPitchAvailable(void) { return YES; }
+void SGPlayFeedback(NSInteger feedback) { NSLog(@"[harness] feedback %ld", (long)feedback); }
+void SGPrepareFeedback(NSInteger feedback) {}
+double SGPlayerSpeed(void) { return sg_speed; }
+BOOL SGPlayerSpeedAllowed(void) { return sg_speedAllowed; }
+void SGSetPlayerSpeed(double speed) { sg_speed = speed; NSLog(@"[harness] speed %.2f", speed); }
+float SGPlayerPitch(void) { return sg_pitch; }
+void SGSetPlayerPitch(float semitones) { sg_pitch = semitones; NSLog(@"[harness] pitch %.0f", semitones); }
+BOOL SGPlayerPitchAvailable(void) { return YES; }
 
 #pragma mark - Spotify's sheet
 
@@ -97,7 +97,7 @@ BOOL SGRPlayerPitchAvailable(void) { return YES; }
 @end
 
 static UIView *findBlock(UIView *root) {
-    if ([NSStringFromClass(root.class) isEqualToString:@"SGRSpeedPitchView"]) return root;
+    if ([NSStringFromClass(root.class) isEqualToString:@"SGSpeedPitchView"]) return root;
     for (UIView *child in root.subviews) {
         UIView *found = findBlock(child);
         if (found) return found;

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Builds the Vibrations settings harness for the simulator: Redesigned/Haptics' settings and control taps, the
+# Builds the Vibrations settings harness for the simulator: Shared/Haptics' settings and control taps, the
 # Settings/ framework as they are in the tweak, stubs.m for Music Haptics.
 set -e
 SRC=$(cd "$(dirname "$0")/../../tweak/Sources" && pwd)
@@ -10,7 +10,7 @@ SDK=$(xcrun --sdk iphonesimulator --show-sdk-path)
 xcrun -sdk iphonesimulator clang -target arm64-apple-ios17.0-simulator -fobjc-arc -g -O0 \
     -I"$SRC" -isysroot "$SDK" -Wall -Werror -Wno-deprecated-declarations \
     "$(dirname "$0")/main.m" "$(dirname "$0")/stubs.m" \
-    "$SRC"/Redesigned/Haptics/HapticsSettings.m "$SRC"/Redesigned/Haptics/SGRFeedback.m \
+    "$SRC"/Shared/Haptics/HapticsSettings.m "$SRC"/Shared/Haptics/SGFeedback.m \
     "$SRC"/Settings/SGPage.m "$SRC"/Settings/SGPageStyle.m "$SRC"/Settings/SGModPage.m "$SRC"/Settings/SGGlowSwitch.m \
     "$SRC"/Core/SGLog.m "$SRC"/Core/SGPrefs.m "$SRC"/Core/SGViewTree.m "$SRC"/Core/SGFlagForce.m "$SRC"/Core/SGUIMode.m \
     -framework UIKit -framework QuartzCore -framework CoreGraphics -framework Foundation \

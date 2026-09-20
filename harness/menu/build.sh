@@ -1,19 +1,18 @@
 #!/bin/sh
-# Builds the menu harness for the simulator: PlayerMenu.x's hook run for real on a mock of Spotify's
-# context menu sheet.
+# Builds the menu harness for the simulator: SpeedPitchMenu.x's hook run for real on a mock of
+# Spotify's context menu sheet.
 set -e
 SRC=$(cd "$(dirname "$0")/../../tweak/Sources" && pwd)
 OUT=$(dirname "$0")/build
 rm -rf "$OUT"; mkdir -p "$OUT/gen" "$OUT/MenuHarness.app"
-"$THEOS/bin/logos.pl" -c generator=internal "$SRC/Redesigned/Player/PlayerMenu.x" > "$OUT/gen/PlayerMenu.m"
+"$THEOS/bin/logos.pl" -c generator=internal "$SRC/Shared/Player/SpeedPitchMenu.x" > "$OUT/gen/SpeedPitchMenu.m"
 
 SDK=$(xcrun --sdk iphonesimulator --show-sdk-path)
 xcrun -sdk iphonesimulator clang -target arm64-apple-ios17.0-simulator -fobjc-arc -g -O0 \
-    -I"$SRC" -I"$SRC/Redesigned/Player" -isysroot "$SDK" -Wno-deprecated-declarations \
+    -I"$SRC" -I"$SRC/Shared/Player" -isysroot "$SDK" -Wno-deprecated-declarations \
     "$(dirname "$0")/main.m" "$OUT"/gen/*.m \
     "$SRC"/Core/SGLog.m "$SRC"/Core/SGPrefs.m "$SRC"/Core/SGViewTree.m "$SRC"/Core/SGGlass.m \
     "$SRC"/Core/SGBackdrop.m "$SRC"/Core/SGFlagForce.m "$SRC"/Core/SGUIMode.m \
-    "$SRC"/Redesigned/Kit/SGRTokens.m "$SRC"/Redesigned/Kit/SGRRestyle.m "$SRC"/Redesigned/Kit/SGRedesign.m \
     -framework UIKit -framework QuartzCore -framework CoreGraphics -framework CoreImage -framework Foundation \
     -o "$OUT/MenuHarness.app/MenuHarness"
 

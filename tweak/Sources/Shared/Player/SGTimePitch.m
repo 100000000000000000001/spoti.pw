@@ -1,4 +1,4 @@
-#import "SGRTimePitch.h"
+#import "SGTimePitch.h"
 #import <stdatomic.h>
 #import <stdlib.h>
 #import <string.h>
@@ -6,20 +6,20 @@
 // The FIFO of in place mode, a power of two with room for a few of the largest buffers.
 enum { kFifoFrames = 16384 };
 
-struct SGRTimePitch {
+struct SGTimePitch {
     AudioUnit unit;
     double sampleRate;
     UInt32 channels;
-    SGRTimePitchSource source;
+    SGTimePitchSource source;
     void *context;
-    float *fifo[kSGRTimePitchMaxChannels];
+    float *fifo[kSGTimePitchMaxChannels];
     uint64_t written, read;           // render thread only
     Float64 sampleTime;
     struct {
         AudioBufferList list;
-        AudioBuffer more[kSGRTimePitchMaxChannels - 1];
+        AudioBuffer more[kSGTimePitchMaxChannels - 1];
     } output;
-    float *outputData[kSGRTimePitchMaxChannels];
+    float *outputData[kSGTimePitchMaxChannels];
     atomic_uint underruns, failures, largestPull;
     atomic_uint_fast64_t consumed;
     double latency;
@@ -27,7 +27,7 @@ struct SGRTimePitch {
 
 static OSStatus input(void *refCon, AudioUnitRenderActionFlags *flags, const AudioTimeStamp *timestamp, UInt32 bus,
                       UInt32 frames, AudioBufferList *data) {
-    SGRTimePitch *unit = refCon;
+    SGTimePitch *unit = refCon;
     if (frames > atomic_load_explicit(&unit->largestPull, memory_order_relaxed)) {
         atomic_store_explicit(&unit->largestPull, frames, memory_order_relaxed);
     }
@@ -48,8 +48,8 @@ static OSStatus input(void *refCon, AudioUnitRenderActionFlags *flags, const Aud
     return noErr;
 }
 
-SGRTimePitch *SGRTimePitchCreate(double sampleRate, UInt32 channels, SGRTimePitchSource source, void *context) {
-    if (sampleRate <= 0 || channels < 1 || channels > kSGRTimePitchMaxChannels) return NULL;
+SGTimePitch *SGTimePitchCreate(double sampleRate, UInt32 channels, SGTimePitchSource source, void *context) {
+    if (sampleRate <= 0 || channels < 1 || channels > kSGTimePitchMaxChannels) return NULL;
     AudioComponentDescription description = {
         .componentType = kAudioUnitType_FormatConverter,
         .componentSubType = kAudioUnitSubType_NewTimePitch,
@@ -57,7 +57,7 @@ SGRTimePitch *SGRTimePitchCreate(double sampleRate, UInt32 channels, SGRTimePitc
     };
     AudioComponent component = AudioComponentFindNext(NULL, &description);
     if (!component) return NULL;
-    SGRTimePitch *unit = calloc(1, sizeof *unit);
+    SGTimePitch *unit = calloc(1, sizeof *unit);
     if (!unit) return NULL;
     unit->sampleRate = sampleRate;
     unit->channels = channels;
@@ -77,7 +77,7 @@ SGRTimePitch *SGRTimePitchCreate(double sampleRate, UInt32 channels, SGRTimePitc
         .mChannelsPerFrame = channels,
         .mBitsPerChannel = 32,
     };
-    UInt32 maxFrames = kSGRTimePitchMaxFrames;
+    UInt32 maxFrames = kSGTimePitchMaxFrames;
     AURenderCallbackStruct callback = {input, unit};
     OSStatus status = AudioUnitSetProperty(unit->unit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input, 0, &format, sizeof format);
     if (!status) status = AudioUnitSetProperty(unit->unit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Output, 0, &format, sizeof format);
@@ -98,35 +98,35 @@ SGRTimePitch *SGRTimePitchCreate(double sampleRate, UInt32 channels, SGRTimePitc
     unit->output.list.mNumberBuffers = channels;
     for (UInt32 c = 0; c < channels; c++) {
         if (!source) unit->fifo[c] = calloc(kFifoFrames, sizeof(float));
-        unit->outputData[c] = calloc(kSGRTimePitchMaxFrames, sizeof(float));
+        unit->outputData[c] = calloc(kSGTimePitchMaxFrames, sizeof(float));
     }
     return unit;
 }
 
-double SGRTimePitchSampleRate(const SGRTimePitch *unit) {
+double SGTimePitchSampleRate(const SGTimePitch *unit) {
     return unit->sampleRate;
 }
 
-UInt32 SGRTimePitchChannels(const SGRTimePitch *unit) {
+UInt32 SGTimePitchChannels(const SGTimePitch *unit) {
     return unit->channels;
 }
 
-void SGRTimePitchSetRate(SGRTimePitch *unit, float rate) {
+void SGTimePitchSetRate(SGTimePitch *unit, float rate) {
     AudioUnitSetParameter(unit->unit, kNewTimePitchParam_Rate, kAudioUnitScope_Global, 0, rate, 0);
 }
 
-void SGRTimePitchSetSemitones(SGRTimePitch *unit, float semitones) {
+void SGTimePitchSetSemitones(SGTimePitch *unit, float semitones) {
     AudioUnitSetParameter(unit->unit, kNewTimePitchParam_Pitch, kAudioUnitScope_Global, 0, semitones * 100, 0);
 }
 
-void SGRTimePitchReset(SGRTimePitch *unit) {
+void SGTimePitchReset(SGTimePitch *unit) {
     AudioUnitReset(unit->unit, kAudioUnitScope_Global, 0);
     unit->written = unit->read = 0;
     unit->sampleTime = 0;
 }
 
-OSStatus SGRTimePitchRender(SGRTimePitch *unit, UInt32 frames, AudioBufferList *data) {
-    if (!frames || frames > kSGRTimePitchMaxFrames) return kAudioUnitErr_TooManyFramesToProcess;
+OSStatus SGTimePitchRender(SGTimePitch *unit, UInt32 frames, AudioBufferList *data) {
+    if (!frames || frames > kSGTimePitchMaxFrames) return kAudioUnitErr_TooManyFramesToProcess;
     AudioTimeStamp timestamp = {.mSampleTime = unit->sampleTime, .mFlags = kAudioTimeStampSampleTimeValid};
     AudioUnitRenderActionFlags flags = 0;
     OSStatus status = AudioUnitRender(unit->unit, &flags, &timestamp, 0, frames, data);
@@ -135,8 +135,8 @@ OSStatus SGRTimePitchRender(SGRTimePitch *unit, UInt32 frames, AudioBufferList *
     return status;
 }
 
-bool SGRTimePitchProcess(SGRTimePitch *unit, float *const *channels, UInt32 frames) {
-    if (unit->source || !frames || frames > kSGRTimePitchMaxFrames) return false;
+bool SGTimePitchProcess(SGTimePitch *unit, float *const *channels, UInt32 frames) {
+    if (unit->source || !frames || frames > kSGTimePitchMaxFrames) return false;
     // A FIFO that would overflow (the unit stopped pulling) starts over rather than wrap onto itself.
     if (unit->written - unit->read + frames > kFifoFrames) {
         unit->written = unit->read = 0;
@@ -152,7 +152,7 @@ bool SGRTimePitchProcess(SGRTimePitch *unit, float *const *channels, UInt32 fram
     for (UInt32 c = 0; c < unit->channels; c++) {
         unit->output.list.mBuffers[c] = (AudioBuffer){1, frames * (UInt32)sizeof(float), unit->outputData[c]};
     }
-    if (SGRTimePitchRender(unit, frames, &unit->output.list) != noErr) return false;
+    if (SGTimePitchRender(unit, frames, &unit->output.list) != noErr) return false;
     for (UInt32 c = 0; c < unit->channels; c++) {
         const float *out = unit->output.list.mBuffers[c].mData;
         if (out) memcpy(channels[c], out, frames * sizeof(float));
@@ -160,22 +160,22 @@ bool SGRTimePitchProcess(SGRTimePitch *unit, float *const *channels, UInt32 fram
     return true;
 }
 
-UInt32 SGRTimePitchUnderruns(const SGRTimePitch *unit) {
+UInt32 SGTimePitchUnderruns(const SGTimePitch *unit) {
     return atomic_load((atomic_uint *)&unit->underruns);
 }
 
-UInt32 SGRTimePitchFailures(const SGRTimePitch *unit) {
+UInt32 SGTimePitchFailures(const SGTimePitch *unit) {
     return atomic_load((atomic_uint *)&unit->failures);
 }
 
-double SGRTimePitchLatency(const SGRTimePitch *unit) {
+double SGTimePitchLatency(const SGTimePitch *unit) {
     return unit->latency;
 }
 
-UInt32 SGRTimePitchLargestPull(const SGRTimePitch *unit) {
+UInt32 SGTimePitchLargestPull(const SGTimePitch *unit) {
     return atomic_load((atomic_uint *)&unit->largestPull);
 }
 
-uint64_t SGRTimePitchConsumed(const SGRTimePitch *unit) {
+uint64_t SGTimePitchConsumed(const SGTimePitch *unit) {
     return atomic_load((atomic_uint_fast64_t *)&unit->consumed);
 }

@@ -1,10 +1,7 @@
 // What the redesigned screens read from Spotify and ask of it, through one hook each, so no screen
 // hooks the player a second time.
 //
-// Player state: -[_TtC23NowPlaying_PlatformImpl28StatefulPlayerImplementation player:stateDidChange:]
-// (objc-methods.txt:60654), the now playing platform's own player observer, and until that has reported,
-// an observer of the Kit's added to the first SPTEsperantoPlayer the app adds one to
-// (-[SPTEsperantoPlayer addPlayerObserver:], :35729). Installed while any screen is redesigned.
+// Player state is Shared/Player/PlayerState.h's, imported here so a redesigned screen needs one header.
 // Artwork: the now playing bar's 40pt cover (trees/clean/artist/01.txt: id=SPTNowPlayingBar > Encore.ImageView >
 // UIImageView 40x40), read after the bar's layout and after a track change; installed while the player
 // is redesigned. Screens publish better copies of their own (the player's cover).
@@ -12,20 +9,7 @@
 // Threading: everything here is main thread only; the player's reports are moved onto it.
 #import <UIKit/UIKit.h>
 #import "Headers/SPTPlayer.h"
-
-// A URI Spotify types as id (NSURL or NSString) as a string; nil for anything else.
-NSString *SGRURIString(id uri);
-
-#pragma mark - player state
-
-@protocol SGRPlayerStateObserver <NSObject>
-// Called when the track, the context, paused, playing, loading or shuffle changed, not for position.
-- (void)playerStateDidChange:(SPTPlayerState *)state;
-@end
-// Observers are held weakly and need no removal.
-void SGRAddPlayerStateObserver(id<SGRPlayerStateObserver> observer);
-// The last state reported, nil before the player has reported one.
-SPTPlayerState *SGRPlayerState(void);
+#import "Shared/Player/PlayerState.h"
 
 #pragma mark - now playing artwork
 

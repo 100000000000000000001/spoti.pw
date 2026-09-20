@@ -17,37 +17,37 @@
 #import <Foundation/Foundation.h>
 
 // A hit says which band it came from, so what Music Haptics follows (Haptics.h) can leave some out.
-typedef NS_ENUM(uint8_t, SGRMusicEventKind) {
-    SGRMusicEventKick,    // a hit in the bass (a kick, an 808): one transient
-    SGRMusicEventSnare,   // a hit in the top (a snare, a clap): one transient
-    SGRMusicEventLevel,   // the continuous vibration from here on, sent about 60 times a second
+typedef NS_ENUM(uint8_t, SGMusicEventKind) {
+    SGMusicEventKick,    // a hit in the bass (a kick, an 808): one transient
+    SGMusicEventSnare,   // a hit in the top (a snare, a clap): one transient
+    SGMusicEventLevel,   // the continuous vibration from here on, sent about 60 times a second
 };
 
 typedef struct {
     uint64_t hostTime;    // mach absolute time of the sound, as the render timestamp gave it
     float intensity;      // 0...1
     float sharpness;      // 0...1
-    SGRMusicEventKind kind;
-} SGRMusicEvent;
+    SGMusicEventKind kind;
+} SGMusicEvent;
 
-typedef void (*SGRMusicEmit)(const SGRMusicEvent *event, void *context);
+typedef void (*SGMusicEmit)(const SGMusicEvent *event, void *context);
 
-enum { SGRMusicHistoryLength = 256, SGRMusicAttackHops = 4, SGRMusicWindowHops = 4 };
+enum { SGMusicHistoryLength = 256, SGMusicAttackHops = 4, SGMusicWindowHops = 4 };
 
 typedef struct {
     double b0, b1, b2, a1, a2;
     double z1, z2;
-} SGRMusicBiquad;
+} SGMusicBiquad;
 
 typedef struct {
-    float history[SGRMusicHistoryLength];   // the energy of each hop of the last second
+    float history[SGMusicHistoryLength];   // the energy of each hop of the last second
     int count, next;
     double sum;
-    float window[SGRMusicWindowHops];   // the energy of the last hops
+    float window[SGMusicWindowHops];   // the energy of the last hops
     int windowNext;
     float lastInstant;
     float peakDb;         // the loudest this band has been lately, falling slowly
-    float recentDb[SGRMusicAttackHops];
+    float recentDb[SGMusicAttackHops];
     int recentNext;
     int rest;             // hops before the band may hit again
     int pending;          // hops a hit has been rising for, 0 when none
@@ -59,7 +59,7 @@ typedef struct {
     float pendingBright;
     uint64_t pendingTime;
     int armed;
-} SGRMusicBand;
+} SGMusicBand;
 
 typedef struct {
     double sampleRate;
@@ -68,15 +68,15 @@ typedef struct {
     int historyHops;
     uint64_t hopTime;
     double lowSum, highSum, midSum, fullSum;
-    SGRMusicBiquad lowPass[2], highPass[2], midPass[2];
-    SGRMusicBand kick, snap, mid;   // the bass, the top, and the middle (only its average is read)
+    SGMusicBiquad lowPass[2], highPass[2], midPass[2];
+    SGMusicBand kick, snap, mid;   // the bass, the top, and the middle (only its average is read)
     double bassEnvelope, brightness;
     int levelCountdown;
     int sinceKick;        // hops since the bass last hit
-} SGRMusicAnalyzer;
+} SGMusicAnalyzer;
 
 // Before the first buffer, and again when the sample rate changes or the sound jumps (a seek).
-void SGRMusicAnalyzerReset(SGRMusicAnalyzer *analyzer, double sampleRate, double ticksPerSecond);
+void SGMusicAnalyzerReset(SGMusicAnalyzer *analyzer, double sampleRate, double ticksPerSecond);
 // `mono` holds `frames` samples in -1...1, the first reaching the output at `hostTime`.
-void SGRMusicAnalyzerProcess(SGRMusicAnalyzer *analyzer, const float *mono, uint32_t frames, uint64_t hostTime,
-                             SGRMusicEmit emit, void *context);
+void SGMusicAnalyzerProcess(SGMusicAnalyzer *analyzer, const float *mono, uint32_t frames, uint64_t hostTime,
+                             SGMusicEmit emit, void *context);

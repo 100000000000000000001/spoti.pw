@@ -20,7 +20,7 @@
 #import "Shared/AdBlock/AdBlock.h"
 #import "Shared/Flags/Flags.h"
 #import "Shared/JamesDSP/JamesDSPPage.h"
-#import "Redesigned/LiveActivity/LiveActivity.h"
+#import "Shared/LiveActivity/LiveActivity.h"
 #import "App/About/About.h"
 #import "Pages.h"
 
@@ -45,19 +45,18 @@ static UIViewController *modSettingsPage(void) {
     SGModRow *audioEffects = pageRow(@"Audio effects", @"slider.vertical.3", ^UIViewController *{ return SGDSPSettingsPage(); });
     audioEffects.value = ^NSString *{ return SGDSPSummary(); };
     // Home & Library holds only the native look's switches, so the redesign has no such page; the
-    // Live Activity is the redesign's alone.
+    // Live Activity works under both, and only where ActivityKit's card does.
     NSMutableArray<SGModRow *> *parts = [NSMutableArray arrayWithArray:@[
         pageRow(@"Navbar", @"dock.rectangle", ^UIViewController *{ return SGNavbarPage(); }),
         pageRow(@"Player", @"play.circle", ^UIViewController *{ return SGPlayerSettingsPage(); }),
         audioEffects,
     ]];
-    if (SGRedesignedUIStored()) {
-        SGModRow *liveActivity = pageRow(@"Live Activity", @"platter.filled.top.iphone", ^UIViewController *{ return SGRLiveActivitySettingsPage(); });
-        liveActivity.value = ^NSString *{ return SGRLiveActivitySummary(); };
+    if (@available(iOS 17.0, *)) {
+        SGModRow *liveActivity = pageRow(@"Live Activity", @"platter.filled.top.iphone", ^UIViewController *{ return SGLiveActivitySettingsPage(); });
+        liveActivity.value = ^NSString *{ return SGLiveActivitySummary(); };
         [parts addObject:liveActivity];
-    } else {
-        [parts addObject:pageRow(@"Home & Library", @"house", ^UIViewController *{ return SGHomeSettingsPage(); })];
     }
+    if (!SGRedesignedUIStored()) [parts addObject:pageRow(@"Home & Library", @"house", ^UIViewController *{ return SGHomeSettingsPage(); })];
     [sections addObjectsFromArray:@[
         SGAppearanceSection(),
         SGSection(nil, parts),
@@ -247,4 +246,5 @@ static BOOL isSettingsRoot(UIViewController *list) {
     SGRequireClasses(@[@"_TtC21Settings_PlatformImpl26SettingsListViewController", @"_TtC23SideDrawer_ListPageImpl18ListViewController"]);
     SGRegisterPages();
     SGCheckSigningOnce();
+    SGWatchForUpdates();
 }

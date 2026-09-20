@@ -45,11 +45,14 @@ static UIButton *glassButton(NSString *title) {
 // when it is the one picked.
 @interface SGLookCard : UIControl
 - (instancetype)initWithSymbol:(NSString *)symbol title:(NSString *)title subtitle:(NSString *)subtitle;
+// A look this phone cannot run: the card stays on the page, greyed and untappable, and says why.
+- (void)makeUnavailable:(NSString *)reason;
 @end
 
 @implementation SGLookCard {
     SGGlassView *_glass;
     UIImageView *_check;
+    UILabel *_line;
 }
 
 - (instancetype)initWithSymbol:(NSString *)symbol title:(NSString *)title subtitle:(NSString *)subtitle {
@@ -69,6 +72,7 @@ static UIButton *glassButton(NSString *title) {
     line.font = [UIFont systemFontOfSize:13];
     line.textColor = SGGrey();
     line.numberOfLines = 0;
+    _line = line;
     UIStackView *text = [[UIStackView alloc] initWithArrangedSubviews:@[name, line]];
     text.axis = UILayoutConstraintAxisVertical;
     text.spacing = 2;
@@ -118,7 +122,17 @@ static UIButton *glassButton(NSString *title) {
 
 - (void)setHighlighted:(BOOL)highlighted {
     [super setHighlighted:highlighted];
-    self.alpha = highlighted ? 0.6 : 1;
+    if (self.enabled) self.alpha = highlighted ? 0.6 : 1;
+}
+
+- (void)makeUnavailable:(NSString *)reason {
+    self.selected = NO;
+    self.enabled = NO;
+    self.alpha = 0.45;
+    _line.text = reason;
+    _check.image = [UIImage systemImageNamed:@"lock.fill"
+                           withConfiguration:[UIImageSymbolConfiguration configurationWithPointSize:17 weight:UIImageSymbolWeightSemibold]];
+    _check.tintColor = SGGrey();
 }
 
 @end
@@ -190,8 +204,9 @@ static UIButton *glassButton(NSString *title) {
     UIView *strip = [UIView new];
     [strip addSubview:halo];
 
+    BOOL glass = SGRedesignAvailable();
     UILabel *heading = [UILabel new];
-    heading.text = @"Pick your look.";
+    heading.text = glass ? @"Pick your look." : @"Your look.";
     heading.font = [UIFont systemFontOfSize:30 weight:UIFontWeightBold];
     heading.textColor = UIColor.whiteColor;
     heading.numberOfLines = 0;
@@ -200,9 +215,15 @@ static UIButton *glassButton(NSString *title) {
     _legacy = [[SGLookCard alloc] initWithSymbol:@"slider.horizontal.3" title:@"Legacy" subtitle:@"More options, still looks like Spotify."];
     for (SGLookCard *card in @[_redesigned, _legacy]) [card addTarget:self action:@selector(picked:) forControlEvents:UIControlEventTouchUpInside];
     // The first launch offers the redesign; the tour again from the Mod page shows the stored look.
-    BOOL redesign = SGFlag(SGKeyOnboardingSeen, NO) ? SGRedesignedUIStored() : YES;
+    BOOL redesign = glass && (SGFlag(SGKeyOnboardingSeen, NO) ? SGRedesignedUIStored() : YES);
     _redesigned.selected = redesign;
     _legacy.selected = !redesign;
+    // Liquid Glass is drawn by iOS 26 and by nothing before it, so on an older phone the card stays
+    // on the page to say so and the legacy look is the only one left.
+    if (!glass) {
+        [_redesigned makeUnavailable:[NSString stringWithFormat:@"Needs iOS 26. This phone runs iOS %@.", UIDevice.currentDevice.systemVersion]];
+        _legacy.enabled = NO;
+    }
     _beta = [self betaNote];
     _beta.hidden = !redesign;
 

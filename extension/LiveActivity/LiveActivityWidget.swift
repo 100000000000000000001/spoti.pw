@@ -168,7 +168,7 @@ private struct QueueView: View {
             }
             ForEach(Array(state.tracks.prefix(upNext).enumerated()), id: \.offset) { _, track in
                 // A tap skips ahead to the track.
-                Button(intent: SGRPlayQueuedTrackIntent(track.uri)) {
+                Button(intent: SGPlayQueuedTrackIntent(track.uri)) {
                     (Text(track.title).fontWeight(.semibold) + Text("  " + track.artist).foregroundColor(.white.opacity(0.5)))
                         .font(.subheadline)
                         .lineLimit(1)
@@ -217,7 +217,7 @@ private struct PanelView: View {
         VStack(spacing: 8) {
             HStack(spacing: 6) {
                 ForEach(Tab.allCases, id: \.self) { tab in
-                    Toggle(isOn: tab == state.tab, intent: SGRLiveActivityActionIntent("tab:\(tab.rawValue)")) {
+                    Toggle(isOn: tab == state.tab, intent: SGLiveActivityActionIntent("tab:\(tab.rawValue)")) {
                         EmptyView()
                     }
                     .toggleStyle(TabStyle(tab: tab))
@@ -294,7 +294,7 @@ private struct ChipButton: View {
     var lit = false
 
     var body: some View {
-        Button(intent: SGRLiveActivityActionIntent(action)) {
+        Button(intent: SGLiveActivityActionIntent(action)) {
             ChipLabel(symbol: symbol, label: label)
                 .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(lit ? green.opacity(0.22) : idle))
                 .foregroundStyle(lit ? green : .white)
@@ -319,10 +319,10 @@ private struct ControlsPage: View {
             .invalidatableContent()
             HStack(spacing: 6) {
                 ChipButton(action: "previous", symbol: "backward.fill", label: "Previous")
-                Toggle(isOn: !state.paused, intent: SGRLiveActivityActionIntent("toggle")) { EmptyView() }
+                Toggle(isOn: !state.paused, intent: SGLiveActivityActionIntent("toggle")) { EmptyView() }
                     .toggleStyle(ChipStyle(symbol: "play.fill", onSymbol: "pause.fill", label: "Play", onLabel: "Pause", lights: false))
                 ChipButton(action: "next", symbol: "forward.fill", label: "Next")
-                Toggle(isOn: state.shuffle, intent: SGRLiveActivityActionIntent("shuffle")) { EmptyView() }
+                Toggle(isOn: state.shuffle, intent: SGLiveActivityActionIntent("shuffle")) { EmptyView() }
                     .toggleStyle(ChipStyle(symbol: "shuffle", label: "Shuffle"))
                 // Three states, so a button: the new one shows once the render lands.
                 ChipButton(action: "repeat", symbol: state.repeatMode == 2 ? "repeat.1" : "repeat",
@@ -345,7 +345,7 @@ private struct QueuePage: View {
                     .frame(maxWidth: .infinity, minHeight: 60)
             }
             ForEach(Array(state.tracks.prefix(3).enumerated()), id: \.offset) { _, track in
-                Button(intent: SGRPlayQueuedTrackIntent(track.uri)) {
+                Button(intent: SGPlayQueuedTrackIntent(track.uri)) {
                     HStack(spacing: 10) {
                         Image(systemName: "play.fill")
                             .font(.caption)

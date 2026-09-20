@@ -7,7 +7,7 @@
 #import "LyricsText.h"
 #import "Shared/LyricsSources/LyricsSources.h"
 #import "Shared/Player/PlayerEvents.h"
-#import "Redesigned/Haptics/Haptics.h"
+#import "Shared/Haptics/Haptics.h"
 #import "Redesigned/Kit/SGRTokens.h"
 
 static const CGFloat kFontSize = 30, kMargin = 24, kLineGap = 24, kRowTighten = 2;
@@ -992,7 +992,7 @@ typedef struct {
     for (SGRKaraokeLineView *view in _shown.allValues) {
         if (!CGRectContainsPoint(CGRectInset(view.frame, -_margin, -_lineGap / 2), point)) continue;
         SGKaraokeSeek(view.line.start);
-        SGRPlayFeedback(SGRFeedbackSkip);
+        SGPlayFeedback(SGFeedbackSkip);
         [self followSong];
         return;
     }

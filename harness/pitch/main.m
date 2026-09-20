@@ -1,4 +1,4 @@
-// Runs SGRTimePitch.m on the Mac both ways the tweak runs it: in place over IO buffers of Spotify's sizes
+// Runs SGTimePitch.m on the Mac both ways the tweak runs it: in place over IO buffers of Spotify's sizes
 // (pitch alone), and pulling a source at a rate (speed, with or without pitch). Checks a sine comes out
 // at the pitch asked for and the source is consumed at the rate asked for, reports the unit's pulls,
 // underruns, delay and cost, and writes a song shifted up and down to listen to.
@@ -7,7 +7,7 @@
 #import <Foundation/Foundation.h>
 #import <AudioToolbox/AudioToolbox.h>
 #import <mach/mach_time.h>
-#import "Redesigned/Player/SGRTimePitch.h"
+#import "Shared/Player/SGTimePitch.h"
 
 static const double kRate = 44100;
 
@@ -41,19 +41,19 @@ static void runSine(float semitones, int pattern) {
     size_t total = (size_t)(kRate * 3);
     float *left = calloc(total, sizeof(float)), *right = calloc(total, sizeof(float));
     for (size_t i = 0; i < total; i++) left[i] = right[i] = 0.5f * sinf(2 * M_PI * 440 * i / kRate);
-    SGRTimePitch *shifter = SGRTimePitchCreate(kRate, 2, NULL, NULL);
+    SGTimePitch *shifter = SGTimePitchCreate(kRate, 2, NULL, NULL);
     if (!shifter) {
         printf("no shifter\n");
         exit(1);
     }
-    SGRTimePitchSetSemitones(shifter, semitones);
-    SGRTimePitchReset(shifter);
+    SGTimePitchSetSemitones(shifter, semitones);
+    SGTimePitchReset(shifter);
     uint64_t start = mach_absolute_time();
     size_t done = 0, index = 0;
     while (done < total) {
         UInt32 frames = (UInt32)MIN((size_t)bufferSize(index++, pattern), total - done);
         float *channels[2] = {left + done, right + done};
-        if (!SGRTimePitchProcess(shifter, channels, frames)) printf("  process failed at %zu\n", done);
+        if (!SGTimePitchProcess(shifter, channels, frames)) printf("  process failed at %zu\n", done);
         done += frames;
     }
     mach_timebase_info_data_t timebase;
@@ -63,8 +63,8 @@ static void runSine(float semitones, int pattern) {
     double measured = frequency(left + (size_t)kRate, total - (size_t)kRate);
     printf("sine %+5.1f st, buffers %-8s: %6.1f Hz (want %6.1f, %+.2f%%), delay %4zu frames (unit %.1f ms), largest pull %u, underruns %u, failures %u, cost %.2f%% of real time\n",
            semitones, pattern == 0 ? "1024" : pattern == 1 ? "4096" : "mixed", measured, expected, (measured / expected - 1) * 100,
-           onset(left, total), SGRTimePitchLatency(shifter) * 1000, SGRTimePitchLargestPull(shifter),
-           SGRTimePitchUnderruns(shifter), SGRTimePitchFailures(shifter), seconds / 3 * 100);
+           onset(left, total), SGTimePitchLatency(shifter) * 1000, SGTimePitchLargestPull(shifter),
+           SGTimePitchUnderruns(shifter), SGTimePitchFailures(shifter), seconds / 3 * 100);
     free(left);
     free(right);
 }
@@ -89,8 +89,8 @@ static void runSong(NSString *path, float semitones, NSString *outPath) {
     };
     ExtAudioFileCreateWithURL((__bridge CFURLRef)[NSURL fileURLWithPath:outPath], kAudioFileWAVEType, &wav, NULL, kAudioFileFlags_EraseFile, &output);
     ExtAudioFileSetProperty(output, kExtAudioFileProperty_ClientDataFormat, sizeof format, &format);
-    SGRTimePitch *shifter = SGRTimePitchCreate(kRate, 2, NULL, NULL);
-    SGRTimePitchSetSemitones(shifter, semitones);
+    SGTimePitch *shifter = SGTimePitchCreate(kRate, 2, NULL, NULL);
+    SGTimePitchSetSemitones(shifter, semitones);
     float left[1024], right[1024];
     size_t seconds = 0;
     for (;;) {
@@ -98,7 +98,7 @@ static void runSong(NSString *path, float semitones, NSString *outPath) {
         UInt32 frames = 1024;
         if (ExtAudioFileRead(file, &frames, &buffers.list) || !frames) break;
         float *channels[2] = {left, right};
-        SGRTimePitchProcess(shifter, channels, frames);
+        SGTimePitchProcess(shifter, channels, frames);
         buffers.list.mBuffers[0].mDataByteSize = buffers.second.mDataByteSize = frames * 4;
         ExtAudioFileWrite(output, frames, &buffers.list);
         seconds += frames;
@@ -106,7 +106,7 @@ static void runSong(NSString *path, float semitones, NSString *outPath) {
     }
     ExtAudioFileDispose(file);
     ExtAudioFileDispose(output);
-    printf("wrote %s (%+.0f st), underruns %u\n", outPath.UTF8String, semitones, SGRTimePitchUnderruns(shifter));
+    printf("wrote %s (%+.0f st), underruns %u\n", outPath.UTF8String, semitones, SGTimePitchUnderruns(shifter));
 }
 
 typedef struct { double phase; } Sine;
@@ -123,20 +123,20 @@ static OSStatus sineSource(void *context, UInt32 frames, AudioBufferList *data) 
 
 static void runPull(float rate, float semitones) {
     Sine sine = {0};
-    SGRTimePitch *unit = SGRTimePitchCreate(kRate, 2, sineSource, &sine);
-    SGRTimePitchSetRate(unit, rate);
-    SGRTimePitchSetSemitones(unit, semitones);
+    SGTimePitch *unit = SGTimePitchCreate(kRate, 2, sineSource, &sine);
+    SGTimePitchSetRate(unit, rate);
+    SGTimePitchSetSemitones(unit, semitones);
     size_t total = (size_t)(kRate * 4);
     float *left = calloc(total, sizeof(float)), *right = calloc(total, sizeof(float));
     for (size_t done = 0; done < total; done += 1024) {
         struct { AudioBufferList list; AudioBuffer second; } buffers = {{2, {{1, 4096, left + done}}}, {1, 4096, right + done}};
-        if (SGRTimePitchRender(unit, 1024, &buffers.list) != noErr) printf("  render failed\n");
+        if (SGTimePitchRender(unit, 1024, &buffers.list) != noErr) printf("  render failed\n");
     }
     double measured = frequency(left + (size_t)kRate, total - (size_t)kRate);
     double expected = 440 * pow(2, semitones / 12);
-    double consumedRate = (double)SGRTimePitchConsumed(unit) / total;
+    double consumedRate = (double)SGTimePitchConsumed(unit) / total;
     printf("pull rate %.2f %+3.0f st: %6.1f Hz (want %6.1f, %+.2f%%), consumed %.3fx, largest pull %u, failures %u\n", rate, semitones,
-           measured, expected, (measured / expected - 1) * 100, consumedRate, SGRTimePitchLargestPull(unit), SGRTimePitchFailures(unit));
+           measured, expected, (measured / expected - 1) * 100, consumedRate, SGTimePitchLargestPull(unit), SGTimePitchFailures(unit));
     free(left);
     free(right);
 }

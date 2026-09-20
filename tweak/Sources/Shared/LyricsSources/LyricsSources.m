@@ -52,15 +52,21 @@ NSURL *SGLyricsURL(NSString *base, NSDictionary<NSString *, NSString *> *query) 
     return url.URL;
 }
 
-static void get(NSURL *url, NSDictionary<NSString *, NSString *> *headers, void (^done)(NSData *body)) {
-    if (!url) {
-        dispatch_async(dispatch_get_main_queue(), ^{ done(nil); });
-        return;
-    }
+static NSMutableURLRequest *requestFor(NSURL *url, NSDictionary<NSString *, NSString *> *headers) {
+    if (!url) return nil;
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url cachePolicy:NSURLRequestReloadIgnoringLocalCacheData timeoutInterval:kTimeout];
     [headers enumerateKeysAndObjectsUsingBlock:^(NSString *name, NSString *value, BOOL *stop) {
         [request setValue:value forHTTPHeaderField:name];
     }];
+    return request;
+}
+
+static void send(NSURLRequest *request, void (^done)(NSData *body)) {
+    if (!request) {
+        dispatch_async(dispatch_get_main_queue(), ^{ done(nil); });
+        return;
+    }
+    NSURL *url = request.URL;
     [[NSURLSession.sharedSession dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
         NSInteger status = [response isKindOfClass:NSHTTPURLResponse.class] ? ((NSHTTPURLResponse *)response).statusCode : 0;
         SGLyricsNoteReply(response, error);
@@ -69,15 +75,31 @@ static void get(NSURL *url, NSDictionary<NSString *, NSString *> *headers, void 
     }] resume];
 }
 
+static id jsonIn(NSData *body) {
+    return body.length ? [NSJSONSerialization JSONObjectWithData:body options:0 error:nil] : nil;
+}
+
 void SGLyricsGetJSON(NSURL *url, NSDictionary<NSString *, NSString *> *headers, void (^done)(id root)) {
-    get(url, headers, ^(NSData *body) {
-        done(body.length ? [NSJSONSerialization JSONObjectWithData:body options:0 error:nil] : nil);
+    send(requestFor(url, headers), ^(NSData *body) {
+        done(jsonIn(body));
     });
 }
 
 void SGLyricsGetText(NSURL *url, void (^done)(NSString *text)) {
-    get(url, nil, ^(NSData *body) {
+    send(requestFor(url, nil), ^(NSData *body) {
         done(body.length ? [[NSString alloc] initWithData:body encoding:NSUTF8StringEncoding] : nil);
+    });
+}
+
+void SGLyricsPostJSON(NSURL *url, NSDictionary<NSString *, NSString *> *headers, id body, void (^done)(id root)) {
+    NSData *written = [NSJSONSerialization isValidJSONObject:body]
+        ? [NSJSONSerialization dataWithJSONObject:body options:0 error:nil] : nil;
+    NSMutableURLRequest *request = written ? requestFor(url, headers) : nil;
+    request.HTTPMethod = @"POST";
+    request.HTTPBody = written;
+    [request setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
+    send(request, ^(NSData *answer) {
+        done(jsonIn(answer));
     });
 }
 
@@ -120,11 +142,14 @@ NSArray<SGLyricsProvider *> *SGLyricsAllProviders(void) {
             provider.key = key;
             provider.name = name;
             provider.detail = detail;
-            provider.needsName = ![key isEqualToString:@"musixmatch"];
+            // A source that matches by Spotify's own track id has everything it needs from the
+            // start; the rest wait for the player to name the track before they can search.
+            provider.needsName = ![@[@"musixmatch", @"spicylyrics"] containsObject:key];
             provider.ask = ask;
             return provider;
         };
         all = @[
+            make(@"spicylyrics", @"Spicy Lyrics", @"Syllable timing matched by track id; asks with your Spotify token", SGSpicyLyricsAsk),
             make(@"binilyrics", @"BiniLyrics", @"Apple Music's own word timing, over a million tracks", SGBiniLyricsAsk),
             make(@"musixmatch", @"Musixmatch", @"The catalogue Spotify licenses; matched by track, never by name", SGMusixmatchAsk),
             make(@"unison", @"Unison", @"Written by hand for Better Lyrics: few tracks, the best of them", SGUnisonAsk),

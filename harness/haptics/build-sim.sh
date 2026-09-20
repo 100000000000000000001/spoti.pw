@@ -5,14 +5,14 @@
 # takes as it does in Spotify.
 #   THEOS=$HOME/theos ./build-sim.sh
 #   THEOS=$HOME/theos ./build-sim.sh before <dir>   the same against <dir>/MusicHaptics.x, <dir>/Haptics.h and
-#                                                   <dir>/SGRMusicAnalyzer.{h,m} of an older commit, format steps only
+#                                                   <dir>/SGMusicAnalyzer.{h,m} of an older commit, format steps only
 set -e
 cd "$(dirname "$0")"
 SRC=../../tweak/Sources
 OUT=build/sim
-HAPTICS="$SRC/Redesigned/Haptics"
+HAPTICS="$SRC/Shared/Haptics"
 EXTRA=""
-SETTINGS="$SRC/Redesigned/Haptics/HapticsSettings.m $SRC/Redesigned/Haptics/SGRFeedback.m $SRC/Settings/SGPage.m $SRC/Settings/SGPageStyle.m $SRC/Settings/SGModPage.m $SRC/Settings/SGGlowSwitch.m"
+SETTINGS="$SRC/Shared/Haptics/HapticsSettings.m $SRC/Shared/Haptics/SGFeedback.m $SRC/Settings/SGPage.m $SRC/Settings/SGPageStyle.m $SRC/Settings/SGModPage.m $SRC/Settings/SGGlowSwitch.m"
 if [ "$1" = before ]; then
     HAPTICS=$2
     OUT=build/sim-before
@@ -24,8 +24,8 @@ mkdir -p "$OUT/gen" "$OUT/HapticsHarness.app"
 "$THEOS/bin/logos.pl" -c generator=internal "$HAPTICS/MusicHaptics.x" > "$OUT/gen/MusicHaptics.m"
 SDK=$(xcrun --sdk iphonesimulator --show-sdk-path)
 xcrun -sdk iphonesimulator clang -target arm64-apple-ios17.0-simulator -fobjc-arc -g -O1 -isysroot "$SDK" -Wno-deprecated-declarations \
-    $EXTRA -I"$SRC" -I"$SRC/Redesigned/Haptics" -Isim \
-    sim/main.m sim/fakehaptics.m "$OUT/gen/MusicHaptics.m" "$HAPTICS/SGRMusicAnalyzer.m" $SETTINGS \
+    $EXTRA -I"$SRC" -I"$SRC/Shared/Haptics" -Isim \
+    sim/main.m sim/fakehaptics.m "$OUT/gen/MusicHaptics.m" "$HAPTICS/SGMusicAnalyzer.m" $SETTINGS \
     "$SRC/Core/SGRebind.m" "$SRC/Core/SGLog.m" "$SRC/Core/SGPrefs.m" "$SRC/Core/SGUIMode.m" "$SRC/Core/SGViewTree.m" "$SRC/Core/SGFlagForce.m" \
     -framework UIKit -framework QuartzCore -framework CoreGraphics -framework AudioToolbox -framework AVFoundation -framework Foundation \
     -o "$OUT/HapticsHarness.app/HapticsHarness"

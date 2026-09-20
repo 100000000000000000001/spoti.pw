@@ -40,6 +40,14 @@ void SGSetFlagOverride(NSString *key, id value) {
     else [NSUserDefaults.standardUserDefaults removeObjectForKey:key];
 }
 
+void SGMigrateKey(NSString *from, NSString *to) {
+    NSUserDefaults *store = NSUserDefaults.standardUserDefaults;
+    id value = [store objectForKey:from];
+    if (!value || [store objectForKey:to]) return;
+    [store setObject:value forKey:to];
+    [store removeObjectForKey:from];
+}
+
 void SGRestartSpotify(void) {
     [NSUserDefaults.standardUserDefaults synchronize];
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ exit(0); });

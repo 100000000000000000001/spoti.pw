@@ -12,44 +12,44 @@
 // Measured on the Mac (harness/pitch): the pitch exact to 0.01% at any rate, the rate exact in frames
 // consumed, about 0.2% of a core, and the sound 4096 frames (93 ms at 44.1 kHz) later than it went in.
 //
-// Plain C over audio units: SGRTimePitchRender and SGRTimePitchProcess run on Core Audio's render
+// Plain C over audio units: SGTimePitchRender and SGTimePitchProcess run on Core Audio's render
 // thread, so they never allocate, lock, log or send a message. The rest is for any other thread.
 // Compiles on the Mac as is.
 #import <AudioToolbox/AudioToolbox.h>
 #import <stdbool.h>
 
-enum { kSGRTimePitchMaxChannels = 2, kSGRTimePitchMaxFrames = 4096 };
+enum { kSGTimePitchMaxChannels = 2, kSGTimePitchMaxFrames = 4096 };
 
-typedef struct SGRTimePitch SGRTimePitch;
+typedef struct SGTimePitch SGTimePitch;
 
 // Fills `data` (the unit's buffers, one per channel) with the next `frames` frames of input.
-typedef OSStatus (*SGRTimePitchSource)(void *context, UInt32 frames, AudioBufferList *data);
+typedef OSStatus (*SGTimePitchSource)(void *context, UInt32 frames, AudioBufferList *data);
 
-// Float, non-interleaved, `channels` of them, at `sampleRate`, in buffers of up to kSGRTimePitchMaxFrames
+// Float, non-interleaved, `channels` of them, at `sampleRate`, in buffers of up to kSGTimePitchMaxFrames
 // frames. With a source it pulls from it, without one it works in place. NULL when the unit could not be
 // made. Not on the render thread.
-SGRTimePitch *SGRTimePitchCreate(double sampleRate, UInt32 channels, SGRTimePitchSource source, void *context);
-double SGRTimePitchSampleRate(const SGRTimePitch *unit);
-UInt32 SGRTimePitchChannels(const SGRTimePitch *unit);
+SGTimePitch *SGTimePitchCreate(double sampleRate, UInt32 channels, SGTimePitchSource source, void *context);
+double SGTimePitchSampleRate(const SGTimePitch *unit);
+UInt32 SGTimePitchChannels(const SGTimePitch *unit);
 
 // Any thread, taking effect with the next buffer. Rate 1 is normal speed (0.25...4); semitones up or down.
-void SGRTimePitchSetRate(SGRTimePitch *unit, float rate);
-void SGRTimePitchSetSemitones(SGRTimePitch *unit, float semitones);
+void SGTimePitchSetRate(SGTimePitch *unit, float rate);
+void SGTimePitchSetSemitones(SGTimePitch *unit, float semitones);
 
 // Forgets the sound held, so the next buffer starts over from silence. Only while nothing renders.
-void SGRTimePitchReset(SGRTimePitch *unit);
+void SGTimePitchReset(SGTimePitch *unit);
 
 // Pull mode: `frames` frames of output into `data`, float non-interleaved buffers of the unit's channels.
-OSStatus SGRTimePitchRender(SGRTimePitch *unit, UInt32 frames, AudioBufferList *data);
+OSStatus SGTimePitchRender(SGTimePitch *unit, UInt32 frames, AudioBufferList *data);
 
 // In place mode: replaces `frames` samples of each channel with the same sound moved in pitch, the unit's
 // latency later. Returns false, leaving them as they were, when it cannot (too many frames, the unit failed).
-bool SGRTimePitchProcess(SGRTimePitch *unit, float *const *channels, UInt32 frames);
+bool SGTimePitchProcess(SGTimePitch *unit, float *const *channels, UInt32 frames);
 
 // Diagnostics, read from any thread: pulls the FIFO could not fully answer, render errors, the unit's own
 // delay in seconds, the most frames it asked its input for at once, and the input frames it consumed.
-UInt32 SGRTimePitchUnderruns(const SGRTimePitch *unit);
-UInt32 SGRTimePitchFailures(const SGRTimePitch *unit);
-double SGRTimePitchLatency(const SGRTimePitch *unit);
-UInt32 SGRTimePitchLargestPull(const SGRTimePitch *unit);
-uint64_t SGRTimePitchConsumed(const SGRTimePitch *unit);
+UInt32 SGTimePitchUnderruns(const SGTimePitch *unit);
+UInt32 SGTimePitchFailures(const SGTimePitch *unit);
+double SGTimePitchLatency(const SGTimePitch *unit);
+UInt32 SGTimePitchLargestPull(const SGTimePitch *unit);
+uint64_t SGTimePitchConsumed(const SGTimePitch *unit);

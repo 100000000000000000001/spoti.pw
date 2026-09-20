@@ -18,6 +18,7 @@
 // between them.
 #import "Core/SGCore.h"
 #import "Redesigned/Kit/SGRKit.h"
+#import "Shared/Player/SpeedPitch.h"
 #import "Player.h"
 
 static char kGlassKey, kCloseKey, kMoreKey;
@@ -38,7 +39,7 @@ static void glassInside(UIViewController *unit, NSArray<NSString *> *identifiers
             continue;
         }
         SGRGlassInside(button, &kGlassKey, SGRGlassCircleSize);
-        if ([identifiers[i] isEqualToString:@"Context menu"]) SGRPlayerMenuWatchMoreButton(button);
+        if ([identifiers[i] isEqualToString:@"Context menu"]) SGPlayerMenuWatchMoreButton(button);
         found++;
     }
 

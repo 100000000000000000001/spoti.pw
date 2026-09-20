@@ -11,7 +11,7 @@
 #import "LiveActivity.h"
 
 API_AVAILABLE(ios(17.0))
-@interface SGRLiveActivityBridge : NSObject
+@interface SGLiveActivityBridge : NSObject
 @property (class, nonatomic, readonly) BOOL isShowing;
 + (void)showWithView:(NSInteger)view paused:(BOOL)paused line:(NSString *)line nextLine:(NSString *)nextLine
               titles:(NSArray<NSString *> *)titles artists:(NSArray<NSString *> *)artists uris:(NSArray<NSString *> *)uris
@@ -21,10 +21,10 @@ API_AVAILABLE(ios(17.0))
 @end
 
 // The control menu's tabs, SGLyricsAttributes.Tab's values.
-typedef NS_ENUM(NSInteger, SGRLiveActivityTab) {
-    SGRLiveActivityTabControls = 0,
-    SGRLiveActivityTabQueue,
-    SGRLiveActivityTabTimer,
+typedef NS_ENUM(NSInteger, SGLiveActivityTab) {
+    SGLiveActivityTabControls = 0,
+    SGLiveActivityTabQueue,
+    SGLiveActivityTabTimer,
 };
 
 static const NSTimeInterval kTick = 0.25;
@@ -43,7 +43,7 @@ static NSTimer *sg_timer;
 static NSString *sg_shown;
 static NSString *sg_missingLyrics;
 static NSDate *sg_lastStart;
-static SGRLiveActivityTab sg_tab;
+static SGLiveActivityTab sg_tab;
 // The sleep timer: an end, or the end of the track it was set on.
 static NSDate *sg_sleepEnd;
 static NSString *sg_sleepTrack;
@@ -51,7 +51,7 @@ static NSString *sg_sleepTrack;
 // Sends `shown`, what the activity is to show as one string, unless it is showing that already; starts
 // the activity when there is none and the app is in front.
 static void send(NSString *shown, void (^show)(void)) API_AVAILABLE(ios(17.0)) {
-    if (SGRLiveActivityBridge.isShowing) {
+    if (SGLiveActivityBridge.isShowing) {
         if ([shown isEqualToString:sg_shown]) return;
     } else {
         if (UIApplication.sharedApplication.applicationState != UIApplicationStateActive) return;
@@ -138,14 +138,14 @@ static void tick(void) API_AVAILABLE(ios(17.0)) {
     NSString *trackID = SGKaraokePlayingTrack();
     checkSleepTimer(player, state, trackID);
 
-    NSInteger view = SGInt(SGRKeyLiveActivityView, SGRLiveActivityLyrics);
+    NSInteger view = SGInt(SGKeyLiveActivityView, SGLiveActivityLyrics);
     BOOL paused = state.isPaused;
     NSString *line = @"", *next = @"";
-    if (view == SGRLiveActivityLyrics) line = lyricsLine(trackID, &next);
+    if (view == SGLiveActivityLyrics) line = lyricsLine(trackID, &next);
 
     NSMutableArray<NSString *> *titles = [NSMutableArray array], *artists = [NSMutableArray array], *uris = [NSMutableArray array];
-    if (view != SGRLiveActivityLyrics) {
-        NSUInteger limit = view == SGRLiveActivityQueue ? kUpNextQueue : kUpNextPanel;
+    if (view != SGLiveActivityLyrics) {
+        NSUInteger limit = view == SGLiveActivityQueue ? kUpNextQueue : kUpNextPanel;
         for (SPTPlayerTrack *upcoming in upNext(state)) {
             if (titles.count == limit) break;
             [titles addObject:upcoming.trackTitle];
@@ -154,7 +154,7 @@ static void tick(void) API_AVAILABLE(ios(17.0)) {
         }
     }
 
-    BOOL panel = view == SGRLiveActivityPanel;
+    BOOL panel = view == SGLiveActivityPanel;
     NSString *title = panel ? track.trackTitle : @"", *artist = panel ? track.artistName ?: @"" : @"";
     BOOL shuffle = panel && state.options.shufflingContext;
     NSInteger repeatMode = panel ? repeatModeOf(state.options) : 0;
@@ -167,7 +167,7 @@ static void tick(void) API_AVAILABLE(ios(17.0)) {
         @((long long)sleepEnd.timeIntervalSince1970).stringValue, endOfTrack ? @"1" : @"0", nil];
     for (NSUInteger i = 0; i < titles.count; i++) [parts addObject:[NSString stringWithFormat:@"%@\t%@\t%@", titles[i], artists[i], uris[i]]];
     send([parts componentsJoinedByString:@"\n"], ^{
-        [SGRLiveActivityBridge showWithView:view paused:paused line:line nextLine:next titles:titles artists:artists uris:uris
+        [SGLiveActivityBridge showWithView:view paused:paused line:line nextLine:next titles:titles artists:artists uris:uris
                                         tab:tab title:title artist:artist shuffle:shuffle repeatMode:repeatMode
                                    timerEnd:sleepEnd timerEndOfTrack:endOfTrack];
     });
@@ -189,7 +189,7 @@ static void playQueued(NSString *uri) {
     SGLog(@"live activity: play %@ -> %@", uri, result);
 }
 
-// A tap in the control menu, one of SGRLiveActivityActionIntent's actions.
+// A tap in the control menu, one of SGLiveActivityActionIntent's actions.
 static void runAction(NSString *action) {
     id<SPTPlayer> player = SGKaraokePlayer();
     SPTPlayerState *state = player.state;
@@ -197,7 +197,7 @@ static void runAction(NSString *action) {
     NSString *name = parts.firstObject, *value = parts.count > 1 ? parts[1] : @"";
     id result = nil;
     if ([name isEqualToString:@"tab"]) {
-        sg_tab = MAX(SGRLiveActivityTabControls, MIN(SGRLiveActivityTabTimer, value.integerValue));
+        sg_tab = MAX(SGLiveActivityTabControls, MIN(SGLiveActivityTabTimer, value.integerValue));
     } else if ([name isEqualToString:@"toggle"]) {
         result = state.isPaused ? [player resume:nil] : [player pause:nil];
     } else if ([name isEqualToString:@"previous"]) {
@@ -235,8 +235,7 @@ static void runAction(NSString *action) {
     SGLog(@"live activity: %@ -> %@", action, result);
 }
 
-void SGRSetLiveActivityEnabled(BOOL on) {
-    if (!SGRedesignedUI()) return;
+void SGSetLiveActivityEnabled(BOOL on) {
     if (@available(iOS 17.0, *)) {
         [sg_timer invalidate];
         sg_timer = nil;
@@ -244,18 +243,18 @@ void SGRSetLiveActivityEnabled(BOOL on) {
         sg_lastStart = nil;
         clearSleepTimer();
         if (!on) {
-            [SGRLiveActivityBridge end];
+            [SGLiveActivityBridge end];
             SGLog(@"live activity: off");
             return;
         }
         static dispatch_once_t observing;
         dispatch_once(&observing, ^{
             NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
-            [center addObserverForName:@"SGRLiveActivityPlay" object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) {
+            [center addObserverForName:@"SGLiveActivityPlay" object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) {
                 if ([note.object isKindOfClass:NSString.class]) playQueued(note.object);
             }];
             // The new state goes out at once rather than on the next tick, the card being slow enough to redraw.
-            [center addObserverForName:@"SGRLiveActivityAction" object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) {
+            [center addObserverForName:@"SGLiveActivityAction" object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) {
                 if (![note.object isKindOfClass:NSString.class]) return;
                 runAction(note.object);
                 if (sg_timer) tick();
@@ -268,13 +267,15 @@ void SGRSetLiveActivityEnabled(BOOL on) {
 }
 
 %ctor {
-    if (!SGRedesignedUI()) return;
     if (@available(iOS 17.0, *)) {
-        BOOL on = SGFlag(SGRKeyLiveActivity, NO);
+        // It was the redesign's alone until it moved to Shared/; whoever had it on keeps it on.
+        SGMigrateKey(SGKeyLiveActivityWas, SGKeyLiveActivity);
+        SGMigrateKey(SGKeyLiveActivityViewWas, SGKeyLiveActivityView);
+        BOOL on = SGFlag(SGKeyLiveActivity, NO);
         // Off, one left from a launch before the switch went off is ended.
         dispatch_async(dispatch_get_main_queue(), ^{
-            if (on) SGRSetLiveActivityEnabled(YES);
-            else [SGRLiveActivityBridge end];
+            if (on) SGSetLiveActivityEnabled(YES);
+            else [SGLiveActivityBridge end];
         });
     }
 }

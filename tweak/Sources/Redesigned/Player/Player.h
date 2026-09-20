@@ -15,9 +15,9 @@
 //     PlayerLyrics.x     the lyrics in the player: the cover as a thumbnail, the title up beside it
 //     PlayerGestures.x   the gestures' hookup
 //     PlayerMorph.x      the open and close grown out of the now playing bar's card, the cover flown
-//     PlayerMenu.x       Speed and pitch, an expandable row with two sliders in the more button's menu
-//     PlayerSpeedPitch.x speed and pitch done to Spotify's audio, between its mixer and its speaker unit
-//     SGRTimePitch.m     Apple's time and pitch unit, pulling the mixer or working in place
+//
+// Speed and pitch, once the redesign's own, are Shared/Player/SpeedPitch.h's; PlayerHeader.x still hands
+// the more button over, so a menu opened from it is taken for the player's.
 //
 // Every hook installs only while Redesigned UI is on (SGRedesignedUI); the native look's do not then.
 // Threading: main thread only.
@@ -53,22 +53,6 @@ void SGRPlayerToggleLyrics(void);
 // Called by PlayerLyrics.x whenever either of those two changed, so the footer's lyrics glyph follows
 // (PlayerFooter.x). It returns at once when nothing changed.
 void SGRPlayerLyricsChanged(void);
-
-#pragma mark - the more menu's speed and pitch (PlayerMenu.x, PlayerSpeedPitch.x)
-
-// Marks a menu opened soon after a tap on `button`, the player's more button, as the player's, so it gets
-// Speed and pitch (PlayerHeader.x hands it over; watching it twice does nothing).
-void SGRPlayerMenuWatchMoreButton(UIView *button);
-// The speed Spotify's sound plays at, 1 when normal; lasts until Spotify quits.
-double SGRPlayerSpeed(void);
-// Whether speed can apply: Spotify's output was taken over when it wired it.
-BOOL SGRPlayerSpeedAllowed(void);
-void SGRSetPlayerSpeed(double speed);
-// Semitones Spotify's output is moved by, 0 when it is not; lasts until Spotify quits.
-float SGRPlayerPitch(void);
-void SGRSetPlayerPitch(float semitones);
-// Whether the output could be reached to change its pitch.
-BOOL SGRPlayerPitchAvailable(void);
 
 // Alpha 0, no touches, hidden from accessibility, set again on every call: for Spotify's Swift views,
 // which SGRSuppress cannot keep (PlayerControls.x).

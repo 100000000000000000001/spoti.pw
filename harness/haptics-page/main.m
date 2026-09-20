@@ -1,5 +1,5 @@
-// Mod Settings > Player's Vibrations cards (Redesigned/Haptics/HapticsSettings.m) on an SGModPage laid out like the
-// Player page in the redesign, with the real Settings/ framework and SGRFeedback.m behind them and stubs.m for
+// Mod Settings > Player's Vibrations cards (Shared/Haptics/HapticsSettings.m) on an SGModPage laid out like the
+// Player page in the redesign, with the real Settings/ framework and SGFeedback.m behind them and stubs.m for
 // Music Haptics' engine. The launch line sets the switches up and then plays actions, one every 0.7 s from 1 s
 // in; screenshot after.
 //
@@ -17,7 +17,7 @@
 #import <UIKit/UIKit.h>
 #import "Core/SGCore.h"
 #import "Settings/SGModPage.h"
-#import "Redesigned/Haptics/Haptics.h"
+#import "Shared/Haptics/Haptics.h"
 
 static void findViews(UIView *root, Class kind, NSMutableArray *found) {
     if ([root isKindOfClass:kind]) [found addObject:root];
@@ -42,7 +42,7 @@ static void findViews(UIView *root, Class kind, NSMutableArray *found) {
         SGSection(nil, @[SGWithSymbol(SGPageRow(@"Now playing", none), @"rectangle.bottomthird.inset.filled"),
                          SGWithSymbol(SGPageRow(@"Lock screen widget", none), @"lock")]),
     ]];
-    [sections addObjectsFromArray:SGRVibrationsSections()];
+    [sections addObjectsFromArray:SGVibrationsSections()];
     return [[SGModPage alloc] initWithTitle:@"Player" intro:@"Changes apply after you restart Spotify. Gestures, Blocked artists and Vibrations apply straight away."
                                    sections:sections footer:nil];
 }
@@ -57,9 +57,9 @@ static void findViews(UIView *root, Class kind, NSMutableArray *found) {
     }
     NSMutableArray<NSString *> *actions = [NSMutableArray array];
     for (NSString *arg in [args subarrayWithRange:NSMakeRange(1, args.count - 1)]) {
-        if ([arg isEqualToString:@"controls-off"]) SGSetEnabled(SGRKeyControlHaptics, NO);
-        else if ([arg isEqualToString:@"music"]) SGSetEnabled(SGRKeyMusicHaptics, YES);
-        else if ([arg hasPrefix:@"follows="]) SGSetInt(SGRKeyMusicFollows, [arg substringFromIndex:8].integerValue);
+        if ([arg isEqualToString:@"controls-off"]) SGSetEnabled(SGKeyControlHaptics, NO);
+        else if ([arg isEqualToString:@"music"]) SGSetEnabled(SGKeyMusicHaptics, YES);
+        else if ([arg hasPrefix:@"follows="]) SGSetInt(SGKeyMusicFollows, [arg substringFromIndex:8].integerValue);
         else if (![@[@"keep", @"slow"] containsObject:arg]) [actions addObject:arg];
     }
 
@@ -140,9 +140,9 @@ static void findViews(UIView *root, Class kind, NSMutableArray *found) {
         for (NSString *key in [all.allKeys sortedArrayUsingSelector:@selector(compare:)]) {
             if ([key hasPrefix:@"spotifyglass.redesign.haptics"]) NSLog(@"[harness] stored %@ = %@", key, all[key]);
         }
-        NSLog(@"[harness] the hooks read: Controls %@ at %.0f%%, Music Haptics %@ at %.0f%% following %ld", SGEnabled(SGRKeyControlHaptics) ? @"on" : @"off",
-              SGRHapticsStrength(SGRKeyControlStrength) * 100, SGFlag(SGRKeyMusicHaptics, NO) ? @"on" : @"off",
-              SGRHapticsStrength(SGRKeyMusicStrength) * 100, (long)SGRMusicHapticsFollows());
+        NSLog(@"[harness] the hooks read: Controls %@ at %.0f%%, Music Haptics %@ at %.0f%% following %ld", SGEnabled(SGKeyControlHaptics) ? @"on" : @"off",
+              SGHapticsStrength(SGKeyControlStrength) * 100, SGFlag(SGKeyMusicHaptics, NO) ? @"on" : @"off",
+              SGHapticsStrength(SGKeyMusicStrength) * 100, (long)SGMusicHapticsFollows());
         for (NSInteger section = 0; section < table.numberOfSections; section++) {
             NSMutableArray<NSString *> *rows = [NSMutableArray array];
             for (NSInteger row = 0; row < [table numberOfRowsInSection:section]; row++) {

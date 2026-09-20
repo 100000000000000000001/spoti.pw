@@ -108,7 +108,7 @@ static UIImage *settledCover(UIScrollView *list) {
 static void publishCover(void) {
     UIImage *cover = settledCover(sg_coverList);
     if (!cover) return;
-    NSString *uri = SGRURIString(SGRPlayerState().track.URI);
+    NSString *uri = SGURIString(SGPlayerState().track.URI);
     if (!uri || (cover == sg_lastCover && [uri isEqualToString:sg_lastCoverURI])) return;
     sg_lastCover = cover;
     sg_lastCoverURI = uri;
@@ -127,7 +127,7 @@ static void publishCover(void) {
 
 // A cover that loads after the track changed sets an image and lays nothing out, so the list is looked
 // at again a few times while it comes in, as the Kit does for the bar.
-@interface SGRPlayerCoverWatcher : NSObject <SGRPlayerStateObserver>
+@interface SGRPlayerCoverWatcher : NSObject <SGPlayerStateObserver>
 @end
 
 @implementation SGRPlayerCoverWatcher {
@@ -135,7 +135,7 @@ static void publishCover(void) {
 }
 
 - (void)playerStateDidChange:(SPTPlayerState *)state {
-    NSString *track = SGRURIString(state.track.URI);
+    NSString *track = SGURIString(state.track.URI);
     if (!track || [track isEqualToString:_track]) return;
     _track = track;
     for (NSNumber *delay in @[@0.3, @1, @2.5]) {
@@ -173,7 +173,7 @@ static SGRPlayerCoverWatcher *sg_coverWatcher;
     if (!SGRedesignedUI()) return;
     %init;
     sg_coverWatcher = [SGRPlayerCoverWatcher new];
-    SGRAddPlayerStateObserver(sg_coverWatcher);
+    SGAddPlayerStateObserver(sg_coverWatcher);
     [NSNotificationCenter.defaultCenter addObserverForName:SGRNowPlayingArtworkDidChangeNotification object:nil queue:nil usingBlock:^(NSNotification *note) {
         showArtwork(sg_field, YES);
     }];

@@ -74,6 +74,10 @@ void SGKaraokeKeepLines(NSString *trackID, NSArray<SGKaraokeLine *> *lines);
 // Asks spclient for a track's lyrics once, with the headers of Spotify's own requests, for when no
 // page of Spotify's has asked for them, e.g. with the app in the background.
 void SGKaraokeRequestLyrics(NSString *trackID);
+// The Authorization header Spotify's own requests carry, "Bearer ..." and the account's own token;
+// nil until one has gone out. Only for a source that answers no one who cannot show they are a
+// signed-in Spotify client, and only with the mod's user having switched that source on.
+NSString *SGKaraokeSpotifyAuthorization(void);
 NSString *SGKaraokePlayingTrack(void);   // the base62 id, nil before the player reported
 NSInteger SGKaraokePositionMs(void);     // negative when unknown
 void SGKaraokeSeek(NSInteger ms);

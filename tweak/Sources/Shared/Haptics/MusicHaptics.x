@@ -5,7 +5,7 @@
 // and a RemoteIO output unit, started with AudioOutputUnitStart(_outputUnit)), with no Objective-C
 // method between it and the unit. So Spotify's import of AudioOutputUnitStart is rebound
 // (Core/SGRebind.h), and every RemoteIO unit it starts gets a render notify: after each render, the
-// buffer bound for the speaker is mixed to mono and handed to the analyzer (SGRMusicAnalyzer.h) on
+// buffer bound for the speaker is mixed to mono and handed to the analyzer (SGMusicAnalyzer.h) on
 // the render thread, which puts what it hears into a ring of events. That buffer is in the unit's output
 // format, the hardware's, not the one Spotify hands the unit (in the simulator 48 kHz float with a buffer
 // per channel, whatever the client: harness/jamesdsp/sim, harness/haptics/sim), so the analyzer runs at
@@ -17,7 +17,7 @@
 // what Music Haptics follows leaves out the snares' taps (Bass) or the rumble (Beat) there too, so a change
 // applies to the next event.
 //
-// The rebinding and the notify are in place while Redesigned UI is on, so the switch works at once;
+// The rebinding and the notify are in place under either look, so the switch works at once;
 // with the switch off the notify returns straight away. Nothing listens while Spotify is not the active
 // app, since iOS plays no haptics for an app in the background. Sound that is not Spotify's own
 // output (Connect, AirPlay to another device, video) never passes the unit, and plays no haptics.
@@ -35,7 +35,7 @@
 #import "Core/SGCore.h"
 #import "Core/SGRebind.h"
 #import "Haptics.h"
-#import "SGRMusicAnalyzer.h"
+#import "SGMusicAnalyzer.h"
 
 // Core Haptics takes about this long from a scheduled time to the Taptic Engine's peak.
 static const double kHapticLead = 0.012;
@@ -72,7 +72,7 @@ static atomic_uint_fast64_t sg_skipped;   // renders whose buffers were not laid
 static atomic_uint_fast64_t sg_strengthBits;
 static atomic_int sg_follows;
 
-static SGRMusicEvent sg_ring[kRingSize];
+static SGMusicEvent sg_ring[kRingSize];
 static atomic_uint sg_head, sg_tail;   // head moved by the render thread, tail by the player thread
 static dispatch_semaphore_t sg_wake;
 
@@ -93,10 +93,10 @@ static double loadDouble(atomic_uint_fast64_t *slot) {
 
 #pragma mark - the render thread
 
-static SGRMusicAnalyzer sg_analyzer;
+static SGMusicAnalyzer sg_analyzer;
 static float sg_mono[kMonoFrames];
 
-static void pushEvent(const SGRMusicEvent *event, void *context) {
+static void pushEvent(const SGMusicEvent *event, void *context) {
     unsigned head = atomic_load_explicit(&sg_head, memory_order_relaxed);
     unsigned tail = atomic_load_explicit(&sg_tail, memory_order_relaxed);
     if (head - tail >= kRingSize) return;
@@ -143,7 +143,7 @@ static OSStatus rendered(void *refCon, AudioUnitRenderActionFlags *flags, const 
     unsigned generation = atomic_load_explicit(&sg_generation, memory_order_relaxed);
     if (sampleRate <= 0) return noErr;
     if (sampleRate != analyzedRate || generation != analyzedGeneration) {
-        SGRMusicAnalyzerReset(&sg_analyzer, sampleRate, 1 / sg_secondsPerTick);
+        SGMusicAnalyzerReset(&sg_analyzer, sampleRate, 1 / sg_secondsPerTick);
         analyzedRate = sampleRate;
         analyzedGeneration = generation;
     }
@@ -162,7 +162,7 @@ static OSStatus rendered(void *refCon, AudioUnitRenderActionFlags *flags, const 
             sg_mono[i] = 0.5f * (sampleAt(left, at, bytes, isFloat, fraction) + sampleAt(right, at + rightOffset, bytes, isFloat, fraction));
         }
         uint64_t chunkTime = hostTime + (uint64_t)(done / sampleRate / sg_secondsPerTick);
-        SGRMusicAnalyzerProcess(&sg_analyzer, sg_mono, count, chunkTime, pushEvent, NULL);
+        SGMusicAnalyzerProcess(&sg_analyzer, sg_mono, count, chunkTime, pushEvent, NULL);
         done += count;
     }
     if (atomic_load_explicit(&sg_head, memory_order_relaxed) != headBefore) dispatch_semaphore_signal(sg_wake);
@@ -332,7 +332,7 @@ static CHHapticEventParameter *parameter(CHHapticEventParameterID identifier, fl
     return [[CHHapticEventParameter alloc] initWithParameterID:identifier value:value];
 }
 
-static void playTap(const SGRMusicEvent *event) {
+static void playTap(const SGMusicEvent *event) {
     double lead;
     NSTimeInterval at = engineTime(event->hostTime, &lead);
     if (lead < -kLatestTap) {
@@ -363,7 +363,7 @@ static void stopRumble(NSTimeInterval at) {
     sg_rumbling = NO;
 }
 
-static void playLevel(const SGRMusicEvent *event) {
+static void playLevel(const SGMusicEvent *event) {
     sg_stats.levels++;
     double lead;
     NSTimeInterval at = engineTime(event->hostTime, &lead);
@@ -453,17 +453,17 @@ static void *playerLoop(void *unused) {
                 idle = YES;
                 continue;
             }
-            SGRMusicFollows follows = (SGRMusicFollows)atomic_load(&sg_follows);
-            BOOL rumbles = follows != SGRMusicFollowsBeat, snares = follows != SGRMusicFollowsBass;
+            SGMusicFollows follows = (SGMusicFollows)atomic_load(&sg_follows);
+            BOOL rumbles = follows != SGMusicFollowsBeat, snares = follows != SGMusicFollowsBass;
             if (!rumbles) stopRumble(CHHapticTimeImmediate);
             BOOL any = NO;
             unsigned head = atomic_load(&sg_head), tail = atomic_load(&sg_tail);
             if (tail != head && startEngine()) {
                 for (; tail != head; tail++) {
-                    SGRMusicEvent event = sg_ring[tail & (kRingSize - 1)];
-                    if (event.kind == SGRMusicEventLevel) {
+                    SGMusicEvent event = sg_ring[tail & (kRingSize - 1)];
+                    if (event.kind == SGMusicEventLevel) {
                         if (rumbles) playLevel(&event);
-                    } else if (event.kind == SGRMusicEventKick || snares) {
+                    } else if (event.kind == SGMusicEventKick || snares) {
                         playTap(&event);
                     }
                 }
@@ -514,26 +514,28 @@ static void updateListening(void) {
     dispatch_semaphore_signal(sg_wake);
 }
 
-void SGRSetMusicHapticsEnabled(BOOL on) {
-    if (!SGRedesignedUI() || !sg_wake) return;
+void SGSetMusicHapticsEnabled(BOOL on) {
+    if (!sg_wake) return;
     atomic_store(&sg_enabled, on);
     updateListening();
 }
 
 static void readSettings(void) {
-    storeDouble(&sg_strengthBits, SGRHapticsStrength(SGRKeyMusicStrength));
-    atomic_store(&sg_follows, (int)SGRMusicHapticsFollows());
+    storeDouble(&sg_strengthBits, SGHapticsStrength(SGKeyMusicStrength));
+    atomic_store(&sg_follows, (int)SGMusicHapticsFollows());
 }
 
-void SGRMusicHapticsSettingsChanged(void) {
-    if (!SGRedesignedUI() || !sg_wake) return;
+void SGMusicHapticsSettingsChanged(void) {
+    if (!sg_wake) return;
     readSettings();
     // A rumble that is not to play any more stops now rather than with the next event.
     dispatch_semaphore_signal(sg_wake);
 }
 
 %ctor {
-    if (!SGRedesignedUI()) return;
+    SGMigrateKey(SGKeyMusicHapticsWas, SGKeyMusicHaptics);
+    SGMigrateKey(SGKeyMusicStrengthWas, SGKeyMusicStrength);
+    SGMigrateKey(SGKeyMusicFollowsWas, SGKeyMusicFollows);
     mach_timebase_info_data_t timebase;
     mach_timebase_info(&timebase);
     sg_secondsPerTick = (double)timebase.numer / timebase.denom / 1e9;
@@ -543,7 +545,7 @@ void SGRMusicHapticsSettingsChanged(void) {
     }
     sg_wake = dispatch_semaphore_create(0);
     readSettings();
-    atomic_store(&sg_enabled, SGFlag(SGRKeyMusicHaptics, NO));
+    atomic_store(&sg_enabled, SGFlag(SGKeyMusicHaptics, NO));
     NSNotificationCenter *center = NSNotificationCenter.defaultCenter;
     [center addObserverForName:UIApplicationDidBecomeActiveNotification object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) {
         atomic_store(&sg_active, true);

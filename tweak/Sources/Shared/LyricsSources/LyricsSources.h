@@ -4,7 +4,8 @@
 // later one that times every word.
 //
 // SGTTML.m reads the TTML that Apple Music's own lyrics are written in, which is what BiniLyrics and
-// Unison serve; it is the only shape carrying a second voice and the (oh, aye) sung under a line.
+// Unison serve. It and Spicy Lyrics are the only shapes carrying a second voice and the (oh, aye)
+// sung under a line; every other source times lines, or the words inside them, and nothing more.
 #import <UIKit/UIKit.h>
 #import "Shared/Lyrics/Lyrics.h"
 
@@ -56,7 +57,7 @@ typedef void (^SGLyricsAsk)(SGLyricsQuery *query, void (^done)(SGLyricsResult *r
 @property (nonatomic, copy) NSString *name;     // "BiniLyrics", what the credit reads
 @property (nonatomic, copy) NSString *detail;   // one line under the name on the Lyrics page
 // Searches by title and artist, so it has nothing to ask with until someone has named the track.
-// Only Musixmatch matches by Spotify's id and can go without.
+// Musixmatch and Spicy Lyrics match by Spotify's id and can go without.
 @property (nonatomic) BOOL needsName;
 @property (nonatomic, copy) SGLyricsAsk ask;
 @end
@@ -98,6 +99,9 @@ void SGLyricsMigrateLegacyKeys(void);
 NSURL *SGLyricsURL(NSString *base, NSDictionary<NSString *, NSString *> *query);
 void SGLyricsGetJSON(NSURL *url, NSDictionary<NSString *, NSString *> *headers, void (^done)(id root));
 void SGLyricsGetText(NSURL *url, void (^done)(NSString *text));
+// For the one source that is asked a question rather than sent to an address. body is anything
+// NSJSONSerialization writes; nothing is sent at all when it is not.
+void SGLyricsPostJSON(NSURL *url, NSDictionary<NSString *, NSString *> *headers, id body, void (^done)(id root));
 // Every source's reply goes through this, so a walk that lost a request to the network or a busy
 // server is not kept as "no lyrics". The two above call it themselves.
 void SGLyricsNoteReply(NSURLResponse *response, NSError *error);
@@ -122,5 +126,6 @@ extern SGLyricsAsk SGMusixmatchAsk;
 extern SGLyricsAsk SGUnisonAsk;
 extern SGLyricsAsk SGNetEaseAsk;
 extern SGLyricsAsk SGLrcLibAsk;
+extern SGLyricsAsk SGSpicyLyricsAsk;
 
 UIViewController *SGLyricsSourcesPage(void);   // the ordered list on the Lyrics page

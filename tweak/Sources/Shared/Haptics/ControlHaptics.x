@@ -1,5 +1,5 @@
 // Vibrations > Controls: a tap for what a finger does to playback, in the full screen player and the
-// now playing bar (SGRFeedback.m holds which tap each gets).
+// now playing bar (SGFeedback.m holds which tap each gets).
 //
 // Buttons: every control's action passes -[UIControl sendAction:to:forEvent:] (target and action) or
 // -[UIControl sendAction:] (a UIAction), so the controls are told apart there by accessibility
@@ -23,8 +23,8 @@
 // Gestures (Shared/Gestures) tell of each action a double tap performs; the lyrics page's tap to seek
 // plays its tap in Redesigned/Lyrics/SGRKaraokeView.m.
 #import "Core/SGCore.h"
-#import "Redesigned/Kit/SGRKit.h"
 #import "Shared/Gestures/Gestures.h"
+#import "Shared/Player/PlayerState.h"
 #import "Haptics.h"
 
 // How close to either end the scrubber is at it.
@@ -84,10 +84,10 @@ static void controlActed(UIControl *control, ControlKind kind, BOOL wasPaused) {
     lastTime = now;
     switch (kind) {
         case ControlNone: return;
-        case ControlPlay: SGRPlayFeedback(wasPaused ? SGRFeedbackPlay : SGRFeedbackPause); break;
-        case ControlSkip: SGRPlayFeedback(SGRFeedbackSkip); break;
-        case ControlToggle: SGRPlayFeedback(SGRFeedbackToggle); break;
-        case ControlAdd: SGRPlayFeedback(SGRFeedbackAdd); break;
+        case ControlPlay: SGPlayFeedback(wasPaused ? SGFeedbackPlay : SGFeedbackPause); break;
+        case ControlSkip: SGPlayFeedback(SGFeedbackSkip); break;
+        case ControlToggle: SGPlayFeedback(SGFeedbackToggle); break;
+        case ControlAdd: SGPlayFeedback(SGFeedbackAdd); break;
     }
     static NSMutableSet<NSNumber *> *logged;
     if (!logged) logged = [NSMutableSet set];
@@ -103,7 +103,7 @@ static void controlActed(UIControl *control, ControlKind kind, BOOL wasPaused) {
         %orig;
         return;
     }
-    BOOL wasPaused = SGRPlayerState().isPaused;
+    BOOL wasPaused = SGPlayerState().isPaused;
     %orig;
     controlActed(self, kind, wasPaused);
 }
@@ -114,7 +114,7 @@ static void controlActed(UIControl *control, ControlKind kind, BOOL wasPaused) {
         %orig;
         return;
     }
-    BOOL wasPaused = SGRPlayerState().isPaused;
+    BOOL wasPaused = SGPlayerState().isPaused;
     %orig;
     controlActed(self, kind, wasPaused);
 }
@@ -140,15 +140,15 @@ static void scrubBegan(UISlider *slider) {
     sg_scrubTenth = (int)floor(MIN(position, 0.9999f) * 10);
     sg_scrubAtEdge = atEdge(position);
     sg_scrubTicks = 0;
-    SGRPlayFeedback(SGRFeedbackGrab);
-    SGRPrepareFeedback(SGRFeedbackDetent);
+    SGPlayFeedback(SGFeedbackGrab);
+    SGPrepareFeedback(SGFeedbackDetent);
 }
 
 static void scrubMoved(UISlider *slider) {
     float position = positionOf(slider);
     BOOL edge = atEdge(position);
     if (edge) {
-        if (!sg_scrubAtEdge) SGRPlayFeedback(SGRFeedbackEdge);
+        if (!sg_scrubAtEdge) SGPlayFeedback(SGFeedbackEdge);
         sg_scrubAtEdge = YES;
         sg_scrubTenth = (int)floor(MIN(position, 0.9999f) * 10);
         return;
@@ -160,7 +160,7 @@ static void scrubMoved(UISlider *slider) {
     if (fabsf(position - boundary) < kScrubHysteresis) return;
     sg_scrubTenth = tenth;
     sg_scrubTicks++;
-    SGRPlayFeedback(SGRFeedbackDetent);
+    SGPlayFeedback(SGFeedbackDetent);
 }
 
 %hook _TtCO17NowPlaying_ECMKit11ProgressBar6Slider
@@ -178,7 +178,7 @@ static void scrubMoved(UISlider *slider) {
 
 - (void)endTrackingWithTouch:(UITouch *)touch withEvent:(UIEvent *)event {
     %orig;
-    SGRPlayFeedback(SGRFeedbackRelease);
+    SGPlayFeedback(SGFeedbackRelease);
     static NSUInteger logged;
     if (logged++ < 3) SGLog(@"redesign haptics: scrubbed to %.2f of the song, %lu ticks", positionOf((UISlider *)self), (unsigned long)sg_scrubTicks);
 }
@@ -197,7 +197,7 @@ static void pageDetent(UIScrollView *list, NSInteger *lastPage) {
     }
     if (page == *lastPage || fabs(position - *lastPage) < 0.5 + kPageHysteresis) return;
     *lastPage = page;
-    SGRPlayFeedback(SGRFeedbackDetent);
+    SGPlayFeedback(SGFeedbackDetent);
 }
 
 %hook _TtC35NowPlaying_ContentLayerPlatformImpl24AccessibleCollectionView
@@ -221,18 +221,19 @@ static void pageDetent(UIScrollView *list, NSInteger *lastPage) {
 static void gesturePerformed(SGGestureAction action) {
     switch (action) {
         case SGGestureNothing: break;
-        case SGGesturePlayPause: SGRPlayFeedback(SGRPlayerState().isPaused ? SGRFeedbackPlay : SGRFeedbackPause); break;
+        case SGGesturePlayPause: SGPlayFeedback(SGPlayerState().isPaused ? SGFeedbackPlay : SGFeedbackPause); break;
         case SGGestureSeekBack:
         case SGGestureSeekForward:
         case SGGestureNextTrack:
-        case SGGesturePreviousTrack: SGRPlayFeedback(SGRFeedbackSkip); break;
+        case SGGesturePreviousTrack: SGPlayFeedback(SGFeedbackSkip); break;
         case SGGestureShuffle:
-        case SGGestureRepeat: SGRPlayFeedback(SGRFeedbackToggle); break;
+        case SGGestureRepeat: SGPlayFeedback(SGFeedbackToggle); break;
     }
 }
 
 %ctor {
-    if (!SGRedesignedUI()) return;
+    SGMigrateKey(SGKeyControlHapticsWas, SGKeyControlHaptics);
+    SGMigrateKey(SGKeyControlStrengthWas, SGKeyControlStrength);
     %init;
     SGGestureSetObserver(^(SGGestureAction action) { gesturePerformed(action); });
     SGRequireClasses(@[

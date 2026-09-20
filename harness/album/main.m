@@ -328,6 +328,38 @@ static NSString *trailingLabel(UIView *root) {
         [_footerCells addObject:cell];
     }
 
+    // An episode page is this same template with cells of its own (device, trees/continuous/1.txt
+    // 2026-09-20), and every one of them paints the black the AMOLED made of Spotify's base surface over
+    // the field. Put under the tracks, clear of the footer the redesign drops: what is proved here is the
+    // paint, not the layout. A card inside one of them is a cell of its own and keeps its own black.
+    NSArray *episode = @[@[@"Episode Transcript", @50], @[@"", @24], @[@"", @4.67]];
+    CGFloat episodeY = _tracksBottom + 140;
+    NSMutableArray<UIView *> *episodePaints = [NSMutableArray array];
+    for (NSArray *item in episode) {
+        CGFloat height = [item[1] doubleValue];
+        UICollectionViewCell *cell = [[_TtC12Element_List18CollectionViewCell alloc]
+                                      initWithFrame:CGRectMake(0, episodeY, W, height)];
+        [collection addSubview:cell];
+        UIView *content = box(cell.contentView, UIView.class, cell.contentView.bounds, nil);
+        UIView *paint = box(content, UIView.class, content.bounds, nil);
+        paint.backgroundColor = UIColor.blackColor;
+        if ([item[0] length]) label(paint, CGRectMake(16, 16, W - 48, 18), item[0], 13, UIColor.whiteColor, @"Encore.Label");
+        [episodePaints addObject:paint];
+        episodeY += height;
+    }
+    UICollectionViewCell *carousel = [[_TtC12Element_List18CollectionViewCell alloc]
+                                      initWithFrame:CGRectMake(0, episodeY, W, 80)];
+    [collection addSubview:carousel];
+    UICollectionViewCell *card = [[_TtC12Element_List18CollectionViewCell alloc] initWithFrame:CGRectMake(16, 0, 153, 80)];
+    card.backgroundColor = UIColor.blackColor;
+    [carousel.contentView addSubview:card];
+
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        NSLog(@"[harness] the episode page's paint: %@ %@ %@, and the card inside a cell %@",
+              episodePaints[0].backgroundColor ?: @"clear", episodePaints[1].backgroundColor ?: @"clear",
+              episodePaints[2].backgroundColor ?: @"clear", card.backgroundColor ?: @"clear");
+    });
+
     // the sticky navigation bar, its gradient hidden until the page scrolls
     UIView *navBar = box(page, _TtC28EncoreConsumerMobile_BaseKit20HeaderNavigationBar.class, CGRectMake(0, 0, W, 118), @"CreativeWorkPlatform.HeaderNavigationBar");
     UIView *navGradient = box(navBar, _TtC19LegacyUI_ECMCoreKit12GradientView.class, navBar.bounds, nil);

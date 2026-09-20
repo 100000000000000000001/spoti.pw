@@ -10,6 +10,11 @@
 //     the block                           a plain UIView at {0, 327} 386x178: a column of title, description,
 //                                         creator row and length, and under it the action row
 //
+// A mix Spotify makes (Indie Rock Mix, Discover Weekly) is laid out the same way but draws its cover
+// differently: there is no artwork square, and in its place a HeaderFullbleedCentralView holds the picture
+// full bleed with Spotify's own big title over the bottom of it (trees/continuous/4.txt:1066). So the cover
+// is whichever of the two the layout has, and the block is the one thing that is neither.
+//
 // Nothing is measured from what the header shows: -[SPTFreeTierPlaylistEncoreHeaderViewController update]
 // counts a stored fullHeaderHeight and pins headerViewHeightConstraint to it. So the redesign changes no
 // height: the cover's square is where the full bleed picture goes, and the block keeps its place, its size
@@ -454,15 +459,31 @@ static UIView *applyBackground(UIView *layout) {
     return plane;
 }
 
+// The full bleed picture a mix is given instead of the artwork square: a child of the layout, as wide as the
+// page and at the top of it.
+static UIView *fullbleedIn(UIView *layout) {
+    static Class fullbleed;
+    if (!fullbleed) fullbleed = NSClassFromString(@"_TtC28EncoreConsumerMobile_BaseKit26HeaderFullbleedCentralView");
+    for (UIView *sub in layout.subviews) {
+        if ([sub isKindOfClass:fullbleed]) return sub;
+    }
+    return nil;
+}
+
 // The layout holds the cover square and, under it, the block of text and controls: the one child nearly as
 // wide as the page. Taken by width, not by being lowest: Liked Songs' layout also holds a 45pt slot for its
 // icon, which while the page loads sits below the block, and taken for it the header was drawn twice, once
 // in the slot and once in the block (device, 2026-09-18).
-static UIView *blockIn(UIView *layout, UIView *cover) {
+//
+// A mix's full bleed picture is as wide as the page too, and while the block is still unmeasured it is the
+// only child wide enough to be taken for it -- which drew the redesign inside it and concealed the picture
+// along with the rest of what it holds, leaving a black hero for good, since concealing does not come undone
+// (trees/continuous/3.txt against 4.txt, 2026-09-20). It is never the block, so it is skipped like the cover.
+static UIView *blockIn(UIView *layout, UIView *cover, UIView *fullbleed) {
     UIView *block = nil;
     CGFloat wide = layout.bounds.size.width * 0.6;
     for (UIView *sub in layout.subviews) {
-        if (sub == cover || [sub isKindOfClass:SGRPlaylistHero.class] || sub.bounds.size.width < wide) continue;
+        if (sub == cover || sub == fullbleed || [sub isKindOfClass:SGRPlaylistHero.class] || sub.bounds.size.width < wide) continue;
         if (!block || CGRectGetMinY(sub.frame) > CGRectGetMinY(block.frame)) block = sub;
     }
     return block;
@@ -473,8 +494,11 @@ static void applyHeader(UIView *layout) {
     UIView *headerRoot = headerVC.viewIfLoaded;
     if (!headerRoot) return;
 
-    UIView *cover = SGRFindByIdentifier(layout, @"Components.Header.UI.ArtworkImage", &kCoverKey);
-    UIView *block = blockIn(layout, cover);
+    // A playlist's artwork square, or a mix's full bleed picture where there is no square. Either way it is
+    // the view the picture is read from and the view that is concealed once the hero is drawing it.
+    UIView *fullbleed = fullbleedIn(layout);
+    UIView *cover = SGRFindByIdentifier(layout, @"Components.Header.UI.ArtworkImage", &kCoverKey) ?: fullbleed;
+    UIView *block = blockIn(layout, cover, fullbleed);
     if (!block) return;
 
     UIView *plane = applyBackground(layout);
