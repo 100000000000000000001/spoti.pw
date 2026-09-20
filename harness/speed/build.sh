@@ -5,11 +5,11 @@ set -e
 SRC=$(cd "$(dirname "$0")/../../tweak/Sources" && pwd)
 OUT=$(dirname "$0")/build
 rm -rf "$OUT"; mkdir -p "$OUT/gen" "$OUT/SpeedHarness.app"
-"$THEOS/bin/logos.pl" -c generator=internal "$SRC/Redesigned/Player/PlayerSpeedPitch.x" > "$OUT/gen/PlayerSpeedPitch.m"
+"$THEOS/bin/logos.pl" -c generator=internal "$SRC/Shared/Player/SpeedPitch.x" > "$OUT/gen/PlayerSpeedPitch.m"
 SDK=$(xcrun --sdk iphonesimulator --show-sdk-path)
 xcrun -sdk iphonesimulator clang -target arm64-apple-ios17.0-simulator -fobjc-arc -g -O1 \
-    -I"$SRC" -I"$SRC/Redesigned/Player" -isysroot "$SDK" -Wno-deprecated-declarations \
-    "$(dirname "$0")/main.m" "$OUT"/gen/*.m "$SRC"/Redesigned/Player/SGRTimePitch.m "$SRC"/Core/SGRebind.m \
+    -I"$SRC" -I"$SRC/Shared/Player" -isysroot "$SDK" -Wno-deprecated-declarations \
+    "$(dirname "$0")/main.m" "$OUT"/gen/*.m "$SRC"/Shared/Player/SGTimePitch.m "$SRC"/Core/SGRebind.m \
     "$SRC"/Core/SGLog.m "$SRC"/Core/SGPrefs.m "$SRC"/Core/SGUIMode.m "$SRC"/Core/SGFlagForce.m \
     -framework UIKit -framework QuartzCore -framework AudioToolbox -framework AVFoundation -framework Foundation \
     -o "$OUT/SpeedHarness.app/SpeedHarness"

@@ -107,7 +107,7 @@ static NSString *symbolFor(BOOL paused) {
 
 static void refreshPlayGlyph(BOOL animated) {
     SGRGlyphView *glyph = sg_playGlyph;
-    SPTPlayerState *state = SGRPlayerState();
+    SPTPlayerState *state = SGPlayerState();
     if (!glyph || !state) return;
     glyph.alpha = spinnerShowing(sg_playButton) ? 0 : 1;
     CFTimeInterval now = CACurrentMediaTime();
@@ -137,7 +137,7 @@ static void playGlyph(UIView *host) {
         return;
     }
     // Before the player has reported a state the glyph could only guess, so the disc stays.
-    SPTPlayerState *state = SGRPlayerState();
+    SPTPlayerState *state = SGPlayerState();
     if (!state) return;
     UIButton *button = nil;
     for (UIView *sub in play.subviews) {
@@ -186,7 +186,7 @@ static void playGlyph(UIView *host) {
 }
 %end
 
-@interface SGRPlayerControlsWatcher : NSObject <SGRPlayerStateObserver>
+@interface SGRPlayerControlsWatcher : NSObject <SGPlayerStateObserver>
 @end
 
 @implementation SGRPlayerControlsWatcher
@@ -246,7 +246,7 @@ static UILabel *monospaced(UIView *host, NSString *identifier, const void *findK
     if (!SGRedesignedUI()) return;
     %init;
     sg_controlsWatcher = [SGRPlayerControlsWatcher new];
-    SGRAddPlayerStateObserver(sg_controlsWatcher);
+    SGAddPlayerStateObserver(sg_controlsWatcher);
     SGRequireClasses(@[
         @"_TtC20NowPlaying_ModesImpl28PlaybackControlsElementsUnit",
         @"_TtC20NowPlaying_ModesImpl19DurationElementUnit",

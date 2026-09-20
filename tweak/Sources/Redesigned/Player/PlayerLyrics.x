@@ -442,7 +442,7 @@ static void replace(void) {
 
 #pragma mark - the track changing under them
 
-@interface SGRPlayerLyricsWatcher : NSObject <SGRPlayerStateObserver>
+@interface SGRPlayerLyricsWatcher : NSObject <SGPlayerStateObserver>
 @end
 
 @implementation SGRPlayerLyricsWatcher {
@@ -450,7 +450,7 @@ static void replace(void) {
 }
 
 - (void)playerStateDidChange:(SPTPlayerState *)state {
-    NSString *track = SGRURIString(state.track.URI);
+    NSString *track = SGURIString(state.track.URI);
     if (!track || [track isEqualToString:_track]) return;
     _track = track;
     // Lyrics arrive a moment after the track does, and nothing announces them: the glyph is asked again
@@ -474,7 +474,7 @@ static SGRPlayerLyricsWatcher *sg_watcher;
     if (!SGRedesignedUI()) return;
     %init;
     sg_watcher = [SGRPlayerLyricsWatcher new];
-    SGRAddPlayerStateObserver(sg_watcher);
+    SGAddPlayerStateObserver(sg_watcher);
     [NSNotificationCenter.defaultCenter addObserverForName:SGRNowPlayingArtworkDidChangeNotification object:nil queue:nil usingBlock:^(NSNotification *note) {
         if (!sg_open) return;
         SGRPlayerLyricsOverlay *overlay = objc_getAssociatedObject(sg_host, &kOverlayKey);

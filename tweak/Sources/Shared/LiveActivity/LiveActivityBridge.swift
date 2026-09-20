@@ -4,8 +4,8 @@ import Foundation
 import os
 
 @available(iOS 17.0, *)
-@objc(SGRLiveActivityBridge)
-public final class SGRLiveActivityBridge: NSObject {
+@objc(SGLiveActivityBridge)
+public final class SGLiveActivityBridge: NSObject {
     private static let log = Logger(subsystem: "spotifyglass", category: "live activity")
 
     private static var current: Activity<SGLyricsAttributes>? {
@@ -15,7 +15,7 @@ public final class SGRLiveActivityBridge: NSObject {
     @objc public static var isShowing: Bool { current != nil }
 
     // A new activity can only be requested while the app is in the foreground; an update works from the background.
-    // One call per new state. View and tab are SGRLiveActivityView's and SGRLiveActivityTab's values;
+    // One call per new state. View and tab are SGLiveActivityView's and SGLiveActivityTab's values;
     // titles, artists and URIs pair up by index, the tracks up next; timerEnd is nil without a timer.
     @objc public static func show(view: Int, paused: Bool, line: String, nextLine: String,
                                   titles: [String], artists: [String], uris: [String],

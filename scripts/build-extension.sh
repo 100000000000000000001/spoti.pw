@@ -14,7 +14,7 @@ HOST_PLIST="${1:?usage: $0 <host Info.plist> <out dir>}"
 OUT="${2:?usage: $0 <host Info.plist> <out dir>}"
 NAME=SpotifyGlassLiveActivity
 APPEX="$OUT/$NAME.appex"
-SHARED="$ROOT/tweak/Sources/Redesigned/LiveActivity/LiveActivityShared.swift"
+SHARED="$ROOT/tweak/Sources/Shared/LiveActivity/LiveActivityShared.swift"
 WIDGET="$ROOT/extension/LiveActivity/LiveActivityWidget.swift"
 
 SDK="$(xcrun --sdk iphoneos --show-sdk-path)"

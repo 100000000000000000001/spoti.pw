@@ -16,7 +16,7 @@
     tweak/Sources/App/          what brings the layers together: Mod Settings' root and composed pages, the Mod page,
                                 backup and signing, the welcome tour
     tweak/Sources/Diagnostics/  screen dumps, the tree server and the main thread hang sampler of FLEX builds
-    extension/LiveActivity/     the redesign's Live Activity widget, a WidgetKit extension of its own
+    extension/LiveActivity/     the Live Activity widget, a WidgetKit extension of its own
     extension/AppGroups/        a dylib loaded by Spotify and its home screen widget that moves Spotify's App Groups
                                 into a group the re-signed IPA has; without it the widget stays a placeholder
     scripts/                    pipeline.sh (build + inject), build-extension.sh (the widget extension, without an
@@ -44,6 +44,13 @@ screens works under both. So the sources are four layers, each a directory of fe
     Native/       Spotify's own screens tweaked; every %ctor starts with `if (!SGNativeUI()) return;`
     Redesigned/   the redesign; every %ctor starts with `if (!SGRedesignedUI()) return;`
     App/          Mod Settings' root and the pages that combine the layers, the Mod page, the tour
+
+`SGRedesignAvailable()` (Core/SGUIMode.h) holds the redesign to iOS 26 and up: it is Liquid Glass, and
+`UIGlassEffect` is the system's, so on an older OS the glass calls fall back to a blur and the redesign
+runs untested against an older UIKit (issue #37, an iOS 17 scene-update watchdog). Below 26 both
+`SGRedesignedUI()` and `SGRedesignedUIStored()` answer NO whatever is stored, so no Redesigned/ %ctor
+runs, App/Pages.m draws the switch as a "Needs iOS 26" row and the tour greys its card out. The stored
+key is left alone, so a phone that updates gets its redesign back.
 
 The two looks never run together, so each hooks the same Spotify class in its own way, and a part of
 the look is edited on its own side without touching the other: where both need the same thing, each
@@ -93,7 +100,13 @@ Shared:
                   source is on
     LockScreenLyrics/ the line being sung in the system's now playing
     Navigation/   the page transition fix (PageTransition.x) and opening a spotify: link (Links.x)
-    Player/       the player's open and close announced (PlayerEvents.x), the lock screen widget's flags
+    Player/       the player's open and close announced (PlayerEvents.x), what the player is doing read through
+                  one hook for every feature that wants it (PlayerState.x), the lock screen widget's flags, and in the
+                  more button's menu Speed and pitch: both done to Spotify's audio by Apple's time and pitch unit, put
+                  between its mixer and its RemoteIO unit by taking over the connection Spotify makes between them
+                  (SpeedPitchMenu.x, SpeedPitch.x, SGTimePitch.m). The block goes into Spotify's own context menu sheet
+                  and is drawn from its own measures, not the Kit's, so it sits there under either look. Tested on the
+                  Mac against harness/pitch/ and in the simulator against harness/speed/ and harness/menu/
     JamesDSP/     JamesDSP's effects on Spotify's sound (JamesDSP.h has the keys and the page's calls): Spotify's import of
                   AudioOutputUnitStart is rebound, as Music Haptics does, and a render notify on its RemoteIO unit runs
                   each finished buffer through SGDSPEngine.m, libjamesdsp re-blocked to 1024 frames one block late, in
@@ -101,6 +114,24 @@ Shared:
                   Spotify sets. Settings apply as they change, on a queue of its own; the file effects read their files
                   from Documents/spoti.pw/JamesDSP (JamesDSPFiles.m). Tested on the Mac against harness/jamesdsp/,
                   the hook in the simulator against its sim/
+    Haptics/      Vibrations (Haptics.h lists its files): a tap of UIKit's feedback generators for the player's and the now
+                  playing bar's controls, the scrubber's tenths and ends, cover swipes, gestures and the lyrics page's tap to
+                  seek, at the strength set for them (ControlHaptics.x, SGFeedback.m); and Music Haptics, Core Haptics
+                  playing along with the song: Spotify's import of AudioOutputUnitStart is rebound so its RemoteIO output
+                  unit gets a render notify, the samples, in the unit's output format (the hardware's), go through a drum
+                  and bass analyzer on the render thread (SGMusicAnalyzer.m, plain C), and a thread of its own schedules
+                  the taps and the rumble for when the sound is heard, at their strength and leaving out what Follows
+                  leaves out (MusicHaptics.x). Everything applies at once; nothing plays while Spotify is not the active
+                  app. The analyzer is scored on the Mac against harness/haptics/, the hook in the simulator against its
+                  sim/, the settings against harness/haptics-page/
+    LiveActivity/ a Live Activity on the lock screen and in the Dynamic Island in one of three views, the line being
+                  sung with the next one under it, the tracks up next (a tap on one skipping ahead to it), or a control
+                  menu of tabs, Controls (previous, play and pause, next, shuffle, repeat), Queue and a sleep Timer of
+                  the mod's own that pauses Spotify (LiveActivity.h lists its files): a timer polls the player and
+                  sends a new state only when what the view shows changes, local updates only, no push. Taps are
+                  LiveActivityIntents run inside Spotify and take a second or two to show on the card. The widget is extension/LiveActivity; ActivityKit pairs the two
+                  by the attributes' type in LiveActivityShared.swift, compiled into both. It starts only with Spotify
+                  in front; its switch and its view apply at once
 
 Native:
 
@@ -126,10 +157,8 @@ Redesigned:
                   the Mac against harness/tabbar/
     NowPlayingBar/ the glass now playing bar (NowPlayingBar.x), with Spotify's device button on it hidden on request
                   (BarConnect.x, its own key and its own Now playing page, apart from the native look's)
-    Player/       the redesigned full screen player (Player.h lists its files), and in its more menu Speed and pitch:
-                  both done to Spotify's audio by Apple's time and pitch unit, put between its mixer and its RemoteIO unit
-                  by taking over the connection Spotify makes between them (PlayerSpeedPitch.x, SGRTimePitch.m). Tested on the Mac against harness/pitch/ and
-                  harness/menu/
+    Player/       the redesigned full screen player (Player.h lists its files); its more button is handed to
+                  Shared/Player's Speed and pitch, which draws in the menu it opens
     Lyrics/       the full screen lyrics page on glass with Apple Music style lyrics over it, always on (SGRKaraokeView,
                   which the player shows in itself too, Player/PlayerLyrics.x): lines sung over each other lit together,
                   the stack moving on once the first is sung out; an instrumental break of 7 s or more held by three dots
@@ -166,24 +195,6 @@ Redesigned:
                   like, and whatever it adds next -- but the album's own line and its copyright (Album.h lists its
                   files). A podcast's episode page is the same template, so it is given the same field, and what it
                   paints over it is taken off. Laid out on the Mac against harness/album/
-    Haptics/      Vibrations (Haptics.h lists its files): a tap of UIKit's feedback generators for the player's and the now
-                  playing bar's controls, the scrubber's tenths and ends, cover swipes, gestures and the lyrics page's tap to
-                  seek, at the strength set for them (ControlHaptics.x, SGRFeedback.m); and Music Haptics, Core Haptics
-                  playing along with the song: Spotify's import of AudioOutputUnitStart is rebound so its RemoteIO output
-                  unit gets a render notify, the samples, in the unit's output format (the hardware's), go through a drum
-                  and bass analyzer on the render thread (SGRMusicAnalyzer.m, plain C), and a thread of its own schedules
-                  the taps and the rumble for when the sound is heard, at their strength and leaving out what Follows
-                  leaves out (MusicHaptics.x). Everything applies at once; nothing plays while Spotify is not the active
-                  app. The analyzer is scored on the Mac against harness/haptics/, the hook in the simulator against its
-                  sim/, the settings against harness/haptics-page/
-    LiveActivity/ a Live Activity on the lock screen and in the Dynamic Island in one of three views, the line being
-                  sung with the next one under it, the tracks up next (a tap on one skipping ahead to it), or a control
-                  menu of tabs, Controls (previous, play and pause, next, shuffle, repeat), Queue and a sleep Timer of
-                  the mod's own that pauses Spotify (LiveActivity.h lists its files): a timer polls the player and
-                  sends a new state only when what the view shows changes, local updates only, no push. Taps are
-                  LiveActivityIntents run inside Spotify and take a second or two to show on the card. The widget is extension/LiveActivity; ActivityKit pairs the two
-                  by the attributes' type in LiveActivityShared.swift, compiled into both. It starts only with Spotify
-                  in front; its switch and its view apply at once
 
 App:
 
@@ -201,8 +212,8 @@ which makes every unset switch read off, so a reset is stock Spotify whatever sw
 
 A hook reads its switch when it runs (`SGEnabled`, `SGHidden`, `SGFlag` from Core/SGPrefs.h), so a
 change shows after Spotify restarts; the tab editor on the Navbar page is the exception and applies as soon as the bar lays
-out again, as are the Home gradient's colour, strength and height, but not the switch that turns it on, and the redesign's
-Vibrations and Live Activity. The root page in `App/ModSettings.x` holds the Appearance card and links the page of each part of Spotify, and only the stored look's.
+out again, as are the Home gradient's colour, strength and height, but not the switch that turns it on, and Vibrations
+and Live Activity. The root page in `App/ModSettings.x` holds the Appearance card and links the page of each part of Spotify, and only the stored look's.
 
 ## Make targets
 
@@ -234,13 +245,14 @@ which of the lyrics, their pronunciation and their translation is set largest, a
 in the native look also Now playing bar (its device button and its flags), Queue & devices, and
 Spotify's own player screen (artwork background, glass header buttons, Disable Canvas and the sheet,
 header, slider and sticky header flags, the cards under the player and the lyrics preview and player
-buttons to hide); in the redesign instead Now playing (its device button) and Vibrations, a card for
+buttons to hide); in the redesign instead Now playing (its device button). Then Vibrations under either look, a card for
 Controls (on until switched off) and one for Music Haptics (off until switched on, with an ⓘ saying it
 follows the sound this iPhone plays while Spotify is open), each opening out while its switch is on:
 Controls into its Strength (10 to 100%, a tap at the new strength with each step), Music Haptics into its
 Strength (20 to 200%, 100% being how it first shipped) and Follows, Everything (a tap on each kick and
 snare and a rumble under the bass), Beat (the taps without the rumble) or Bass (the kicks' taps and the
-rumble), all applying straight away. Live Activity, in the redesign only: its switch and which view it shows, Lyrics, Queue or Control menu, both
+rumble), all applying straight away. Live Activity, on iOS 17 and up under either look: its switch and which view it
+shows, Lyrics, Queue or Control menu, both
 applying straight away, the row reading out the view or Off. Audio effects, in either look (Shared/JamesDSP/JamesDSPPage.m):
 JamesDSP's switch with what the engine is doing under it, then a card per effect in RootlessJamesDSP's order, each
 opening out into its sliders, choices, curve or file library while its switch is on, everything applying as it

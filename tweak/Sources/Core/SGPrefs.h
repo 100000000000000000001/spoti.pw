@@ -24,5 +24,10 @@ extern NSString *const SGFlagOverridePrefix;
 id SGFlagOverride(NSString *key);
 void SGSetFlagOverride(NSString *key, id value);
 
+// Moves a stored setting to another key, once: nothing happens unless `from` is set and `to` is not.
+// A feature that leaves Redesigned/ for Shared/ loses the ".redesign." from its keys this way, so the
+// switch someone already flipped is still the one they get.
+void SGMigrateKey(NSString *from, NSString *to);
+
 // Quits Spotify so the hooks read the switches afresh on the next launch; the writes reach cfprefsd first.
 void SGRestartSpotify(void);

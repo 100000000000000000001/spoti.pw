@@ -1,4 +1,4 @@
-// The Vibrations sections of the Player page, in the redesign only (App/Pages.m puts them there): a card
+// The Vibrations sections of the Player page, under either look (App/Pages.m puts them there): a card
 // per switch, the way the Audio effects page has one per effect, each opening out into its settings while
 // its switch is on. Controls has its strength; Music Haptics its strength and what it follows, a choice
 // that also says whether the rumble plays, rather than a switch of its own that one choice would leave
@@ -20,28 +20,28 @@ static NSArray<NSString *> *followsNotes(void) {
 }
 
 static void strengthRange(NSString *key, NSInteger *minimum, NSInteger *maximum) {
-    BOOL music = [key isEqualToString:SGRKeyMusicStrength];
-    *minimum = music ? SGRMusicStrengthMin : SGRControlStrengthMin;
-    *maximum = music ? SGRMusicStrengthMax : SGRControlStrengthMax;
+    BOOL music = [key isEqualToString:SGKeyMusicStrength];
+    *minimum = music ? SGMusicStrengthMin : SGControlStrengthMin;
+    *maximum = music ? SGMusicStrengthMax : SGControlStrengthMax;
 }
 
-double SGRHapticsStrength(NSString *key) {
+double SGHapticsStrength(NSString *key) {
     NSInteger minimum, maximum;
     strengthRange(key, &minimum, &maximum);
     return MAX(minimum, MIN(maximum, SGInt(key, 100))) / 100.0;
 }
 
-SGRMusicFollows SGRMusicHapticsFollows(void) {
-    NSInteger follows = SGInt(SGRKeyMusicFollows, SGRMusicFollowsEverything);
-    return follows >= SGRMusicFollowsEverything && follows <= SGRMusicFollowsBass ? (SGRMusicFollows)follows : SGRMusicFollowsEverything;
+SGMusicFollows SGMusicHapticsFollows(void) {
+    NSInteger follows = SGInt(SGKeyMusicFollows, SGMusicFollowsEverything);
+    return follows >= SGMusicFollowsEverything && follows <= SGMusicFollowsBass ? (SGMusicFollows)follows : SGMusicFollowsEverything;
 }
 
 // A percentage slider over a strength key, telling `changed` each step it stores.
 static SGModRow *strengthRow(NSString *key, void (^changed)(void)) {
     NSInteger minimum, maximum;
     strengthRange(key, &minimum, &maximum);
-    return SGSliderRow(@"Strength", nil, minimum, maximum, SGRStrengthStep,
-        ^double { return SGRHapticsStrength(key) * 100; },
+    return SGSliderRow(@"Strength", nil, minimum, maximum, SGStrengthStep,
+        ^double { return SGHapticsStrength(key) * 100; },
         ^(double value) {
             SGSetInt(key, lround(value));
             if (changed) changed();
@@ -49,23 +49,23 @@ static SGModRow *strengthRow(NSString *key, void (^changed)(void)) {
         ^NSString *(double value) { return [NSString stringWithFormat:@"%ld%%", lround(value)]; });
 }
 
-NSArray<SGModSection *> *SGRVibrationsSections(void) {
-    SGModRow *controls = SGSwitchRow(@"Controls", @"Play, pause, skipping, scrubbing, shuffle, repeat and adding a song", SGRKeyControlHaptics);
-    SGModRow *controlStrength = strengthRow(SGRKeyControlStrength, ^{
+NSArray<SGModSection *> *SGVibrationsSections(void) {
+    SGModRow *controls = SGSwitchRow(@"Controls", @"Play, pause, skipping, scrubbing, shuffle, repeat and adding a song", SGKeyControlHaptics);
+    SGModRow *controlStrength = strengthRow(SGKeyControlStrength, ^{
         // Felt as it is set: a tap at the new strength with each step.
-        SGRPlayFeedback(SGRFeedbackAdd);
+        SGPlayFeedback(SGFeedbackAdd);
     });
-    controlStrength.visible = ^BOOL { return SGEnabled(SGRKeyControlHaptics); };
+    controlStrength.visible = ^BOOL { return SGEnabled(SGKeyControlHaptics); };
 
-    SGModRow *music = SGOptionRow(@"Music Haptics", @"Taps and rumbles along with the music", SGRKeyMusicHaptics);
+    SGModRow *music = SGOptionRow(@"Music Haptics", @"Taps and rumbles along with the music", SGKeyMusicHaptics);
     music.info = kMusicHapticsInfo;
-    music.changed = ^(BOOL on) { SGRSetMusicHapticsEnabled(on); };
-    BOOL (^musicOn)(void) = ^BOOL { return SGFlag(SGRKeyMusicHaptics, NO); };
-    SGModRow *musicStrength = strengthRow(SGRKeyMusicStrength, ^{ SGRMusicHapticsSettingsChanged(); });
+    music.changed = ^(BOOL on) { SGSetMusicHapticsEnabled(on); };
+    BOOL (^musicOn)(void) = ^BOOL { return SGFlag(SGKeyMusicHaptics, NO); };
+    SGModRow *musicStrength = strengthRow(SGKeyMusicStrength, ^{ SGMusicHapticsSettingsChanged(); });
     musicStrength.visible = musicOn;
-    SGModRow *follows = SGChoiceRow(@"Follows", nil, SGRKeyMusicFollows, followsNames(), SGRMusicFollowsEverything);
+    SGModRow *follows = SGChoiceRow(@"Follows", nil, SGKeyMusicFollows, followsNames(), SGMusicFollowsEverything);
     follows.choiceNotes = followsNotes();
-    follows.chosen = ^(NSInteger index) { SGRMusicHapticsSettingsChanged(); };
+    follows.chosen = ^(NSInteger index) { SGMusicHapticsSettingsChanged(); };
     follows.visible = musicOn;
 
     return @[

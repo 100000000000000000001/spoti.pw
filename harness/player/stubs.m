@@ -19,18 +19,20 @@ NSString *const SGPlayerTransitionNotification = @"spotifyglass.playerTransition
 NSString *const SGPlayerTransitionEndedNotification = @"spotifyglass.playerTransitionEnded";
 CFTimeInterval SGPlayerTransitionEnds(void) { return 0; }
 
-#pragma mark - Redesigned/Kit/SGRBridges.x
+#pragma mark - Shared/Player/PlayerState.x
 
-NSNotificationName const SGRNowPlayingArtworkDidChangeNotification = @"spotifyglass.redesign.artwork";
-static UIImage *sg_artwork;
-
-NSString *SGRURIString(id uri) {
+NSString *SGURIString(id uri) {
     if ([uri isKindOfClass:NSString.class]) return uri;
     if ([uri isKindOfClass:NSURL.class]) return ((NSURL *)uri).absoluteString;
     return nil;
 }
-void SGRAddPlayerStateObserver(id observer) {}
-SPTPlayerState *SGRPlayerState(void) { return nil; }
+void SGAddPlayerStateObserver(id observer) {}
+SPTPlayerState *SGPlayerState(void) { return nil; }
+
+#pragma mark - Redesigned/Kit/SGRBridges.x
+
+NSNotificationName const SGRNowPlayingArtworkDidChangeNotification = @"spotifyglass.redesign.artwork";
+static UIImage *sg_artwork;
 void SGRSetNowPlayingArtwork(UIImage *image, NSString *trackURI, NSInteger quality) { sg_artwork = image; }
 UIImage *SGRNowPlayingArtwork(NSString **trackURI, NSString **identity) {
     if (trackURI) *trackURI = @"spotify:track:harness";
@@ -49,10 +51,10 @@ void SGRPlayerVanish(UIView *view) {
     view.accessibilityElementsHidden = YES;
 }
 
-#pragma mark - Redesigned/Haptics
+#pragma mark - Shared/Haptics
 
-void SGRPlayFeedback(NSInteger feedback) {}
-void SGRPrepareFeedback(NSInteger feedback) {}
+void SGPlayFeedback(NSInteger feedback) {}
+void SGPrepareFeedback(NSInteger feedback) {}
 
 #pragma mark - Shared/LyricsSources
 

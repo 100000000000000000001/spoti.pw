@@ -4,7 +4,7 @@ Two halves: the analyzer on the Mac, and the hook in the simulator.
 
 ## The analyzer on the Mac (`main.m`, `score.py`)
 
-`SGRMusicAnalyzer.m` as the tweak compiles it, over a song decoded at the output's rate and handed over in IO
+`SGMusicAnalyzer.m` as the tweak compiles it, over a song decoded at the output's rate and handed over in IO
 buffers, the way `MusicHaptics.x` hands it the output's buffers. Every event goes to a CSV (K a kick's tap, S a
 snare's, L the rumble's level); `score.py` matches the taps one to one within 50 ms (mir_eval) against librosa's
 onsets for each Follows choice, beside what random taps at the same rate score. With demucs' stems beside the

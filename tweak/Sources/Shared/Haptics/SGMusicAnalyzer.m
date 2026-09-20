@@ -1,7 +1,7 @@
 #import <limits.h>
 #import <math.h>
 #import <string.h>
-#import "SGRMusicAnalyzer.h"
+#import "SGMusicAnalyzer.h"
 
 static const double kHopSeconds = 0.0058;      // 256 frames at 44.1 kHz
 static const double kAverageSeconds = 1.0;     // what a hit is measured against
@@ -11,7 +11,7 @@ static const float kFloorDb = -62;             // quieter than this is silence
 static const float kPeakFallDbPerSecond = 0.5;
 
 // How far over its average a band's energy has to go to hit, how far under it to hit again, how much it
-// has to have risen over the last SGRMusicAttackHops (a swell rises too slowly), the rest after a hit,
+// has to have risen over the last SGMusicAttackHops (a swell rises too slowly), the rest after a hit,
 // the dB over the threshold that makes a tap as strong as it gets, how quiet the band may be and still
 // hit, and the level a band is called loud at even when it has not been louder lately. The energy a
 // band is judged by is the mean of its last `windowHops`, which for the bass has to span a cycle of a
@@ -53,7 +53,7 @@ static inline float decibels(double energy) {
 }
 
 // RBJ's cookbook, Q 0.707; two in a row make 24 dB an octave.
-static void setBiquad(SGRMusicBiquad *filter, double sampleRate, double cutoff, int highPass) {
+static void setBiquad(SGMusicBiquad *filter, double sampleRate, double cutoff, int highPass) {
     double w = 2 * M_PI * cutoff / sampleRate;
     double cosw = cos(w), alpha = sin(w) / (2 * M_SQRT1_2);
     double a0 = 1 + alpha;
@@ -67,33 +67,33 @@ static void setBiquad(SGRMusicBiquad *filter, double sampleRate, double cutoff, 
     filter->z1 = filter->z2 = 0;
 }
 
-static inline double runBiquad(SGRMusicBiquad *filter, double x) {
+static inline double runBiquad(SGMusicBiquad *filter, double x) {
     double y = filter->b0 * x + filter->z1;
     filter->z1 = filter->b1 * x - filter->a1 * y + filter->z2;
     filter->z2 = filter->b2 * x - filter->a2 * y;
     return y;
 }
 
-static void resetBand(SGRMusicBand *band) {
+static void resetBand(SGMusicBand *band) {
     memset(band, 0, sizeof(*band));
     band->peakDb = kFloorDb;
-    for (int i = 0; i < SGRMusicAttackHops; i++) band->recentDb[i] = kFloorDb;
+    for (int i = 0; i < SGMusicAttackHops; i++) band->recentDb[i] = kFloorDb;
     band->armed = 1;
 }
 
 // A band is loud at its recent peak, or at the tuning's loud level when it has been quieter than that.
-static inline float loudDbOf(const SGRMusicBand *band, const BandTuning *tuning) {
+static inline float loudDbOf(const SGMusicBand *band, const BandTuning *tuning) {
     return band->peakDb > tuning->loudDb ? band->peakDb : tuning->loudDb;
 }
 
-void SGRMusicAnalyzerReset(SGRMusicAnalyzer *analyzer, double sampleRate, double ticksPerSecond) {
+void SGMusicAnalyzerReset(SGMusicAnalyzer *analyzer, double sampleRate, double ticksPerSecond) {
     memset(analyzer, 0, sizeof(*analyzer));
     analyzer->sampleRate = sampleRate;
     analyzer->ticksPerSecond = ticksPerSecond;
     analyzer->hopFrames = (int)lround(sampleRate * kHopSeconds);
     if (analyzer->hopFrames < 64) analyzer->hopFrames = 64;
     int hops = (int)lround(kAverageSeconds * sampleRate / analyzer->hopFrames);
-    analyzer->historyHops = hops < 8 ? 8 : hops > SGRMusicHistoryLength ? SGRMusicHistoryLength : hops;
+    analyzer->historyHops = hops < 8 ? 8 : hops > SGMusicHistoryLength ? SGMusicHistoryLength : hops;
     for (int i = 0; i < 2; i++) {
         setBiquad(&analyzer->lowPass[i], sampleRate, kLowCutoff, 0);
         setBiquad(&analyzer->highPass[i], sampleRate, kHighCutoff, 1);
@@ -106,17 +106,17 @@ void SGRMusicAnalyzerReset(SGRMusicAnalyzer *analyzer, double sampleRate, double
     analyzer->sinceKick = 1 << 20;
 }
 
-static double hopDuration(const SGRMusicAnalyzer *analyzer) {
+static double hopDuration(const SGMusicAnalyzer *analyzer) {
     return analyzer->hopFrames / analyzer->sampleRate;
 }
 
 // Moves a band on by one hop's energy: the energy of its last `windowHops` hops, and the average of the
 // last second before this hop in `average`.
-static float track(SGRMusicAnalyzer *analyzer, SGRMusicBand *band, int windowHops, double energy, double *average) {
+static float track(SGMusicAnalyzer *analyzer, SGMusicBand *band, int windowHops, double energy, double *average) {
     band->window[band->windowNext] = (float)energy;
-    band->windowNext = (band->windowNext + 1) % SGRMusicWindowHops;
+    band->windowNext = (band->windowNext + 1) % SGMusicWindowHops;
     double sum = 0;
-    for (int i = 1; i <= windowHops; i++) sum += band->window[(band->windowNext - i + SGRMusicWindowHops) % SGRMusicWindowHops];
+    for (int i = 1; i <= windowHops; i++) sum += band->window[(band->windowNext - i + SGMusicWindowHops) % SGMusicWindowHops];
     float instant = (float)(sum / windowHops);
     *average = band->count ? band->sum / band->count : instant;
 
@@ -130,8 +130,8 @@ static float track(SGRMusicAnalyzer *analyzer, SGRMusicBand *band, int windowHop
 }
 
 // Takes one hop's energy; returns 1 and fills `event` when a hit that was rising has peaked.
-static int listen(SGRMusicAnalyzer *analyzer, SGRMusicBand *band, const BandTuning *tuning, double energy,
-                  uint64_t time, float brightness, float midRatio, SGRMusicEvent *event) {
+static int listen(SGMusicAnalyzer *analyzer, SGMusicBand *band, const BandTuning *tuning, double energy,
+                  uint64_t time, float brightness, float midRatio, SGMusicEvent *event) {
     double hop = hopDuration(analyzer);
     double average;
     float instant = track(analyzer, band, tuning->windowHops, energy, &average);
@@ -141,7 +141,7 @@ static int listen(SGRMusicAnalyzer *analyzer, SGRMusicBand *band, const BandTuni
     if (band->peakDb < kFloorDb) band->peakDb = kFloorDb;
     float attack = db - band->recentDb[band->recentNext];
     band->recentDb[band->recentNext] = db;
-    band->recentNext = (band->recentNext + 1) % SGRMusicAttackHops;
+    band->recentNext = (band->recentNext + 1) % SGMusicAttackHops;
     if (band->rest > 0) band->rest--;
     if (band->sinceHit < INT_MAX) band->sinceHit++;
 
@@ -191,7 +191,7 @@ static int listen(SGRMusicAnalyzer *analyzer, SGRMusicBand *band, const BandTuni
     return fired;
 }
 
-static void endHop(SGRMusicAnalyzer *analyzer, SGRMusicEmit emit, void *context) {
+static void endHop(SGMusicAnalyzer *analyzer, SGMusicEmit emit, void *context) {
     double n = analyzer->hopFrames;
     double low = analyzer->lowSum / n, high = analyzer->highSum / n, full = analyzer->fullSum / n;
     analyzer->lowSum = analyzer->highSum = analyzer->fullSum = 0;
@@ -208,17 +208,17 @@ static void endHop(SGRMusicAnalyzer *analyzer, SGRMusicEmit emit, void *context)
     float midRatio = midAverage > 0 ? (float)(midInstant / midAverage) : 0;
     analyzer->midSum = 0;
 
-    SGRMusicEvent event;
+    SGMusicEvent event;
     analyzer->sinceKick++;
     if (listen(analyzer, &analyzer->kick, &kKickTuning, low, time, bright, midRatio, &event)) {
-        event.kind = SGRMusicEventKick;
+        event.kind = SGMusicEventKick;
         event.sharpness = 0.15f + 0.3f * event.sharpness;
         analyzer->sinceKick = 0;
         emit(&event, context);
     }
     if (listen(analyzer, &analyzer->snap, &kSnapTuning, high, time, bright, midRatio, &event)) {
         if (analyzer->sinceKick * hop > kSnapAfterKickSeconds) {
-            event.kind = SGRMusicEventSnare;
+            event.kind = SGMusicEventSnare;
             event.intensity *= 0.8f;
             event.sharpness = 0.55f + 0.4f * event.sharpness;
             emit(&event, context);
@@ -232,8 +232,8 @@ static void endHop(SGRMusicAnalyzer *analyzer, SGRMusicEmit emit, void *context)
         float db = decibels(analyzer->bassEnvelope);
         float loud = loudDbOf(&analyzer->kick, &kKickTuning);
         float level = decibels(full) < kFloorDb ? 0 : clamp01((db - (loud - kLevelRangeDb)) / kLevelRangeDb);
-        SGRMusicEvent rumble = {
-            .kind = SGRMusicEventLevel,
+        SGMusicEvent rumble = {
+            .kind = SGMusicEventLevel,
             .hostTime = time,
             .intensity = level * level * kLevelMax,
             .sharpness = 0.1f + 0.25f * (float)analyzer->brightness,
@@ -242,8 +242,8 @@ static void endHop(SGRMusicAnalyzer *analyzer, SGRMusicEmit emit, void *context)
     }
 }
 
-void SGRMusicAnalyzerProcess(SGRMusicAnalyzer *analyzer, const float *mono, uint32_t frames, uint64_t hostTime,
-                             SGRMusicEmit emit, void *context) {
+void SGMusicAnalyzerProcess(SGMusicAnalyzer *analyzer, const float *mono, uint32_t frames, uint64_t hostTime,
+                             SGMusicEmit emit, void *context) {
     if (analyzer->sampleRate <= 0) return;
     double ticksPerFrame = analyzer->ticksPerSecond / analyzer->sampleRate;
     for (uint32_t i = 0; i < frames; i++) {

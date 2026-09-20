@@ -1,4 +1,4 @@
-// Music Haptics' analyzer (Redesigned/Haptics/SGRMusicAnalyzer.m, as the tweak compiles it) over a song on the
+// Music Haptics' analyzer (Shared/Haptics/SGMusicAnalyzer.m, as the tweak compiles it) over a song on the
 // Mac: the song is decoded at the rate asked for (the output's, 48 kHz on an iPhone), mixed to mono the way
 // MusicHaptics.x mixes the output's buffers, handed over in IO buffers of the size asked for, and every event
 // is written out one a line: K (a kick's tap), S (a snare's), L (the rumble's level), then the time in seconds,
@@ -8,7 +8,7 @@
 //     ./build.sh && build/haptics <song> <events.csv> [rate] [frames]
 #import <Foundation/Foundation.h>
 #import <AudioToolbox/AudioToolbox.h>
-#import "Redesigned/Haptics/SGRMusicAnalyzer.h"
+#import "Shared/Haptics/SGMusicAnalyzer.h"
 
 typedef struct {
     FILE *out;
@@ -16,9 +16,9 @@ typedef struct {
     double lastTime;
 } Run;
 
-static void emit(const SGRMusicEvent *event, void *context) {
+static void emit(const SGMusicEvent *event, void *context) {
     Run *run = context;
-    char kind = event->kind == SGRMusicEventKick ? 'K' : event->kind == SGRMusicEventSnare ? 'S' : 'L';
+    char kind = event->kind == SGMusicEventKick ? 'K' : event->kind == SGMusicEventSnare ? 'S' : 'L';
     fprintf(run->out, "%c,%.5f,%.4f,%.4f\n", kind, event->hostTime / 1e9, event->intensity, event->sharpness);
     if (kind == 'K') run->kicks++;
     else if (kind == 'S') run->snares++;
@@ -45,8 +45,8 @@ int main(int argc, char **argv) {
         AudioStreamBasicDescription format = {rate, kAudioFormatLinearPCM, kAudioFormatFlagIsFloat | kAudioFormatFlagIsPacked, 8, 1, 8, 2, 32, 0};
         ExtAudioFileSetProperty(file, kExtAudioFileProperty_ClientDataFormat, sizeof format, &format);
         Run run = {fopen(argv[2], "w")};
-        SGRMusicAnalyzer analyzer;
-        SGRMusicAnalyzerReset(&analyzer, rate, 1e9);
+        SGMusicAnalyzer analyzer;
+        SGMusicAnalyzerReset(&analyzer, rate, 1e9);
         float *stereo = malloc(frames * 2 * sizeof(float)), *mono = malloc(frames * sizeof(float));
         uint64_t done = 0;
         for (;;) {
@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
             UInt32 count = frames;
             if (ExtAudioFileRead(file, &count, &list) || !count) break;
             for (UInt32 i = 0; i < count; i++) mono[i] = 0.5f * (stereo[2 * i] + stereo[2 * i + 1]);
-            SGRMusicAnalyzerProcess(&analyzer, mono, count, (uint64_t)(done / rate * 1e9), emit, &run);
+            SGMusicAnalyzerProcess(&analyzer, mono, count, (uint64_t)(done / rate * 1e9), emit, &run);
             done += count;
         }
         fclose(run.out);
