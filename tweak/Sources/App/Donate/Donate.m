@@ -478,11 +478,11 @@ SGModRow *SGDonateRow(void) {
     return row;
 }
 
-// Never over the tour, an alert or the update sheet, and never twice in one run: a busy screen
-// waits a couple of minutes, then the sheet is left for the next launch.
+// Never over the tour or an alert. On schedule it also stays out of an update-notice run and asks once
+// a run; after a tour, first or replayed from the Mod page, it always comes.
 static void offerWhenClear(NSInteger tries) {
     BOOL afterTour = SGDonateAfterTourPending();
-    if (sg_offered || (!afterTour && now() < nextAsk()) || SGUpdateNoticeShown()) return;
+    if (!afterTour && (sg_offered || now() < nextAsk() || SGUpdateNoticeShown())) return;
     UIViewController *top = SGTopController();
     BOOL busy = !top || SGOnboardingShowing() || [top isKindOfClass:UIAlertController.class]
         || UIApplication.sharedApplication.applicationState != UIApplicationStateActive;

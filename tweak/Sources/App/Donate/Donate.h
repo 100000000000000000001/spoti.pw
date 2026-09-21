@@ -14,7 +14,7 @@ UIColor *SGKofiColor(void);
 void SGShowDonateSheet(void);
 SGModRow *SGDonateRow(void);
 void SGWatchForDonate(void);
-// The first tour is done: the sheet follows it, or follows Home after the restart.
+// A tour is done: the sheet follows it, or follows Home after the restart.
 void SGDonateAfterTour(BOOL restarting);
 BOOL SGDonateAfterTourPending(void);
 void SGOfferDonate(void);
