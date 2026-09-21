@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.21.1](https://github.com/skopevoj/spoti.pw/compare/v0.21.0...v0.21.1) (2026-09-21)
+
+
+### Features
+
+* a replayed welcome tour brings the donate sheet too ([7ddf0bf](https://github.com/skopevoj/spoti.pw/commit/7ddf0bf93d6f45faed74b9751ece758521bbf0a8))
+* offer the donate sheet after the first tour ([cb7bf69](https://github.com/skopevoj/spoti.pw/commit/cb7bf69db0d3582c8d77aaa52ac0d0c5e830190b))
+* support the project on Ko-fi ([b796643](https://github.com/skopevoj/spoti.pw/commit/b796643a5220c36cd556070d6279cb5fe05d7d45))
+
+
+### Fixes
+
+* Recents with Block telemetry on, Spoof Premium with a 304, lyrics cache eviction, protobuf length overflow, Set rule types, Live Activity update order ([4b21bed](https://github.com/skopevoj/spoti.pw/commit/4b21bed034953c9786521101da9f96197f949b90))
+* trim the Lyrics settings page ([76b8577](https://github.com/skopevoj/spoti.pw/commit/76b85776d1b6c4306ade9f2c84cd8039cbae4b55))
+* trim the Mod Settings descriptions ([79572ae](https://github.com/skopevoj/spoti.pw/commit/79572ae06b2a606f69d8314d87d57d302e1d0999))
+
+
+### Chores
+
+* release 0.21.1 ([f864787](https://github.com/skopevoj/spoti.pw/commit/f864787a474ac6225d99bebd4e67d312e0136ab8))
+
 ## [0.21.0](https://github.com/skopevoj/spoti.pw/compare/v0.20.0...v0.21.0) (2026-09-21)
 
 
