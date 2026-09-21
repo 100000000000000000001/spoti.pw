@@ -43,7 +43,7 @@ SGModRow *SGUnstableRow(NSString *title, NSString *subtitle, NSString *key, NSSt
 }
 
 SGModRow *SGFlagRow(NSString *title, NSString *key) {
-    SGModRow *row = SGHideRow(title, [key substringFromIndex:[key rangeOfString:@"."].location + 1], key);
+    SGModRow *row = SGHideRow(title, nil, key);
     row.flag = YES;
     return row;
 }
@@ -92,7 +92,7 @@ SGModRow *SGPageRow(NSString *title, UIViewController *(^page)(void)) {
 // it came from reads the new name out and the page it sits on rebuilds around it.
 @interface SGChoicePage : SGPage
 - (instancetype)initWithTitle:(NSString *)title key:(NSString *)key choices:(NSArray<NSString *> *)choices notes:(NSArray<NSString *> *)notes
-                     fallback:(NSInteger)fallback chosen:(void (^)(NSInteger index))chosen;
+                       footer:(NSString *)footer fallback:(NSInteger)fallback chosen:(void (^)(NSInteger index))chosen;
 @end
 
 @implementation SGChoicePage {
@@ -100,10 +100,11 @@ SGModRow *SGPageRow(NSString *title, UIViewController *(^page)(void)) {
     NSArray<NSString *> *_choices, *_notes;
     NSInteger _fallback;
     void (^_chosen)(NSInteger index);
+    UIView *_footer;
 }
 
 - (instancetype)initWithTitle:(NSString *)title key:(NSString *)key choices:(NSArray<NSString *> *)choices notes:(NSArray<NSString *> *)notes
-                     fallback:(NSInteger)fallback chosen:(void (^)(NSInteger index))chosen {
+                       footer:(NSString *)footer fallback:(NSInteger)fallback chosen:(void (^)(NSInteger index))chosen {
     if (!(self = [super initWithStyle:UITableViewStyleInsetGrouped])) return nil;
     self.title = title;
     _key = key;
@@ -111,7 +112,18 @@ SGModRow *SGPageRow(NSString *title, UIViewController *(^page)(void)) {
     _notes = notes;
     _fallback = fallback;
     _chosen = chosen;
+    _footer = footer ? SGNote(footer) : nil;
     return self;
+}
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.tableView.tableFooterView = _footer;
+}
+
+- (void)viewWillLayoutSubviews {
+    [super viewWillLayoutSubviews];
+    if (_footer) SGFitNote(self.tableView, _footer, 16, 24);
 }
 
 
@@ -168,7 +180,7 @@ SGModRow *SGChoiceRow(NSString *title, NSString *subtitle, NSString *key, NSArra
     };
     __weak SGModRow *weakRow = row;
     row.page = ^UIViewController *{
-        return [[SGChoicePage alloc] initWithTitle:title key:key choices:choices notes:weakRow.choiceNotes fallback:fallback chosen:weakRow.chosen];
+        return [[SGChoicePage alloc] initWithTitle:title key:key choices:choices notes:weakRow.choiceNotes footer:weakRow.choiceFooter fallback:fallback chosen:weakRow.chosen];
     };
     return row;
 }

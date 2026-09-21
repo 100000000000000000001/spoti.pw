@@ -99,10 +99,9 @@ static NSArray<NSDictionary *> *openablePresets(void) {
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    _footer = SGNote(@"Anything Spotify can open by link works, so a playlist, an artist or a page of "
-                   "your own goes on the bar the same way: a spotify: URI, or a share link pasted as "
-                   "it is. Icons are Spotify's own: home, search, collection, heart, playlist, album, artist, podcasts, audiobook, downloaded, "
-                   "bookmark, browse, star, user, events, queue, plus, radio, gears, spotifyLogo.");
+    _footer = SGNote(@"Paste a share link or a spotify: URI. Icons: home, search, collection, heart, "
+                   "playlist, album, artist, podcasts, audiobook, downloaded, bookmark, browse, star, "
+                   "user, events, queue, plus, radio, gears, spotifyLogo.");
     self.tableView.tableFooterView = _footer;
 }
 
@@ -142,7 +141,7 @@ static NSArray<NSDictionary *> *openablePresets(void) {
         NSDictionary *tab = _presets[(NSUInteger)path.row];
         SGFillCell(cell, tab[SGRNavbarTitle], tab[SGRNavbarURI], nil, nil);
     } else {
-        SGFillCell(cell, @"Any link…", @"A name, a URI of your own and an icon", nil, @"link");
+        SGFillCell(cell, @"Any link…", nil, nil, @"link");
     }
     cell.selectionStyle = UITableViewCellSelectionStyleDefault;
     return cell;
@@ -217,7 +216,7 @@ typedef NS_ENUM(NSInteger, SGRNavbarSection) {
     [super viewDidLoad];
     self.tableView.allowsSelectionDuringEditing = YES;
     self.tableView.editing = YES;
-    _intro = SGNote(@"Drag a tab by the handle to move it, tap it to show or hide it. The bar follows straight away.");
+    _intro = SGNote(@"Drag to reorder, tap to show or hide.");
     self.tableView.tableHeaderView = _intro;
     _entries = navbarEntries();
 }
@@ -294,11 +293,11 @@ typedef NS_ENUM(NSInteger, SGRNavbarSection) {
             break;
         }
         case SGRNavbarSectionAdd:
-            SGFillCell(cell, @"Add a tab…", @"A page of Spotify's, or any link", nil, @"plus");
+            SGFillCell(cell, @"Add a tab…", nil, nil, @"plus");
             cell.selectionStyle = UITableViewCellSelectionStyleDefault;
             break;
         default:
-            SGFillCell(cell, @"Use Spotify's order", @"Forgets the order and the tabs you added", nil, @"arrow.uturn.backward");
+            SGFillCell(cell, @"Use Spotify's order", nil, nil, @"arrow.uturn.backward");
             cell.selectionStyle = UITableViewCellSelectionStyleDefault;
             break;
     }

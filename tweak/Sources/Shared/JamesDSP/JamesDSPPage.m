@@ -427,7 +427,7 @@ static UIView *valueAndChevron(NSString *text) {
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    _intro = SGNote(@"JamesDSP's audio effects on everything Spotify plays. Unlike the rest of Mod Settings, changes here apply straight away.");
+    _intro = SGNote(@"Changes apply straight away.");
     self.tableView.tableHeaderView = _intro;
     [self buildCredits];
     self.tableView.tableFooterView = _credits;
@@ -590,7 +590,7 @@ static UIView *valueAndChevron(NSString *text) {
     SGDSPEffect *e = [self effectIn:path.section];
     if (!e) {
         UITableViewCell *cell = SGDequeueCell(table, @"reset");
-        SGFillCell(cell, @"Reset all effects", @"Every effect off, every value back to its default", SGRed(), @"arrow.counterclockwise");
+        SGFillCell(cell, @"Reset all effects", nil, SGRed(), @"arrow.counterclockwise");
         UIListContentConfiguration *content = (UIListContentConfiguration *)cell.contentConfiguration;
         content.secondaryTextProperties.color = SGRed();
         cell.contentConfiguration = content;

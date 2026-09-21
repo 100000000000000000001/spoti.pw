@@ -15,7 +15,7 @@
 SGModSection *SGLyricsSourcesSection(BOOL namingSource);
 SGModRow *SGLockScreenLyricsRow(void);
 SGModRow *SGLyricsTranslationLanguageRow(void);
-SGModSection *SGLyricsWordTimingSection(void);
+SGModRow *SGLyricsWordTimingRow(void);
 
 // Sweeps a line timed only by the line word by word, on the estimate of when each word is sung, as if
 // the source had timed them. Off, such a line lights up whole as it starts. Off by default: the

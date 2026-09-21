@@ -3,6 +3,7 @@
 #import "Onboarding.h"
 #import "App/About/About.h"
 #import "App/Pages.h"
+#import "App/Donate/Donate.h"
 
 static const CGFloat kMargin = 24;
 static const CGFloat kCardRadius = 22;
@@ -314,6 +315,7 @@ static UIButton *glassButton(NSString *title) {
 }
 
 - (void)finish {
+    SGDonateAfterTour(self.needsRestart);
     SGSetEnabled(SGKeyOnboardingSeen, YES);
     SGSetRedesignedUI(_redesigned.selected);
     if (self.needsRestart) {

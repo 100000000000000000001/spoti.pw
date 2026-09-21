@@ -8,10 +8,10 @@
 UIViewController *SGRNowPlayingBarSettingsPage(void) {
     return [[SGModPage alloc] initWithTitle:@"Now playing" intro:SGRestartNote sections:@[
         SGSection(nil, @[
-            SGHideRow(@"Hide the device button", @"The speaker icon on the now playing bar", SGRHideBarConnect),
+            SGHideRow(@"Hide the device button", nil, SGRHideBarConnect),
         ]),
-        SGNotedSection(nil, @[
-            SGSwitchRow(@"Moving background", @"The artwork's colours drift slowly behind the player", SGRKeyPlayerMotion),
-        ], @"Off, the blurred artwork stays still. The colours hold still anyway while a song is paused, with Reduce Motion and in Low Power Mode."),
+        SGSection(nil, @[
+            SGSwitchRow(@"Moving background", nil, SGRKeyPlayerMotion),
+        ]),
     ] footer:nil];
 }

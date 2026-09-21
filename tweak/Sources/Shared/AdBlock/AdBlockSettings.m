@@ -17,9 +17,9 @@ static UIViewController *adFlagsPage(void) {
             SGKillRow(@"Hide the shuffle toggle upsell", @"ios-feature-shuffletoggleupsell.is_enabled_pt2"),
             SGKillRow(@"Hide the shuffle upsell in the video player", @"ios-feature-nowplaying-modes.video_first_shuffle_upsell_enabled"),
         ], @"Locked while Hide upsells is on."),
-        SGNotedSection(@"Reduce interventions", @[
+        SGSection(@"Reduce interventions", @[
             SGFlagRow(@"Reduce interventions", @"ios-messaging-reduceinterventions-impl.enabled"),
-        ], @"Spotify's own system for in-app tips, which most of the tooltip switches below belong to."),
+        ]),
         SGSection(@"Tooltips", @[
             SGKillRow(@"Hide the smart shuffle helper", @"ios-messaging-reduceinterventions-impl.enable_message_smart_shuffle_helper_tooltip"),
             SGKillRow(@"Hide the data saver tip", @"ios-feature-nowplayingbar.data_saver_tooltip"),
@@ -46,22 +46,22 @@ UIViewController *SGAdsSettingsPage(void) {
     [counts addObject:SGStatRow(@"Total", ^NSString *{
         return @(SGAdBlockCount(nil)).stringValue;
     })];
-    [counts addObject:SGActionRow(@"Reset the counters", @"Start counting from zero", ^{ SGResetAdBlock(); })];
+    [counts addObject:SGActionRow(@"Reset the counters", nil, ^{ SGResetAdBlock(); })];
 
-    SGModRow *fakePremium = SGOptionRow(@"Spoof Premium", @"The product state and config the server sends are rewritten to a Premium account's, and the logout it sends back is answered as done", SGKeyFakePremium);
+    SGModRow *fakePremium = SGOptionRow(@"Spoof Premium", nil, SGKeyFakePremium);
     fakePremium.warning = SGFakePremiumWarning;
 
     return [[SGModPage alloc] initWithTitle:@"Premium, ads & privacy" intro:SGRestartNote sections:@[
         SGNotedSection(@"Ads", @[
-            SGWithSymbol(SGOptionRow(@"Hide ads", @"The ad services never start, ad components leave Home and Search before they render, and the requests behind them are answered empty", SGKeyHideAds), @"speaker.slash"),
-            SGWithSymbol(SGOptionRow(@"Hide upsells", @"Premium prompts, banners and sheets dropped, and the flags that show them forced off", SGKeyHideUpsells), @"hand.raised"),
+            SGWithSymbol(SGOptionRow(@"Hide ads", nil, SGKeyHideAds), @"speaker.slash"),
+            SGWithSymbol(SGOptionRow(@"Hide upsells", nil, SGKeyHideUpsells), @"hand.raised"),
             SGWithSymbol(SGOptionRow(@"Hide the video carousel in Search", nil, SGKeyHideSearchVideos), @"play.rectangle.on.rectangle"),
             SGWithSymbol(SGOptionRow(@"Hide social proof in Search", nil, SGKeyHideSocialProof), @"person.2"),
             SGWithSymbol(SGPageRow(@"Ad and upsell flags", ^UIViewController *{ return adFlagsPage(); }), @"flag"),
-        ], @"From EeveeSpotify, off until switched on. They reach only what is drawn; audio ads between songs are Spoof Premium's to stop."),
+        ], @"Audio ads between songs need Spoof Premium."),
         SGNotedSection(@"Premium", @[
             SGWithSymbol(fakePremium, @"crown"),
-        ], @"Free accounts only; a Premium account gains nothing from it."),
+        ], @"Free accounts only."),
         SGPrivacySection(),
         SGSection(@"Ads blocked so far", counts),
         SGPrivacyCountersSection(),
