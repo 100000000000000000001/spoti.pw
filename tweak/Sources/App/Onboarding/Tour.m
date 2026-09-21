@@ -3,6 +3,7 @@
 #import "Onboarding.h"
 #import "App/About/About.h"
 #import "App/Pages.h"
+#import "App/Donate/Donate.h"
 
 static const CGFloat kMargin = 24;
 static const CGFloat kCardRadius = 22;
@@ -227,11 +228,18 @@ static UIButton *glassButton(NSString *title) {
     _beta = [self betaNote];
     _beta.hidden = !redesign;
 
-    UIStackView *column = [[UIStackView alloc] initWithArrangedSubviews:@[strip, heading, _redesigned, _legacy, _beta]];
+    SGKofiButton *kofi = [[SGKofiButton alloc] initWithTitle:@"Buy a student a coffee" prominent:NO];
+    kofi.translatesAutoresizingMaskIntoConstraints = NO;
+    [kofi addAction:[UIAction actionWithHandler:^(UIAction *action) { SGOpenURL(SGKofiURL); }] forControlEvents:UIControlEventTouchUpInside];
+    UIView *kofiStrip = [UIView new];
+    [kofiStrip addSubview:kofi];
+
+    UIStackView *column = [[UIStackView alloc] initWithArrangedSubviews:@[strip, heading, _redesigned, _legacy, _beta, kofiStrip]];
     column.axis = UILayoutConstraintAxisVertical;
     column.spacing = 12;
     [column setCustomSpacing:28 afterView:strip];
     [column setCustomSpacing:24 afterView:heading];
+    [column setCustomSpacing:36 afterView:_beta];
     column.translatesAutoresizingMaskIntoConstraints = NO;
 
     UIScrollView *scroll = [UIScrollView new];
@@ -271,6 +279,10 @@ static UIButton *glassButton(NSString *title) {
         [halo.heightAnchor constraintEqualToConstant:88],
         [_hero.centerXAnchor constraintEqualToAnchor:halo.centerXAnchor],
         [_hero.centerYAnchor constraintEqualToAnchor:halo.centerYAnchor],
+        [kofi.centerXAnchor constraintEqualToAnchor:kofiStrip.centerXAnchor],
+        [kofi.topAnchor constraintEqualToAnchor:kofiStrip.topAnchor],
+        [kofi.bottomAnchor constraintEqualToAnchor:kofiStrip.bottomAnchor],
+        [kofi.leadingAnchor constraintGreaterThanOrEqualToAnchor:kofiStrip.leadingAnchor],
         [_primary.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:kMargin],
         [_primary.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-kMargin],
         [_primary.bottomAnchor constraintEqualToAnchor:footer.topAnchor constant:-12],
