@@ -1,7 +1,4 @@
-// The order the sources are asked in, as a list to drag into shape. Switched-on sources sit at the
-// top in the order they are asked; the rest wait below. Dragging one up makes it the first asked,
-// which is the whole point: the source you trust most answers first, and the ones under it only
-// fill in what it could not.
+// Drag sources into the order they are asked; the ones below the line are off.
 #import "Core/SGCore.h"
 #import "Settings/SGPage.h"
 #import "Settings/SGPageStyle.h"
@@ -45,13 +42,8 @@ typedef NS_ENUM(NSInteger, SGSourcesSection) {
     [self read];
     self.tableView.editing = YES;
     self.tableView.allowsSelectionDuringEditing = YES;
-    _footer = SGNote(@"Each source is asked in turn until every word is timed. A source that only has "
-                      "the plain words does not shut out a later one that times them.\n\n"
-                      "Musixmatch is sent the track's id with an anonymous token; BiniLyrics, Unison, "
-                      "NetEase and LRCLIB are sent the title, artist and length. None of those is told "
-                      "anything of your Spotify account. Spicy Lyrics is the one exception: it answers "
-                      "only a signed-in Spotify client, so it is sent this app's own access token along "
-                      "with the track's id. Changes apply after you restart Spotify.");
+    _footer = SGNote(@"Asked top to bottom until one has word timing. Spicy Lyrics is sent your Spotify "
+                      "access token; the others get only the track, never your account.");
     self.tableView.tableFooterView = _footer;
 }
 

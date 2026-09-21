@@ -69,17 +69,14 @@ UIViewController *SGNavbarPage(void) {
     return SGRedesignedUIStored() ? SGRNavbarSettingsPage() : SGNavbarSettingsPage();
 }
 
-// The redesign always draws Apple Music style lyrics, and only it names their source and shows the
-// pronunciation and the translation a source has; the native look has its glass card and page instead.
+// Pronunciation, translation and word sweeping exist only in the redesign's lyrics view.
 static UIViewController *lyricsPage(void) {
     BOOL redesigned = SGRedesignedUIStored();
     NSMutableArray<SGModRow *> *more = [NSMutableArray arrayWithObject:SGLockScreenLyricsRow()];
     if (!redesigned) [more insertObject:SGGlassLyricsRow() atIndex:0];
     NSMutableArray<SGModSection *> *sections = [NSMutableArray arrayWithObject:SGLyricsSourcesSection(redesigned)];
     if (redesigned) {
-        [sections addObject:SGNotedSection(@"Pronunciation and translation", @[SGRLyricsTextSizesRow(), SGLyricsTranslationLanguageRow()],
-                                           @"BiniLyrics and Unison carry Apple Music's own for many songs. The button in the corner of the lyrics shows them.")];
-        [sections addObject:SGLyricsWordTimingSection()];
+        [sections addObject:SGSection(@"Display", @[SGLyricsWordTimingRow(), SGRLyricsTextSizesRow(), SGLyricsTranslationLanguageRow()])];
     }
     [sections addObject:SGSection(nil, more)];
     return [[SGModPage alloc] initWithTitle:@"Lyrics" intro:SGRestartNote sections:sections footer:nil];

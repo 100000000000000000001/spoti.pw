@@ -149,12 +149,12 @@ NSArray<SGLyricsProvider *> *SGLyricsAllProviders(void) {
             return provider;
         };
         all = @[
-            make(@"spicylyrics", @"Spicy Lyrics", @"Syllable timing matched by track id; asks with your Spotify token", SGSpicyLyricsAsk),
-            make(@"binilyrics", @"BiniLyrics", @"Apple Music's own word timing, over a million tracks", SGBiniLyricsAsk),
-            make(@"musixmatch", @"Musixmatch", @"The catalogue Spotify licenses; matched by track, never by name", SGMusixmatchAsk),
-            make(@"unison", @"Unison", @"Written by hand for Better Lyrics: few tracks, the best of them", SGUnisonAsk),
-            make(@"netease", @"NetEase", @"Word timing only, for what the others line time; swearing is starred out", SGNetEaseAsk),
-            make(@"lrclib", @"LRCLIB", @"Open and keyless, timed by the line: the floor under the rest", SGLrcLibAsk),
+            make(@"spicylyrics", @"Spicy Lyrics", @"Syllable timing, uses your Spotify token", SGSpicyLyricsAsk),
+            make(@"binilyrics", @"BiniLyrics", @"Apple Music word timing", SGBiniLyricsAsk),
+            make(@"musixmatch", @"Musixmatch", @"Spotify's licensed catalogue", SGMusixmatchAsk),
+            make(@"unison", @"Unison", @"Hand-timed, few tracks", SGUnisonAsk),
+            make(@"netease", @"NetEase", @"Word timing, censored", SGNetEaseAsk),
+            make(@"lrclib", @"LRCLIB", @"Line timing, open fallback", SGLrcLibAsk),
         ];
     });
     return all;
