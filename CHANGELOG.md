@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.21.0](https://github.com/skopevoj/spoti.pw/compare/v0.20.0...v0.21.0) (2026-09-21)
+
+
+### Features
+
+* add check update endpoint ([f2a163c](https://github.com/skopevoj/spoti.pw/commit/f2a163cde6c95fa613baeeb652ec1de19bc14236))
+* line-timed lyrics light line by line, plain lyrics show unsynced ([#61](https://github.com/skopevoj/spoti.pw/issues/61)) ([fa0ae4f](https://github.com/skopevoj/spoti.pw/commit/fa0ae4f02746c6312a7fad4cbcca8aeb4b2f50a2))
+* the download button shows waiting, progress and downloaded, and shuffle is white when off ([#65](https://github.com/skopevoj/spoti.pw/issues/65)) ([f8d0e43](https://github.com/skopevoj/spoti.pw/commit/f8d0e433b39a2912128a169b09f5fd82474a12f6))
+
+
+### Fixes
+
+* a navbar tab opens its page instead of "can't open this type of link" ([#66](https://github.com/skopevoj/spoti.pw/issues/66)) ([b2288b3](https://github.com/skopevoj/spoti.pw/commit/b2288b320ca635744d0d52a712efd1e1ed6cba53))
+* a playlist with the Mix feature on shows its picture instead of a black header ([59b8299](https://github.com/skopevoj/spoti.pw/commit/59b82990d17f044a1b98476d0927a5f3ea1811c7))
+* an artist, album or playlist opened for the first time fills its hero when the picture lands ([1eb52fb](https://github.com/skopevoj/spoti.pw/commit/1eb52fb8f546c8563d0c4fba8e39455d9fe1e99d))
+* artisti skip performance optimizations ([96bad59](https://github.com/skopevoj/spoti.pw/commit/96bad59eec5dfc397c760af26e602c2cb9d1977a))
+* nothing of the mod ticks against a screen that is off ([0685135](https://github.com/skopevoj/spoti.pw/commit/0685135d669fb6709105f338859c78df56c0590d))
+* rename auto update ([355b087](https://github.com/skopevoj/spoti.pw/commit/355b087b85fe61eec5a5872b9d6af28257a1c9a3))
+* rename built ipa from workflow ([4e0292d](https://github.com/skopevoj/spoti.pw/commit/4e0292dbd882cd1cf4fb01de56d333089beae694))
+* Sort and Mix are on the ⋯ sheet the first time it opens ([def7470](https://github.com/skopevoj/spoti.pw/commit/def7470a3428ab7b6193581048ae8d6e6f33edd8))
+* the ⋯ menu's Speed and pitch row is white from its first frame ([#68](https://github.com/skopevoj/spoti.pw/issues/68)) ([ee97535](https://github.com/skopevoj/spoti.pw/commit/ee97535e0e2d1308783fda2650e489751a0ec8cf))
+* the library sorts again, the entity pages keep their ⋯, and a creator opens from the line that names them ([7af6610](https://github.com/skopevoj/spoti.pw/commit/7af66109391860a53779ca8f829d8c0027935392))
+* the player's background follows the playing track, and moves in its colours ([#58](https://github.com/skopevoj/spoti.pw/issues/58), [#59](https://github.com/skopevoj/spoti.pw/issues/59)) ([a70fe1a](https://github.com/skopevoj/spoti.pw/commit/a70fe1a01d30ae2ca7d6d6de40deda89788011a3))
+* the player's lyrics, connect and queue row sits lower ([#54](https://github.com/skopevoj/spoti.pw/issues/54)) ([7b3308a](https://github.com/skopevoj/spoti.pw/commit/7b3308a22d48f3dd025c76980fadb5de4f98b337))
+
 ## [0.20.0](https://github.com/skopevoj/spoti.pw/compare/v0.19.0...v0.20.0) (2026-09-20)
 
 
