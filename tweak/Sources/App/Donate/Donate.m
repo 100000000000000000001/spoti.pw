@@ -8,6 +8,7 @@ NSString *const SGKofiURL = @"https://ko-fi.com/darkksh";
 
 // Outside the "spotifyglass." prefix, so Reset all settings does not bring the sheet back early.
 static NSString *const kNextKey = @"spotipw.donate.next";
+static NSString *const kAfterTourKey = @"spotipw.donate.aftertour";
 static const NSTimeInterval kDay = 86400;
 static const NSTimeInterval kFirstAsk = 2 * kDay, kEvery = 14 * kDay, kAfterDonating = 90 * kDay;
 static const NSTimeInterval kSettle = 20, kRetry = 5;
@@ -238,6 +239,10 @@ static NSTimeInterval nextAsk(void) {
 
 static void askAgainIn(NSTimeInterval wait) {
     [NSUserDefaults.standardUserDefaults setDouble:now() + wait forKey:kNextKey];
+}
+
+BOOL SGDonateAfterTourPending(void) {
+    return [NSUserDefaults.standardUserDefaults boolForKey:kAfterTourKey];
 }
 
 #pragma mark - sheet
@@ -476,7 +481,8 @@ SGModRow *SGDonateRow(void) {
 // Never over the tour, an alert or the update sheet, and never twice in one run: a busy screen
 // waits a couple of minutes, then the sheet is left for the next launch.
 static void offerWhenClear(NSInteger tries) {
-    if (sg_offered || now() < nextAsk() || SGUpdateNoticeShown()) return;
+    BOOL afterTour = SGDonateAfterTourPending();
+    if (sg_offered || (!afterTour && now() < nextAsk()) || SGUpdateNoticeShown()) return;
     UIViewController *top = SGTopController();
     BOOL busy = !top || SGOnboardingShowing() || [top isKindOfClass:UIAlertController.class]
         || UIApplication.sharedApplication.applicationState != UIApplicationStateActive;
@@ -487,8 +493,18 @@ static void offerWhenClear(NSInteger tries) {
     }
     sg_offered = YES;
     askAgainIn(kEvery);
+    [NSUserDefaults.standardUserDefaults removeObjectForKey:kAfterTourKey];
     SGShowDonateSheet();
-    SGLog(@"donate: asked over %@", NSStringFromClass(top.class));
+    SGLog(@"donate: asked over %@%@", NSStringFromClass(top.class), afterTour ? @", after the tour" : @"");
+}
+
+void SGDonateAfterTour(BOOL restarting) {
+    [NSUserDefaults.standardUserDefaults setBool:YES forKey:kAfterTourKey];
+    if (!restarting) SGOfferDonate();
+}
+
+void SGOfferDonate(void) {
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ offerWhenClear(kTries); });
 }
 
 void SGWatchForDonate(void) {

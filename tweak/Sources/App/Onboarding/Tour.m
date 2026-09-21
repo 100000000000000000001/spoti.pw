@@ -228,18 +228,11 @@ static UIButton *glassButton(NSString *title) {
     _beta = [self betaNote];
     _beta.hidden = !redesign;
 
-    SGKofiButton *kofi = [[SGKofiButton alloc] initWithTitle:@"Buy a student a coffee" prominent:NO];
-    kofi.translatesAutoresizingMaskIntoConstraints = NO;
-    [kofi addAction:[UIAction actionWithHandler:^(UIAction *action) { SGOpenURL(SGKofiURL); }] forControlEvents:UIControlEventTouchUpInside];
-    UIView *kofiStrip = [UIView new];
-    [kofiStrip addSubview:kofi];
-
-    UIStackView *column = [[UIStackView alloc] initWithArrangedSubviews:@[strip, heading, _redesigned, _legacy, _beta, kofiStrip]];
+    UIStackView *column = [[UIStackView alloc] initWithArrangedSubviews:@[strip, heading, _redesigned, _legacy, _beta]];
     column.axis = UILayoutConstraintAxisVertical;
     column.spacing = 12;
     [column setCustomSpacing:28 afterView:strip];
     [column setCustomSpacing:24 afterView:heading];
-    [column setCustomSpacing:36 afterView:_beta];
     column.translatesAutoresizingMaskIntoConstraints = NO;
 
     UIScrollView *scroll = [UIScrollView new];
@@ -279,10 +272,6 @@ static UIButton *glassButton(NSString *title) {
         [halo.heightAnchor constraintEqualToConstant:88],
         [_hero.centerXAnchor constraintEqualToAnchor:halo.centerXAnchor],
         [_hero.centerYAnchor constraintEqualToAnchor:halo.centerYAnchor],
-        [kofi.centerXAnchor constraintEqualToAnchor:kofiStrip.centerXAnchor],
-        [kofi.topAnchor constraintEqualToAnchor:kofiStrip.topAnchor],
-        [kofi.bottomAnchor constraintEqualToAnchor:kofiStrip.bottomAnchor],
-        [kofi.leadingAnchor constraintGreaterThanOrEqualToAnchor:kofiStrip.leadingAnchor],
         [_primary.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor constant:kMargin],
         [_primary.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor constant:-kMargin],
         [_primary.bottomAnchor constraintEqualToAnchor:footer.topAnchor constant:-12],
@@ -326,6 +315,7 @@ static UIButton *glassButton(NSString *title) {
 }
 
 - (void)finish {
+    if (!SGFlag(SGKeyOnboardingSeen, NO)) SGDonateAfterTour(self.needsRestart);
     SGSetEnabled(SGKeyOnboardingSeen, YES);
     SGSetRedesignedUI(_redesigned.selected);
     if (self.needsRestart) {
