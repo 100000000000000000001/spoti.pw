@@ -238,6 +238,40 @@ static void complete(id<NSURLSessionDataDelegate> delegate, NSURLSession *sessio
 %end
 %end
 
+// The config comes back 304 with no body when the app holds a copy of it and asks whether that is still
+// current, and a copy taken while Spoof Premium was off is the server's own: the mod then has nothing to
+// rewrite, and the account stays free until the server changes the config (device 2026-09-21). So the two
+// go out without the question, and the server always answers in full.
+static NSURLRequest *unconditional(NSURLRequest *request) {
+    NSString *host = request.URL.host.lowercaseString ?: @"", *path = request.URL.path.lowercaseString ?: @"";
+    if (!(has(host, @"spotify") || has(host, @"spclient")) || !(isBootstrap(path) || isCustomize(path))) return nil;
+    if (![request valueForHTTPHeaderField:@"If-None-Match"] && ![request valueForHTTPHeaderField:@"If-Modified-Since"]) return nil;
+    NSMutableURLRequest *plain = [request mutableCopy];
+    [plain setValue:nil forHTTPHeaderField:@"If-None-Match"];
+    [plain setValue:nil forHTTPHeaderField:@"If-Modified-Since"];
+    plain.cachePolicy = NSURLRequestReloadIgnoringLocalCacheData;
+    SGLog(@"premium: %@ sent without its validators", path);
+    return plain;
+}
+
+%group PremiumRequests
+%hook NSURLSession
+- (NSURLSessionDataTask *)dataTaskWithRequest:(NSURLRequest *)request {
+    return %orig(unconditional(request) ?: request);
+}
+%end
+%end
+
+// The sessions Spotify makes are __NSURLSessionLocal; hooked as well only when that class answers
+// dataTaskWithRequest: itself, since a hook on an inherited method would sit on NSURLSession's twice.
+%group PremiumLocalRequests
+%hook __NSURLSessionLocal
+- (NSURLSessionDataTask *)dataTaskWithRequest:(NSURLRequest *)request {
+    return %orig(unconditional(request) ?: request);
+}
+%end
+%end
+
 %ctor {
     ads = SGHidden(SGKeyHideAds);
     premium = SGHidden(SGKeyFakePremium);
@@ -245,6 +279,13 @@ static void complete(id<NSURLSessionDataDelegate> delegate, NSURLSession *sessio
     started = NSDate.date;
     cacheLock = [NSObject new];
     %init;
-    if (premium) %init(Premium);
+    if (premium) {
+        %init(Premium);
+        %init(PremiumRequests);
+        SEL selector = @selector(dataTaskWithRequest:);
+        Class local = objc_getClass("__NSURLSessionLocal");
+        Method own = local ? class_getInstanceMethod(local, selector) : NULL;
+        if (own && own != class_getInstanceMethod(NSURLSession.class, selector)) %init(PremiumLocalRequests);
+    }
     SGRequireClasses(@[@"SPTDataLoaderService", @"_TtC26Connectivity_HttpClientKit20HttpClientURLSession"]);
 }

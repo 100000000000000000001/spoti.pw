@@ -384,6 +384,10 @@ static NSData *patchConfiguration(NSData *configuration) {
             switch (rules[i].kind) {
                 case SGRuleRemove: removed = YES; break;
                 case SGRuleSet:
+                    // Set changes a boolean that is there; a value of another kind (a count of seconds, say)
+                    // under the same name is left as the server sent it rather than turned into a false.
+                    if (SGPBFirst(value, 3)) setValue(value, SGPBBytes(3, boolValue(rules[i].on)));
+                    break;
                 case SGRuleForce: setValue(value, SGPBBytes(3, boolValue(rules[i].on))); break;
                 case SGRuleEnum: setValue(value, SGPBBytes(5, SGPBSerialize(@[SGPBString(1, @(rules[i].text))]))); break;
             }
