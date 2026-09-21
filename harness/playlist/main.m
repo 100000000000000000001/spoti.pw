@@ -1,6 +1,8 @@
 // A mock of Spotify's playlist page under its own class names and accessibility identifiers, built from
 // trees/clean/playlist/01.txt, so Redesigned/Playlist can be laid out and looked at on the Mac.
 #import <UIKit/UIKit.h>
+#import <objc/runtime.h>
+#import "../download-mock.h"
 
 #pragma mark - Spotify's classes, by name
 
@@ -611,7 +613,9 @@ static void buildLikedSongs(UIViewController *page, CGFloat W) {
     } else {
         actionButton(actions, CGRectMake(58, 0, 48, 48), @"Components.UI.AddToButton", @"Like");
     }
-    actionButton(actions, CGRectMake(106, 0, 48, 48), @"DownloadButton.Granular.None", @"Download");
+    // Drawn by Lottie, its state in its identifier and in the Encore object behind it (issue #65).
+    UIView *downloadAction = box(actions, UIView.class, CGRectMake(106, 0, 48, 48), nil);
+    mockDownloadButton(box(downloadAction, UIView.class, downloadAction.bounds, nil));
     actionButton(actions, CGRectMake(154, 2, 44, 44), @"Components.UI.ContextMenuButton", @"More options");
 
     UIView *mixShuffle = box(container, UIView.class, CGRectMake(container.bounds.size.width - 124, 0, 124, 48), nil);
@@ -621,10 +625,7 @@ static void buildLikedSongs(UIViewController *page, CGFloat W) {
     UIView *shuffleElement = box(shuffleView, UIView.class, shuffleView.bounds, nil);
     UIView *shuffle = box(shuffleElement, UIButton.class, shuffleElement.bounds, @"Components.UI.ShuffleButton");
     shuffle.accessibilityLabel = @"Shuffle tracks";
-    UIImageView *shuffleGlyph = [[UIImageView alloc] initWithFrame:CGRectInset(shuffle.bounds, 12, 12)];
-    shuffleGlyph.image = [UIImage systemImageNamed:@"shuffle"];
-    shuffleGlyph.tintColor = UIColor.whiteColor;
-    [shuffle addSubview:shuffleGlyph];
+    mockShuffleGlyph(shuffle);
 
     // The find-on-page toolbar the header conceals, whose Sort button is what the ⋯ sheet fires: one
     // identifier, in the header rather than in a cell the list reuses (trees/continuous/1.txt:1000).
@@ -698,6 +699,13 @@ static void buildLikedSongs(UIViewController *page, CGFloat W) {
               NSStringFromCGRect(hero.frame), NSStringFromCGRect([wash convertRect:hero.frame toView:nil]),
               [picture isKindOfClass:UIImageView.class] && picture.image ? @"drawn" : @"EMPTY");
     };
+    // `download` plays the download button's states instead of the header's (download-mock.h), with the page
+    // left at rest and no sheet over it, for screenshots.
+    BOOL downloads = [NSProcessInfo.processInfo.arguments containsObject:@"download"];
+    if (downloads) {
+        downloadScript();
+        return YES;
+    }
     for (NSUInteger i = 0; i < 3; i++) {
         NSString *state = @[@"rest", @"collapsed", @"pulled"][i];
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)((4 + i * 4) * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{

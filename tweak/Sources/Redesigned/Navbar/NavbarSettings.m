@@ -2,16 +2,20 @@
 #import "Settings/SGPage.h"
 #import "Settings/SGPageStyle.h"
 #import "Navbar.h"
+#import "Shared/Navigation/Links.h"
 
 // What "Add a tab" offers: URIs Spotify's own router resolves to a page of its own, each with the
-// name of the SPTEncoreIcon class method that draws its glyph.
+// name of the SPTEncoreIcon class method that draws its glyph. Playlists was spotify:collection:playlists
+// until 0.20, which 9.1.78 knows only from its old iPad sidebar table and has no handler for (#66);
+// spotify:playlists is the form its collection URI parser lists, next to spotify:playlists:by-you.
+// The picker still asks the dispatcher about each one and leaves out what it has nowhere to send.
 static NSArray<NSDictionary *> *tabPresets(void) {
     return @[
         @{SGRNavbarTitle: @"Home", SGRNavbarURI: @"spotify:home", SGRNavbarIcon: @"home"},
         @{SGRNavbarTitle: @"Search", SGRNavbarURI: @"spotify:search", SGRNavbarIcon: @"search"},
         @{SGRNavbarTitle: @"Your Library", SGRNavbarURI: @"spotify:collection", SGRNavbarIcon: @"collection"},
         @{SGRNavbarTitle: @"Liked Songs", SGRNavbarURI: @"spotify:collection:tracks", SGRNavbarIcon: @"heart"},
-        @{SGRNavbarTitle: @"Playlists", SGRNavbarURI: @"spotify:collection:playlists", SGRNavbarIcon: @"playlist"},
+        @{SGRNavbarTitle: @"Playlists", SGRNavbarURI: @"spotify:playlists", SGRNavbarIcon: @"playlist"},
         @{SGRNavbarTitle: @"Albums", SGRNavbarURI: @"spotify:collection:albums", SGRNavbarIcon: @"album"},
         @{SGRNavbarTitle: @"Artists", SGRNavbarURI: @"spotify:collection:artists", SGRNavbarIcon: @"artist"},
         @{SGRNavbarTitle: @"Podcasts", SGRNavbarURI: @"spotify:collection:podcasts", SGRNavbarIcon: @"podcasts"},
@@ -59,21 +63,45 @@ static void appendTab(NSDictionary *tab) {
 @interface SGRTabPickerPage : SGPage
 @end
 
+// The presets the dispatcher can send somewhere, each verdict logged. When it cannot be asked (not set
+// up yet, or 9.1.78's registry is not where it was) every preset stays, as before.
+static NSArray<NSDictionary *> *openablePresets(void) {
+    NSMutableArray<NSDictionary *> *kept = [NSMutableArray array];
+    for (NSDictionary *tab in tabPresets()) {
+        NSString *via = nil;
+        SGLinkRoute route = SGSpotifyURIRoute([NSURL URLWithString:tab[SGRNavbarURI]], &via);
+        SGLog(@"navbar: preset %@ -> %@", tab[SGRNavbarURI],
+              route == SGLinkRouteOpens ? via : route == SGLinkRouteNone ? @"no handler, left out" : @"unknown");
+        if (route != SGLinkRouteNone) [kept addObject:tab];
+    }
+    return kept;
+}
+
 @implementation SGRTabPickerPage {
     UIView *_footer;
+    NSArray<NSDictionary *> *_presets;
 }
 
 - (instancetype)init {
     if (!(self = [super initWithStyle:UITableViewStyleInsetGrouped])) return nil;
     self.title = @"Add a Tab";
+    _presets = openablePresets();
     return self;
+}
+
+// Said here rather than by Spotify's alert on the bar later, every time the tab is tapped.
+- (void)refuse:(NSString *)uri {
+    NSString *message = [NSString stringWithFormat:@"Spotify has nowhere to open %@, so it would not work as a tab.", uri];
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Can't open that link" message:message preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleCancel handler:nil]];
+    [self presentViewController:alert animated:YES completion:nil];
 }
 
 - (void)viewDidLoad {
     [super viewDidLoad];
     _footer = SGNote(@"Anything Spotify can open by link works, so a playlist, an artist or a page of "
-                   "your own goes on the bar the same way. Icons are Spotify's own: home, search, "
-                   "collection, heart, playlist, album, artist, podcasts, audiobook, downloaded, "
+                   "your own goes on the bar the same way: a spotify: URI, or a share link pasted as "
+                   "it is. Icons are Spotify's own: home, search, collection, heart, playlist, album, artist, podcasts, audiobook, downloaded, "
                    "bookmark, browse, star, user, events, queue, plus, radio, gears, spotifyLogo.");
     self.tableView.tableFooterView = _footer;
 }
@@ -93,7 +121,7 @@ static void appendTab(NSDictionary *tab) {
 }
 
 - (NSInteger)tableView:(UITableView *)table numberOfRowsInSection:(NSInteger)section {
-    return section == 0 ? (NSInteger)tabPresets().count : 1;
+    return section == 0 ? (NSInteger)_presets.count : 1;
 }
 
 - (UIView *)tableView:(UITableView *)table viewForHeaderInSection:(NSInteger)section {
@@ -111,7 +139,7 @@ static void appendTab(NSDictionary *tab) {
 - (UITableViewCell *)tableView:(UITableView *)table cellForRowAtIndexPath:(NSIndexPath *)path {
     UITableViewCell *cell = SGDequeueCell(table, @"pick");
     if (path.section == 0) {
-        NSDictionary *tab = tabPresets()[(NSUInteger)path.row];
+        NSDictionary *tab = _presets[(NSUInteger)path.row];
         SGFillCell(cell, tab[SGRNavbarTitle], tab[SGRNavbarURI], nil, nil);
     } else {
         SGFillCell(cell, @"Any link…", @"A name, a URI of your own and an icon", nil, @"link");
@@ -123,7 +151,7 @@ static void appendTab(NSDictionary *tab) {
 - (void)tableView:(UITableView *)table didSelectRowAtIndexPath:(NSIndexPath *)path {
     [table deselectRowAtIndexPath:path animated:YES];
     if (path.section == 0) {
-        appendTab(tabPresets()[(NSUInteger)path.row]);
+        appendTab(_presets[(NSUInteger)path.row]);
         [self.navigationController popViewControllerAnimated:YES];
         return;
     }
@@ -142,8 +170,16 @@ static void appendTab(NSDictionary *tab) {
     }];
     [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
     [alert addAction:[UIAlertAction actionWithTitle:@"Add" style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
-        NSString *title = alert.textFields[0].text, *uri = alert.textFields[1].text, *icon = alert.textFields[2].text;
+        NSString *title = alert.textFields[0].text, *icon = alert.textFields[2].text;
+        NSString *uri = SGSpotifyURIFromText(alert.textFields[1].text).absoluteString;
         if (!uri.length) return;
+        NSString *via = nil;
+        SGLinkRoute route = SGSpotifyURIRoute([NSURL URLWithString:uri], &via);
+        SGLog(@"navbar: custom %@ -> %@", uri, route == SGLinkRouteOpens ? via : route == SGLinkRouteNone ? @"no handler" : @"unknown");
+        if (route == SGLinkRouteNone) {
+            [self refuse:uri];
+            return;
+        }
         appendTab(@{SGRNavbarTitle: title.length ? title : uri, SGRNavbarURI: uri, SGRNavbarIcon: icon.length ? icon : @"star"});
         [self.navigationController popViewControllerAnimated:YES];
     }]];

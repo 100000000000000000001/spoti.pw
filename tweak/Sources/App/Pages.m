@@ -79,6 +79,7 @@ static UIViewController *lyricsPage(void) {
     if (redesigned) {
         [sections addObject:SGNotedSection(@"Pronunciation and translation", @[SGRLyricsTextSizesRow(), SGLyricsTranslationLanguageRow()],
                                            @"BiniLyrics and Unison carry Apple Music's own for many songs. The button in the corner of the lyrics shows them.")];
+        [sections addObject:SGLyricsWordTimingSection()];
     }
     [sections addObject:SGSection(nil, more)];
     return [[SGModPage alloc] initWithTitle:@"Lyrics" intro:SGRestartNote sections:sections footer:nil];

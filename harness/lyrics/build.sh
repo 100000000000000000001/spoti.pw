@@ -25,7 +25,7 @@ xcrun -sdk iphonesimulator clang -target arm64-apple-ios17.0-simulator -fobjc-ar
     -framework UIKit -framework QuartzCore -framework CoreGraphics -framework CoreText -framework Foundation \
     -o "$APP/LyricsHarness"
 
-cp "$HERE"/fixtures/*.ttml "$HERE"/fixtures/*.lrc "$APP/"
+cp "$HERE"/fixtures/*.ttml "$HERE"/fixtures/*.lrc "$HERE"/fixtures/*.json "$HERE"/fixtures/*.txt "$APP/"
 cat > "$APP/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

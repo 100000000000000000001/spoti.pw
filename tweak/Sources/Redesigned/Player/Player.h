@@ -25,6 +25,10 @@
 
 @class SGRArtworkField;
 
+// The artwork's colours moving behind the player (on until switched off), or the blurred artwork held
+// still; the row is on the Now playing page (Redesigned/NowPlayingBar/NowPlayingBarSettings.m).
+#define SGRKeyPlayerMotion @"spotifyglass.redesign.player.movingBackground"
+
 // The field behind the player, nil until the player has laid out once (PlayerField.x).
 SGRArtworkField *SGRPlayerField(void);
 

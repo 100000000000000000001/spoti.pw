@@ -28,3 +28,10 @@ SGModRow *SGLyricsTranslationLanguageRow(void) {
     return SGChoiceRow(@"Translation language", @"Of the translations the lyrics come with, the one to show; Any shows the first",
                        SGKeyLyricsTranslationLanguage, SGLyricsTranslationLanguageNames(), 0);
 }
+
+// Read by the redesign's lyrics view, the one place words are swept, so the page offers it there only.
+SGModSection *SGLyricsWordTimingSection(void) {
+    SGModRow *row = SGOptionRow(@"Simulate word-by-word timing", @"Guesses when each word of a line-synced line is sung, and sweeps it as if the source had timed it", SGKeyLyricsSimulateWords);
+    return SGNotedSection(@"Word timing", @[row],
+        @"Off, lyrics synced by the line light up a line at a time, and lyrics with no timing show as plain text. Word-synced lyrics sweep word by word either way.");
+}

@@ -112,6 +112,8 @@ static NSString *lyricsLine(NSString *trackID, NSString **next) {
             SGLog(@"live activity: no lyrics yet for %@", trackID);
         }
     }
+    // Plain text has no line being sung: the note, as for a track with no lyrics.
+    if (lines && SGKaraokeLinesTiming(lines) == SGKaraokeTimingNone) lines = nil;
     NSInteger position = SGKaraokePositionMs();
     // With two voices at once, the one that came in first, and the one singing over it as the next.
     NSInteger index = SGKaraokeLeadLine(lines, position);

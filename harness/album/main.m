@@ -1,6 +1,8 @@
 // A mock of Spotify's album page under its own class names and accessibility identifiers, built from
 // trees/clean/album/03.txt, so Redesigned/Album can be laid out and looked at on the Mac.
 #import <UIKit/UIKit.h>
+#import <objc/runtime.h>
+#import "../download-mock.h"
 
 #pragma mark - Spotify's classes, by name
 
@@ -99,6 +101,11 @@ static UIImage *playGlyph(void) {
 // button inside it at the same size, and a glyph in the button.
 static UIView *actionButton(UIView *row, CGRect frame, NSString *identifier, NSString *symbol, NSString *a11y) {
     UIView *element = box(row, UIView.class, frame, nil);
+    // Drawn by Lottie, its state in its identifier and in the Encore object behind it (issue #65).
+    if ([identifier hasPrefix:@"DownloadButton.Granular."]) {
+        mockDownloadButton(element);
+        return element;
+    }
     UIView *button = box(element, MockEncoreButton.class, element.bounds, identifier);
     button.accessibilityLabel = a11y;
     UIImageView *glyph = [[UIImageView alloc] initWithFrame:CGRectInset(button.bounds, 12, 12)];
@@ -255,8 +262,11 @@ static NSString *trailingLabel(UIView *root) {
                          @[@"Components.UI.ContextMenuButton-3OxfaVgvTxUTy7276t7SPU", @"ellipsis", @"More options", @158, @0, @48, @48]];
     // `late` on the launch line: add is not in the row yet, the way an album opened for the first time has it.
     BOOL late = [NSProcessInfo.processInfo.arguments containsObject:@"late"];
+    // `download`: an album without add (the row's download is what Play's right shows then), playing the
+    // download button's states (download-mock.h).
+    BOOL downloads = [NSProcessInfo.processInfo.arguments containsObject:@"download"];
     for (NSArray *action in actions) {
-        if (late && [action[0] isEqualToString:@"Components.UI.AddToButton"]) continue;
+        if ((late || downloads) && [action[0] isEqualToString:@"Components.UI.AddToButton"]) continue;
         CGRect frame = CGRectMake([action[3] doubleValue], [action[4] doubleValue], [action[5] doubleValue], [action[6] doubleValue]);
         [_actionItems addObject:actionButton(_actionRow, frame, action[0], action[1], action[2])];
         [_actionFrames addObject:[NSValue valueWithCGRect:frame]];
@@ -376,10 +386,7 @@ static NSString *trailingLabel(UIView *root) {
     UIView *shuffleElement = box(page, UIView.class, CGRectMake(282, 62, 48, 48), nil);
     UIView *shuffle = box(shuffleElement, MockEncoreButton.class, shuffleElement.bounds, @"Components.UI.ShuffleButton");
     shuffle.accessibilityLabel = @"Shuffle tracks";
-    UIImageView *shuffleGlyph = [[UIImageView alloc] initWithFrame:CGRectInset(shuffle.bounds, 12, 12)];
-    shuffleGlyph.image = [UIImage systemImageNamed:@"shuffle"];
-    shuffleGlyph.tintColor = UIColor.whiteColor;
-    [shuffle addSubview:shuffleGlyph];
+    mockShuffleGlyph(shuffle);
 
     UIView *playElement = box(page, UIView.class, CGRectMake(338, 94, 48, 48), nil);
     UIView *playButton = box(playElement, _TtC28EncoreConsumerMobile_BaseKit14PlayButtonView.class, playElement.bounds, @"header-play-button");
@@ -393,6 +400,7 @@ static NSString *trailingLabel(UIView *root) {
     [condensed addSubview:disc];
 
     [self.window makeKeyAndVisible];
+    if (downloads) downloadScript();
 
     // In `late`, add arrives at 2.5 s, after every pass of the header's and the metadata's re-reads: an arranged
     // subview of the row, which lays out the row and nothing above it.

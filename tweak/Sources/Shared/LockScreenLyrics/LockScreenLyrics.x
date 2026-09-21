@@ -60,7 +60,7 @@ static double elapsedAt(NSDictionary *info, CFAbsoluteTime reportedAt, CFAbsolut
     return [info[MPNowPlayingInfoPropertyElapsedPlaybackTime] doubleValue] + rate * (now - reportedAt);
 }
 
-// nil between lines and for a track without synced lyrics.
+// nil between lines and for a track without synced lyrics, plain text included.
 static NSString *lineFor(NSDictionary *info, double elapsed) {
     SPTPlayerState *state = [(id<SPTPlayer>)SGKaraokePlayer() state];
     // The player's track can lag behind the now playing info; its lyrics would then be another song's.
@@ -71,6 +71,8 @@ static NSString *lineFor(NSDictionary *info, double elapsed) {
         SGKaraokeRequestLyrics(trackID);
         return nil;
     }
+    // Plain text has no line being sung to show.
+    if (SGKaraokeLinesTiming(lines) == SGKaraokeTimingNone) return nil;
     NSInteger position = (NSInteger)(elapsed * 1000);
     NSInteger index = SGKaraokeLeadLine(lines, position);
     if (index < 0) return nil;

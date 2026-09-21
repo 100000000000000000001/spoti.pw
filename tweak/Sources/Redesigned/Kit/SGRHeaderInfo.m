@@ -52,6 +52,10 @@ static BOOL setText(UILabel *label, NSString *text) {
 
     _shuffle = [[SGRMirrorButton alloc] initWithFrame:CGRectZero];
     _shuffle.fallbackGlyph = [UIImage systemImageNamed:@"shuffle"];
+    // White like the buttons beside it while off -- Spotify's off grey read as a disabled button next to the
+    // white download (issue #65) -- and the accent while on, so its state still shows.
+    _shuffle.glyphColor = SGRPrimary();
+    _shuffle.onGlyphColor = SGRAccent();
     _play = [[SGRPlayCapsule alloc] initWithFrame:CGRectZero];
     _play.fillColor = UIColor.whiteColor;
     _trailing = [[SGRMirrorButton alloc] initWithFrame:CGRectZero];
