@@ -10,6 +10,7 @@
 #import "SGRRestyle.h"
 #import "SGRTokens.h"
 #import "SGRAccent.h"
+#import "SGRDownload.h"
 
 // The capsule: the glyph is Spotify's own 48pt canvas with the triangle small in the middle of it, so the
 // lead is short and the gap to the word comes out of the canvas itself.
@@ -167,6 +168,24 @@ static UILabel *labelIn(UIView *button) {
     return found;
 }
 
+// Whether a button that marks "on" with a small dot under its glyph (Encore's shuffle, a 4pt round view it
+// hides while off) is on. `found` says whether the button has such a dot at all.
+static BOOL indicatorOn(UIView *button, BOOL *found) {
+    __block UIView *dot = nil;
+    SGForEachView(button, ^(UIView *v) {
+        if (dot || v == button || [v isKindOfClass:UIImageView.class] || [v isKindOfClass:UILabel.class]) return;
+        CGSize size = v.bounds.size;
+        if (size.width < 2 || size.width > 8 || size.height < 2 || size.height > 8) return;
+        CGColorRef paint = v.layer.backgroundColor;
+        if (paint && CGColorGetAlpha(paint) > 0.5) dot = v;
+    });
+    if (found) *found = dot != nil;
+    for (UIView *up = dot; up && up != button; up = up.superview) {
+        if (up.hidden || up.alpha <= 0.01) return NO;
+    }
+    return dot != nil;
+}
+
 // The text a button shows: the first label under it with something in it.
 static NSString *labelTextIn(UIView *button) {
     __block NSString *text = nil;
@@ -186,6 +205,9 @@ static NSString *labelTextIn(UIView *button) {
     // Spotify's own image, as it was taken: what the copy is compared against, since a copy re-rendered as
     // a template is no longer the same object.
     UIImage *_takenGlyph;
+    // Standing in for Spotify's download button: its state drawn, and read again while on screen.
+    SGRDownloadGlyph *_download;
+    NSTimer *_downloadTimer;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame {
@@ -230,6 +252,75 @@ static NSString *labelTextIn(UIView *button) {
     ((UIView *)objc_getAssociatedObject(self, &kWordGlassKey)).hidden = YES;
     _glyph.frame = CGRectMake(round((bounds.size.width - kMirrorGlyph) / 2), round((bounds.size.height - kMirrorGlyph) / 2),
                               kMirrorGlyph, kMirrorGlyph);
+    _download.frame = _glyph.frame;
+}
+
+- (void)didMoveToWindow {
+    [super didMoveToWindow];
+    if (!_download) return;
+    // Read again on the way in -- the download may have moved on while the page was away -- and not at all
+    // while out of the window.
+    if (self.window && self.source) [self feedFrom:self.source];
+    else [self sgr_followDownload:0];
+}
+
+- (void)dealloc {
+    [_downloadTimer invalidate];
+}
+
+// Shows Spotify's download state; YES when `source` is a download button.
+- (BOOL)sgr_feedDownloadFrom:(UIView *)source {
+    SGRDownloadState state;
+    CGFloat progress;
+    if (!SGRReadDownload(source, &state, &progress)) {
+        if (_download && !_download.hidden) {
+            _download.hidden = YES;
+            _glyph.hidden = NO;
+            [self sgr_followDownload:0];
+        }
+        return NO;
+    }
+    if (!_download) {
+        _download = [[SGRDownloadGlyph alloc] initWithFrame:_glyph.frame];
+        [self addSubview:_download];
+    }
+    _download.hidden = NO;
+    _glyph.hidden = YES;
+    [_download showState:state progress:progress animated:YES];
+
+    NSString *word = source.accessibilityLabel ?: wordIn(source);
+    if (word && ![self.accessibilityLabel isEqualToString:word]) self.accessibilityLabel = word;
+    NSString *value = state == SGRDownloadDownloading && progress >= 0
+        ? [NSNumberFormatter localizedStringFromNumber:@(progress) numberStyle:NSNumberFormatterPercentStyle] : nil;
+    if (![self.accessibilityValue ?: @"" isEqualToString:value ?: @""]) self.accessibilityValue = value;
+
+    // Spotify lays nothing out that the page hears as a download moves on, so the state is read again:
+    // twice a second while one runs, for the ring, and now and then otherwise, for one started or removed
+    // from elsewhere (the ⋯ sheet). Only while the button is on screen.
+    BOOL running = state == SGRDownloadWaiting || state == SGRDownloadDownloading;
+    [self sgr_followDownload:self.window ? (running ? 0.5 : 2) : 0];
+    return YES;
+}
+
+// Reads the download again every `interval` seconds; 0 stops.
+- (void)sgr_followDownload:(NSTimeInterval)interval {
+    if (interval <= 0) {
+        [_downloadTimer invalidate];
+        _downloadTimer = nil;
+        return;
+    }
+    if (_downloadTimer.valid && fabs(_downloadTimer.timeInterval - interval) < 0.01) return;
+    [_downloadTimer invalidate];
+    __weak SGRMirrorButton *weakSelf = self;
+    _downloadTimer = [NSTimer scheduledTimerWithTimeInterval:interval repeats:YES block:^(NSTimer *timer) {
+        SGRMirrorButton *button = weakSelf;
+        if (!button || !button.window || !button.source) {
+            [timer invalidate];
+            return;
+        }
+        [button feedFrom:button.source];
+    }];
+    _downloadTimer.tolerance = interval * 0.2;
 }
 
 // The glyph is taken as Spotify drew it, colour and all: the shuffle button turns its own glyph the accent
@@ -281,20 +372,35 @@ static NSString *labelTextIn(UIView *button) {
         return;
     }
 
+    if ([self sgr_feedDownloadFrom:source]) return;
+
     UIImageView *glyph = glyphIn(source, 0);
     NSString *word = source.accessibilityLabel ?: wordIn(source);
     if (word && ![self.accessibilityLabel isEqualToString:word]) self.accessibilityLabel = word;
-    if (glyph.image && _takenGlyph != glyph.image) {
+    // A button that says "on" with its dot is drawn in our colours, on and off. One expected to have a dot
+    // and found without keeps Spotify's colours, which are then all that tells on from off.
+    BOOL hasDot = NO;
+    BOOL on = self.onGlyphColor && indicatorOn(source, &hasDot);
+    UIColor *ownColor = !self.onGlyphColor ? self.glyphColor
+                      : hasDot ? (on ? self.onGlyphColor : self.glyphColor ?: SGRPrimary()) : nil;
+    if (glyph.image && (_takenGlyph != glyph.image || (ownColor != nil) != (_glyph.image.renderingMode == UIImageRenderingModeAlwaysTemplate))) {
         _takenGlyph = glyph.image;
-        _glyph.image = self.glyphColor ? [glyph.image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate]
-                                       : glyph.image;
+        _glyph.image = ownColor ? [glyph.image imageWithRenderingMode:UIImageRenderingModeAlwaysTemplate] : glyph.image;
     }
-    UIColor *tint = self.glyphColor ?: glyph.tintColor;
-    if (tint && ![_glyph.tintColor isEqual:tint]) _glyph.tintColor = tint;
     if (!glyph && self.fallbackGlyph && _glyph.image != self.fallbackGlyph) {
         _takenGlyph = nil;
         _glyph.image = self.fallbackGlyph;
-        _glyph.tintColor = self.glyphColor ?: SGRPrimary();
+    }
+    UIColor *tint = ownColor ?: (glyph ? glyph.tintColor : SGRPrimary());
+    if (tint && ![_glyph.tintColor isEqual:tint]) {
+        // Turning on or off is a moment of its own: the colour fades across rather than jumping.
+        BOOL fade = self.window && _glyph.tintColor && hasDot;
+        if (fade) {
+            [UIView transitionWithView:_glyph duration:0.2 options:UIViewAnimationOptionTransitionCrossDissolve
+                            animations:^{ self->_glyph.tintColor = tint; } completion:nil];
+        } else {
+            _glyph.tintColor = tint;
+        }
     }
 
     // As the capsule does: watched per glyph view, so a reused one reports where it is now.
@@ -320,8 +426,8 @@ static NSString *labelTextIn(UIView *button) {
     SGRActivate(self.source);
     // The word is watched where Spotify writes it, but a button that rebuilds its content on the state it
     // just took writes the new word into a label the watch has never seen. So a tap, and only a tap, asks
-    // the button again a moment later, which also moves the watch onto whatever label it ended up with.
-    if (!self.showsWord) return;
+    // the button again a moment later, which also moves the watch onto whatever label it ended up with. The
+    // same goes for shuffle's dot and a download's state, which change with no image or word to watch.
     __weak SGRMirrorButton *weakSelf = self;
     for (NSNumber *delay in @[@0.3, @1.0]) {
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay.doubleValue * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
