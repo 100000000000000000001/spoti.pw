@@ -12,6 +12,8 @@
 
 static const NSUInteger kKeptTracks = 40;
 static const NSUInteger kSeenTracks = 200;
+// Seconds before a lyrics request that failed is asked again.
+static const NSTimeInterval kRetryAfter = 15;
 // What spclient needs from a request to answer it as the signed-in app.
 static NSString *const kSpclientHeaders[] = {@"authorization", @"client-token", @"app-platform", @"spotify-app-version", @"user-agent", @"accept-language"};
 
@@ -55,9 +57,18 @@ static void rememberHeaders(NSURLSession *session, NSURLRequest *request) {
     dispatch_async(dispatch_get_main_queue(), ^{ sg_spclientHeaders = headers; });
 }
 
-// Main queue only.
+// Main queue only. A full cache lets go of all but the track playing, which the page and the lock screen
+// are reading. What goes is also forgotten as requested: kept there it could never be asked for again, and
+// a track whose lyrics were dropped would stay without them until Spotify restarted.
 static void keep(NSString *track, NSArray<SGKaraokeLine *> *lines) {
-    if (sg_lyrics.count >= kKeptTracks && !sg_lyrics[track]) [sg_lyrics removeAllObjects];
+    if (sg_lyrics.count >= kKeptTracks && !sg_lyrics[track]) {
+        NSString *playing = SGKaraokePlayingTrack();
+        for (NSString *key in sg_lyrics.allKeys) {
+            if ([key isEqualToString:playing]) continue;
+            [sg_lyrics removeObjectForKey:key];
+            [sg_requested removeObject:key];
+        }
+    }
     sg_lyrics[track] = lines;
 }
 
@@ -113,7 +124,17 @@ static void requestFromSpotify(NSString *trackID) {
         SGLog(@"karaoke: fetched lyrics for %@: status %ld, %lu lines (%@), error %@", trackID,
               (long)[(NSHTTPURLResponse *)response statusCode], (unsigned long)lines.count,
               SGKaraokeLinesTiming(lines) == SGKaraokeTimingNone ? @"untimed" : @"line timed", error);
-        if (!lines) return;
+        if (!lines) {
+            // A request lost to the network or to a busy server is not an answer of "no lyrics": it is asked
+            // again after a pause, where an answer with none stays kept as requested.
+            NSInteger status = [response isKindOfClass:NSHTTPURLResponse.class] ? ((NSHTTPURLResponse *)response).statusCode : 0;
+            if (error || status == 429 || status >= 500) {
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(kRetryAfter * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                    [sg_requested removeObject:trackID];
+                });
+            }
+            return;
+        }
         // Asked after the chain found plain text only: Spotify's replace it only when they are timed.
         dispatch_async(dispatch_get_main_queue(), ^{
             NSArray<SGKaraokeLine *> *kept = sg_lyrics[trackID];
