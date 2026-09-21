@@ -43,7 +43,7 @@ SGModRow *SGUnstableRow(NSString *title, NSString *subtitle, NSString *key, NSSt
 }
 
 SGModRow *SGFlagRow(NSString *title, NSString *key) {
-    SGModRow *row = SGHideRow(title, [key substringFromIndex:[key rangeOfString:@"."].location + 1], key);
+    SGModRow *row = SGHideRow(title, nil, key);
     row.flag = YES;
     return row;
 }

@@ -107,6 +107,5 @@ UIViewController *SGPlayerSettingsPage(void) {
     // Vibrations hook Spotify's own controls and its audio, so they answer under either look.
     [sections addObjectsFromArray:SGVibrationsSections()];
 
-    NSString *intro = @"Changes apply after you restart Spotify. Gestures, Blocked artists and Vibrations apply straight away.";
-    return [[SGModPage alloc] initWithTitle:@"Player" intro:intro sections:sections footer:nil];
+    return [[SGModPage alloc] initWithTitle:@"Player" intro:SGRestartNote sections:sections footer:nil];
 }
