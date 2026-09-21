@@ -247,10 +247,19 @@ static void setUp(void) {
 }
 
 // Whether the source's lines are better than what the walk already has: any lines beat none, and
-// timing every word beats estimating them.
+// finer timing beats coarser — words timed beat a line's start, which beats plain text. Read off the
+// lines themselves, which say how they were really timed, rather than off what the source claimed.
 static BOOL betterLines(SGLyricsResult *merged, SGLyricsResult *fresh) {
     if (!fresh.karaokeLines.count) return NO;
-    return !merged.karaokeLines.count || (fresh.wordTimed && !merged.wordTimed);
+    return !merged.karaokeLines.count || SGKaraokeLinesTiming(fresh.karaokeLines) < SGKaraokeLinesTiming(merged.karaokeLines);
+}
+
+static NSString *timingName(NSArray<SGKaraokeLine *> *lines) {
+    switch (SGKaraokeLinesTiming(lines)) {
+        case SGKaraokeTimingWords: return @"word timed";
+        case SGKaraokeTimingLine: return @"line timed";
+        default: return @"untimed";
+    }
 }
 
 // The same for the text Spotify's own page shows: any text beats none, timed beats untimed.
@@ -304,7 +313,7 @@ static void finish(SGLyricsWalk *walk) {
     }
     SGLog(@"lyrics: %@ ends with %@", trackID, lyrics
           ? [NSString stringWithFormat:@"%lu %@ lines from %@, %lu page lines",
-             (unsigned long)lyrics.karaokeLines.count, lyrics.wordTimed ? @"word timed" : @"estimated",
+             (unsigned long)lyrics.karaokeLines.count, timingName(lyrics.karaokeLines),
              lyrics.provider, (unsigned long)lyrics.texts.count]
           : everyoneAsked && failed ? @"nothing, a request failed on the way; not kept, so the next request asks again"
           : everyoneAsked ? @"nothing"

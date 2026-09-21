@@ -93,12 +93,19 @@ static NSData *lyricsBody(SGLyricsResult *lyrics, NSData *spotify) {
 // only when the server made them from the track's own artwork, which it names in the URL.
 static NSData *chosenBody(NSString *track, SGLyricsResult *lyrics, NSData *spotify, BOOL donor, BOOL donorColors) {
     NSArray<SGKaraokeLine *> *spotifyLines = donor ? nil : SGKaraokeLinesFromBody(spotify);
-    BOOL ours = lyrics.texts.count && (lyrics.synced || !spotifyLines);
-    NSArray<SGKaraokeLine *> *karaoke = lyrics.wordTimed || ours ? lyrics.karaokeLines : spotifyLines;
+    SGKaraokeTiming spotifyTiming = SGKaraokeLinesTiming(spotifyLines);
+    // Spotify's own page keeps its own lines when they are timed and the chain's are not.
+    BOOL ours = lyrics.texts.count && (lyrics.synced || spotifyTiming == SGKaraokeTimingNone);
+    // The lyrics view takes the more finely timed of the two, the chain's on a tie.
+    BOOL oursFiner = lyrics.karaokeLines.count && (!spotifyLines || SGKaraokeLinesTiming(lyrics.karaokeLines) <= spotifyTiming);
+    NSArray<SGKaraokeLine *> *karaoke = oursFiner ? lyrics.karaokeLines : spotifyLines;
     if (karaoke) SGKaraokeKeepLines(track, karaoke);
     SGLyricsSetCredit(track, karaoke == lyrics.karaokeLines ? lyrics.provider : @"Spotify");
-    SGLog(@"lyrics: page of %@ gets %@, %@ word timing", track, ours ? [NSString stringWithFormat:@"%@'s lines", lyrics.provider] : spotifyLines ? @"Spotify's own lines" : @"no lyrics",
-          lyrics.wordTimed ? @"real" : @"estimated");
+    // Plain text for the view while Spotify has lyrics of its own: its JSON may still have them timed.
+    if (!donor && spotify.length && SGKaraokeLinesTiming(karaoke) == SGKaraokeTimingNone) SGKaraokeAskSpotifyForTiming(track);
+    SGLog(@"lyrics: page of %@ gets %@; the lyrics view %@'s, %@", track, ours ? [NSString stringWithFormat:@"%@'s lines", lyrics.provider] : spotifyLines ? @"Spotify's own lines" : @"no lyrics",
+          oursFiner ? lyrics.provider : @"Spotify", SGKaraokeLinesTiming(karaoke) == SGKaraokeTimingWords ? @"word timed"
+          : SGKaraokeLinesTiming(karaoke) == SGKaraokeTimingLine ? @"line timed" : @"untimed");
     return ours ? lyricsBody(lyrics, donor && !donorColors ? nil : spotify) : nil;
 }
 

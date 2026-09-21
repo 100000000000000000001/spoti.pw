@@ -399,6 +399,7 @@ SGLyricsAsk SGSpicyLyricsAsk = ^(SGLyricsQuery *query, void (^done)(SGLyricsResu
             }
             result.starts = starts;
             result.texts = texts;
+            result.karaokeLines = SGKaraokeStaticLines(texts);
         }
         if (!result.texts.count) {
             SGLog(@"spicy: %@ came back as %@ with nothing the page could show", query.trackID, type ?: @"no shape at all");

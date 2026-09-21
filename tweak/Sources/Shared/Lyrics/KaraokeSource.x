@@ -55,11 +55,14 @@ static void rememberHeaders(NSURLSession *session, NSURLRequest *request) {
     dispatch_async(dispatch_get_main_queue(), ^{ sg_spclientHeaders = headers; });
 }
 
+// Main queue only.
+static void keep(NSString *track, NSArray<SGKaraokeLine *> *lines) {
+    if (sg_lyrics.count >= kKeptTracks && !sg_lyrics[track]) [sg_lyrics removeAllObjects];
+    sg_lyrics[track] = lines;
+}
+
 void SGKaraokeKeepLines(NSString *track, NSArray<SGKaraokeLine *> *lines) {
-    dispatch_async(dispatch_get_main_queue(), ^{
-        if (sg_lyrics.count >= kKeptTracks) [sg_lyrics removeAllObjects];
-        sg_lyrics[track] = lines;
-    });
+    dispatch_async(dispatch_get_main_queue(), ^{ keep(track, lines); });
 }
 
 static void received(NSURLSession *session, NSURLSessionTask *task, NSData *data) {
@@ -107,13 +110,25 @@ static void requestFromSpotify(NSString *trackID) {
     [NSURLProtocol setProperty:@YES forKey:SGLyricsOwnRequestKey inRequest:request];
     [[NSURLSession.sharedSession dataTaskWithRequest:request completionHandler:^(NSData *body, NSURLResponse *response, NSError *error) {
         NSArray<SGKaraokeLine *> *lines = SGKaraokeLinesFromBody(body);
-        SGLog(@"karaoke: fetched lyrics for %@: status %ld, %lu synced lines, error %@", trackID,
-              (long)[(NSHTTPURLResponse *)response statusCode], (unsigned long)lines.count, error);
-        if (lines) {
-            SGKaraokeKeepLines(trackID, lines);
+        SGLog(@"karaoke: fetched lyrics for %@: status %ld, %lu lines (%@), error %@", trackID,
+              (long)[(NSHTTPURLResponse *)response statusCode], (unsigned long)lines.count,
+              SGKaraokeLinesTiming(lines) == SGKaraokeTimingNone ? @"untimed" : @"line timed", error);
+        if (!lines) return;
+        // Asked after the chain found plain text only: Spotify's replace it only when they are timed.
+        dispatch_async(dispatch_get_main_queue(), ^{
+            NSArray<SGKaraokeLine *> *kept = sg_lyrics[trackID];
+            if (kept && SGKaraokeLinesTiming(kept) <= SGKaraokeLinesTiming(lines)) return;
+            keep(trackID, lines);
             SGLyricsSetCredit(trackID, @"Spotify");
-        }
+        });
     }] resume];
+}
+
+void SGKaraokeAskSpotifyForTiming(NSString *trackID) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        if (!trackID || [sg_requested containsObject:trackID]) return;
+        requestFromSpotify(trackID);
+    });
 }
 
 void SGKaraokeRequestLyrics(NSString *trackID) {
@@ -125,9 +140,10 @@ void SGKaraokeRequestLyrics(NSString *trackID) {
     [sg_requested addObject:trackID];
     SGLyricsFetch(trackID, ^(SGLyricsResult *lyrics) {
         if (lyrics.karaokeLines) {
-            SGKaraokeKeepLines(trackID, lyrics.karaokeLines);
+            keep(trackID, lyrics.karaokeLines);   // on the main queue, where the fetch answers
             SGLyricsSetCredit(trackID, lyrics.provider);
-            return;
+            // Plain text is shown while Spotify is asked whether it has the song timed.
+            if (SGKaraokeLinesTiming(lyrics.karaokeLines) != SGKaraokeTimingNone) return;
         }
         [sg_requested removeObject:trackID];
         requestFromSpotify(trackID);

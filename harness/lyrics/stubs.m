@@ -11,6 +11,7 @@ NSString *const SGPlayerTransitionEndedNotification = @"spotifyglass.playerTrans
 CFTimeInterval SGPlayerTransitionEnds(void) { return 0; }
 
 void SGRPlayFeedback(NSInteger feedback) {}
+void SGPlayFeedback(NSInteger feedback) {}   // the name it has had since Haptics moved to Shared
 NSString *SGLyricsCreditFor(NSString *trackID) { return @"the harness"; }
 // -translateTo es: the language the Lyrics page would ask translations for.
 NSString *SGLyricsTranslationLanguage(void) { return [NSUserDefaults.standardUserDefaults stringForKey:@"translateTo"]; }
