@@ -46,8 +46,8 @@
 @property (nonatomic, copy) UIColor *onGlyphColor;
 // The word on Spotify's button instead of a glyph, in a glass capsule as wide as the word asks for: for a
 // text button such as the artist's Follow, whose word is its state ("Follow", "Following") in the app's
-// language. Until Spotify's button has a word, the fallback glyph is drawn in the round shape instead. Set
-// before the first -feedFrom:.
+// language. Until Spotify's button has a word the button draws nothing and takes no touches. Set before the
+// first -feedFrom:.
 @property (nonatomic) BOOL showsWord;
 // The width the button wants: SGRActionHeight for a glyph, the word and its padding for a word.
 - (CGFloat)sgr_width;
@@ -57,7 +57,7 @@
 // Spotify's download button (SGRDownload.h) is drawn by Lottie, with nothing to copy: for it the button
 // draws the state Spotify reports instead -- the arrow, a ring filling up, the downloaded glyph -- and reads
 // it again while it is on screen, twice a second while a download runs, since nothing Spotify does then
-// lays out anything the page hears.
+// lays out anything the page hears. So is the add-to button, drawn as a plus or, saved, a checkmark.
 - (void)feedFrom:(UIView *)source;
 @end
 

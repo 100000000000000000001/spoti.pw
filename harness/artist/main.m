@@ -4,6 +4,8 @@
 // the Follow button's word and then the photo back, one after the other, the way a page opened for the first
 // time gets them -- each has to reach the redesign on its own (issue #52), and the artwork view carries
 // Encore's Swift class name so that it can only be watched the way the phone makes the Kit watch it.
+// `relabel` builds Follow as Encore's Swift button with an empty content view, and adds the label with the
+// word in it a second later rather than filling one that was there.
 #import <UIKit/UIKit.h>
 
 #pragma mark - Spotify's classes, by name
@@ -47,6 +49,10 @@
 
 @interface MockButton : UIControl @end
 @implementation MockButton @end
+
+// Encore's text button (trees/lyrics.txt:615): a Swift class, so only its plain content view can be watched.
+@interface _TtCCE16Encore_ButtonKitO16EncoreFoundation6Encore6Button9Secondary : UIControl @end
+@implementation _TtCCE16Encore_ButtonKitO16EncoreFoundation6Encore6Button9Secondary @end
 
 // Encore's image view, the one every picture Spotify loads arrives in (01.txt:48). Its name is the point of
 // the mock: a Swift one, which the Kit refuses to give an instance its own subclass of, so the harness
@@ -187,6 +193,7 @@ static NSArray<NSArray *> *musicList(void) {
     CGFloat W = self.window.bounds.size.width, H = self.window.bounds.size.height;
     BOOL collapsed = [NSProcessInfo.processInfo.arguments containsObject:@"collapsed"];
     BOOL late = [NSProcessInfo.processInfo.arguments containsObject:@"late"];
+    BOOL relabel = [NSProcessInfo.processInfo.arguments containsObject:@"relabel"];
 
     UIViewController *root = [UIViewController new];
     root.view.backgroundColor = [UIColor colorWithRed:0.07 green:0.07 blue:0.07 alpha:1];
@@ -222,13 +229,15 @@ static NSArray<NSArray *> *musicList(void) {
           @"Components.Header.UI.Metadata");
 
     UIView *row = box(header, UIStackView.class, CGRectMake(4, 456, 394, 48), nil);
-    UIView *follow = box(row, MockButton.class, CGRectMake(70, 8, 66, 32), @"Curation.FollowButtonElementKit.FollowButton");
+    Class followClass = relabel ? _TtCCE16Encore_ButtonKitO16EncoreFoundation6Encore6Button9Secondary.class : MockButton.class;
+    UIView *follow = box(row, followClass, CGRectMake(70, 8, 66, 32), @"Curation.FollowButtonElementKit.FollowButton");
     follow.accessibilityLabel = @"Follow";
     follow.layer.borderColor = UIColor.grayColor.CGColor;
     follow.layer.borderWidth = 1;
     follow.layer.cornerRadius = 16;
-    UILabel *followWord = label(follow, CGRectMake(16, 8, 40, 16), late ? @"" : @"Follow", 11, UIColor.whiteColor, @"Encore.Label");
-    if (late) follow.accessibilityLabel = nil;
+    UIView *followContent = relabel ? box(follow, UIView.class, follow.bounds, nil) : nil;
+    UILabel *followWord = relabel ? nil : label(follow, CGRectMake(16, 8, 40, 16), late ? @"" : @"Follow", 11, UIColor.whiteColor, @"Encore.Label");
+    if (late || relabel) follow.accessibilityLabel = nil;
     [(UIControl *)follow addTarget:self action:@selector(toggleFollow:) forControlEvents:UIControlEventTouchUpInside];
     glyph(box(row, MockButton.class, CGRectMake(148, 0, 48, 48), @"Components.UI.ContextMenuButton-7n2wHs1TKAczGzO7Dd2rGr"), @"ellipsis", 12);
     glyph(box(row, MockButton.class, CGRectMake(278, 0, 48, 48), @"Components.UI.ShuffleButton"), @"shuffle", 12);
@@ -281,6 +290,42 @@ static NSArray<NSArray *> *musicList(void) {
 
     [self.window makeKeyAndVisible];
 
+    if (relabel) {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            label(followContent, CGRectMake(16, 8, 40, 16), @"Follow", 11, UIColor.whiteColor, @"Encore.Label");
+            follow.accessibilityLabel = @"Follow";
+            NSLog(@"[harness] relabel: a new label with \"Follow\" is in Spotify's button now");
+        });
+    }
+    // What the redesign's Follow draws: nothing before the word, the word after it.
+    // A tap on it at 2.5 s, which Spotify answers with Following.
+    for (NSNumber *when in @[@0.5, @1.5, @2.5, @3.0]) {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(when.doubleValue * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            NSMutableArray *lines = [NSMutableArray array];
+            UIControl *tapped = nil;
+            NSMutableArray *queue = [NSMutableArray arrayWithObject:container];
+            while (queue.count) {
+                UIView *v = queue.firstObject;
+                [queue removeObjectAtIndex:0];
+                [queue addObjectsFromArray:v.subviews];
+                if (![NSStringFromClass(v.class) isEqualToString:@"SGRMirrorButton"] || v.frame.origin.x < 200) continue;
+                tapped = (UIControl *)v;
+                NSMutableArray *drawn = [NSMutableArray array];
+                for (UIView *sub in v.subviews) {
+                    if (sub.hidden || sub.alpha < 0.01) continue;
+                    NSString *what = NSStringFromClass(sub.class);
+                    if ([sub isKindOfClass:UILabel.class]) what = [NSString stringWithFormat:@"\"%@\"", ((UILabel *)sub).text];
+                    else if ([sub isKindOfClass:UIImageView.class]) what = ((UIImageView *)sub).image ? @"glyph" : @"empty image view";
+                    [drawn addObject:what];
+                }
+                [lines addObject:[NSString stringWithFormat:@"%@ touches %d draws %@", NSStringFromCGRect(v.frame),
+                                  v.userInteractionEnabled, [drawn componentsJoinedByString:@", "]]];
+            }
+            NSLog(@"[harness] follow at %.1fs: %@", when.doubleValue, [lines componentsJoinedByString:@" | "]);
+            if (when.doubleValue == 2.5) [tapped sendActionsForControlEvents:UIControlEventTouchUpInside];
+        });
+    }
+
     // The photo and the follow state land after the header has laid out, and neither lays it out again.
     if (late) {
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
@@ -326,8 +371,12 @@ static NSArray<NSArray *> *musicList(void) {
 // Spotify's Follow turns into Following, which the redesign's word has to follow.
 - (void)toggleFollow:(UIControl *)follow {
     UILabel *word = nil;
-    for (UIView *v in follow.subviews) {
-        if (v.subviews.firstObject && [v.subviews.firstObject isKindOfClass:UILabel.class]) word = (UILabel *)v.subviews.firstObject;
+    NSMutableArray *queue = [NSMutableArray arrayWithObject:follow];
+    while (queue.count && !word) {
+        UIView *v = queue.firstObject;
+        [queue removeObjectAtIndex:0];
+        if ([v isKindOfClass:UILabel.class]) word = (UILabel *)v;
+        [queue addObjectsFromArray:v.subviews];
     }
     word.text = [word.text isEqualToString:@"Follow"] ? @"Following" : @"Follow";
     NSLog(@"[harness] Spotify's Follow fired, now \"%@\"", word.text);

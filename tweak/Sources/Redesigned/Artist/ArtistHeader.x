@@ -271,8 +271,7 @@ static void applyHeader(UIView *header) {
     UIView *play = SGRFindByIdentifier(header, @"header-play-button", &kPlayKey);
     UIView *follow = SGRFindByIdentifier(header, @"Curation.FollowButtonElementKit.FollowButton", &kFollowKey);
     NSString *word = firstText(follow);
-    [info showShuffle:shuffle play:play trailing:follow trailingFallback:[UIImage systemImageNamed:@"person.badge.plus"]
-            playColor:SGRArtistFieldColor(container)];
+    [info showShuffle:shuffle play:play trailing:follow trailingFallback:nil playColor:SGRArtistFieldColor(container)];
 
     // More, in the top trailing corner of the page itself rather than of the container, which scrolls away
     // with the photo: pinned there it is the same button in the same place on the album and the playlist,
