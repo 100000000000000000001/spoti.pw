@@ -448,14 +448,28 @@ static SGRHeaderInfo *applyInfo(UIView *block, UIView *headerRoot, UIViewControl
 
 #pragma mark - the header's pass
 
-// Find on this page and Sort sit in a header view of their own above the cover, invisible until the page is
-// scrolled; the Music app has neither.
+// Find on this page and Sort sit above the cover, shown as the page is pulled down. They stay Spotify's own
+// controls, so the tap opens Spotify's find page; only the grey box becomes glass.
+static void glassUp(UIView *box, const void *key) {
+    CGSize size = box.bounds.size;
+    if (size.width < 1 || size.height < 1) return;
+    if (box.backgroundColor != UIColor.clearColor) box.backgroundColor = UIColor.clearColor;
+    if (box.layer.cornerRadius != size.height / 2) box.layer.cornerRadius = size.height / 2;
+    SGRGlassCapsuleInside(box, key, size, NO);
+}
+
 static void applyToolbar(UIView *headerRoot) {
+    static char kFieldKey, kSortBoxKey, kFieldGlassKey, kSortGlassKey;
     UIView *toolbar = SGRFindByIdentifier(headerRoot, @"Components.Header.UI.Toolbar.Content", &kToolbarKey);
-    for (UIView *v = toolbar; v && v != headerRoot; v = v.superview) {
-        if (![NSStringFromClass(v.class) containsString:@"HeaderView"]) continue;
-        conceal(v);
-        break;
+    if (!toolbar) return;
+    UIView *field = SGRFindByIdentifier(toolbar, @"Components.Header.UI.Toolbar.SearchField", &kFieldKey);
+    glassUp(field, &kFieldGlassKey);
+    glassUp(SGRFindByIdentifier(toolbar, @"Components.Header.UI.Toolbar.ButtonContainer", &kSortBoxKey), &kSortGlassKey);
+    static BOOL logged;
+    if (!logged && field.window) {
+        logged = YES;
+        SGLog(@"redesign playlist: find field %@ in glass, %.0fx%.0f", field.accessibilityLabel,
+              field.bounds.size.width, field.bounds.size.height);
     }
 }
 
