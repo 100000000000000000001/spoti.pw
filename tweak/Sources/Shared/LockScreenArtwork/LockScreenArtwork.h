@@ -5,6 +5,14 @@
 #import <Foundation/Foundation.h>
 
 #define SGKeyLockScreenArtwork @"spotifyglass.lockscreen.animatedartwork"
+#define SGKeyLockScreenArtworkSources @"spotifyglass.lockscreen.artworksources"
+
+// Where a clip can come from: the track's Canvas, or the album's animated cover on Apple Music.
+extern NSString *const SGArtworkSourceSpotify;
+extern NSString *const SGArtworkSourceApple;
+// The sources in the user's order, the ones switched off left out; Spotify, then Apple Music until set.
+NSArray<NSString *> *SGArtworkOrder(void);
+void SGArtworkSetOrder(NSArray<NSString *> *order);
 
 // Whether this iOS has MPMediaItemAnimatedArtwork at all.
 BOOL SGAnimatedArtworkAvailable(void);
@@ -15,6 +23,6 @@ NSString *SGAnimatedArtworkKey(CGFloat *aspect);
 // `artwork` under `key` in a copy of `info`, everything else left as it stands. The lock screen
 // lyrics rewrite the dictionary on a timer, so the key is put back on every one that passes.
 NSDictionary *SGArtworkInInfo(NSDictionary *info, id artwork, NSString *key);
-// The row for the Lock screen widget page; below iOS 26 it reads out what is missing instead.
+// The rows for the Lock screen widget page; below iOS 26 one row reads out what is missing instead.
 @class SGModRow;
-SGModRow *SGAnimatedArtworkRow(void);
+NSArray<SGModRow *> *SGAnimatedArtworkRows(void);

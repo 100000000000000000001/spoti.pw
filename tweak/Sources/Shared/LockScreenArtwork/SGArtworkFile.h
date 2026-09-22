@@ -1,5 +1,5 @@
-// The Canvas clip on disk: fetched once per canvas into Caches, reshaped once for the now playing
-// key, and kept until the cap pushes the oldest out. Everything answers off the main thread.
+// The clip on disk: fetched once into Caches, reshaped once for the now playing key, and kept until
+// the cap pushes the oldest out. Everything answers off the main thread.
 #import <CoreGraphics/CoreGraphics.h>
 #import <Foundation/Foundation.h>
 

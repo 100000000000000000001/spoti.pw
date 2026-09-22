@@ -1,8 +1,9 @@
-// The track's Canvas as the lock screen's animated artwork. The key is put on every dictionary that
-// goes out, so the lock screen lyrics' rewrites carry it too.
+// The track's Canvas or its album's Apple Music cover as the lock screen's animated artwork. The key
+// is put on every dictionary that goes out, so the lock screen lyrics' rewrites carry it too.
 #import <MediaPlayer/MediaPlayer.h>
 #import "Core/SGCore.h"
 #import "LockScreenArtwork.h"
+#import "SGAppleArtwork.h"
 #import "SGArtworkFile.h"
 #import "SGCanvas.h"
 #import "Headers/SPTPlayer.h"
@@ -21,6 +22,7 @@ static id sg_artwork;
 static NSString *sg_key;
 
 static NSString *sg_wanted;
+static NSString *sg_playing;   // the source the artwork set for sg_wanted came from
 static NSString *sg_offered;
 static CGFloat sg_aspect;
 
@@ -98,11 +100,7 @@ static void resend(void) {
 }
 
 static void play(NSString *uri, SGCanvas *canvas, NSString *source) {
-    if (!canvas.video) {
-        SGLog(@"lock artwork: %@ has a still canvas from %@, nothing to play", uri, source);
-        return;
-    }
-    SGLog(@"lock artwork: canvas for %@ from %@: %@", uri, source, canvas.address);
+    SGLog(@"lock artwork: clip for %@ from %@: %@", uri, source, canvas.address);
     SGArtworkFetch(canvas.identifier, canvas.address, ^(NSURL *file, NSString *note) {
         SGLog(@"lock artwork: %@ %@", canvas.identifier, note);
         if (!file) return;
@@ -118,6 +116,7 @@ static void play(NSString *uri, SGCanvas *canvas, NSString *source) {
                         sg_artwork = artwork;
                         sg_key = sg_offered;
                     }
+                    sg_playing = source;
                     SGLog(@"lock artwork: %@ set under %@", uri, sg_offered);
                     resend();
                 });
@@ -141,9 +140,37 @@ static void askCanvaz(NSString *uri, void (^done)(SGCanvas *canvas, NSString *no
     [request setValue:@"application/x-protobuf" forHTTPHeaderField:@"Content-Type"];
     [[NSURLSession.sharedSession dataTaskWithRequest:request completionHandler:^(NSData *answer, NSURLResponse *response, NSError *error) {
         SGCanvas *canvas = SGCanvazFromBody(answer);
-        done(canvas, [NSString stringWithFormat:@"canvaz status %ld, %lu bytes, error %@",
-                      (long)[(NSHTTPURLResponse *)response statusCode], (unsigned long)answer.length, error.localizedDescription]);
+        NSString *note = [NSString stringWithFormat:@"canvaz status %ld, %lu bytes, error %@",
+                          (long)[(NSHTTPURLResponse *)response statusCode], (unsigned long)answer.length, error.localizedDescription];
+        dispatch_async(dispatch_get_main_queue(), ^{ done(canvas, note); });
     }] resume];
+}
+
+// One source's clip for the track, on the main queue; nil when it has none.
+static void ask(NSString *source, NSString *uri, SPTPlayerTrack *track, SGCanvas *fromMetadata, void (^done)(SGCanvas *canvas, NSString *note)) {
+    if ([source isEqualToString:SGArtworkSourceSpotify]) {
+        if (fromMetadata) done(fromMetadata, @"track metadata");
+        else askCanvaz(uri, done);
+        return;
+    }
+    NSDictionary *metadata = [track respondsToSelector:@selector(metadata)] ? track.metadata : nil;
+    SGAppleArtworkFind(metadata[@"artist_name"] ?: track.artistName, metadata[@"album_title"], sg_aspect < 0.9, done);
+}
+
+static void walk(NSString *uri, SPTPlayerTrack *track, SGCanvas *fromMetadata, NSArray<NSString *> *order, NSUInteger at) {
+    if (at >= order.count) {
+        SGLog(@"lock artwork: no clip for %@ from %@", uri, order.count ? [order componentsJoinedByString:@", "] : @"no source");
+        return;
+    }
+    ask(order[at], uri, track, fromMetadata, ^(SGCanvas *canvas, NSString *note) {
+        if (![sg_wanted isEqualToString:uri]) return;
+        if (canvas.video) {
+            play(uri, canvas, order[at]);
+            return;
+        }
+        SGLog(@"lock artwork: %@ has no clip for %@ (%@)", order[at], uri, canvas ? @"a still canvas" : note);
+        walk(uri, track, fromMetadata, order, at + 1);
+    });
 }
 
 // Asked on each track until MediaPlayer names one: before the framework is up it answers with none.
@@ -161,6 +188,7 @@ static void resolve(SPTPlayerTrack *track) {
         if (sg_wanted) {
             sg_wanted = nil;
             SGArtworkCancelFetch();
+            sg_playing = nil;
             @synchronized (sg_lock) {
                 sg_artwork = nil;
                 sg_key = nil;
@@ -178,27 +206,19 @@ static void resolve(SPTPlayerTrack *track) {
     BOOL same = uri == sg_wanted || [uri isEqualToString:sg_wanted];
     if (same && (fromMetadata || !canvas)) return;
     fromMetadata = canvas != nil;
+    NSArray<NSString *> *order = SGArtworkOrder();
+    // A Canvas landing late is no news with Spotify off, or with a source asked before it already playing.
+    NSUInteger spotifyAt = [order indexOfObject:SGArtworkSourceSpotify];
+    if (same && (spotifyAt == NSNotFound || (sg_playing && [order indexOfObject:sg_playing] < spotifyAt))) return;
     sg_wanted = uri;
+    sg_playing = nil;
     SGArtworkCancelFetch();
     @synchronized (sg_lock) {
         sg_artwork = nil;
         sg_key = nil;
     }
     if (!uri) return;
-    if (canvas) {
-        play(uri, canvas, @"track metadata");
-        return;
-    }
-    askCanvaz(uri, ^(SGCanvas *answer, NSString *note) {
-        dispatch_async(dispatch_get_main_queue(), ^{
-            if (![sg_wanted isEqualToString:uri]) return;
-            if (!answer) {
-                SGLog(@"lock artwork: no canvas for %@ (%@)", uri, note);
-                return;
-            }
-            play(uri, answer, @"canvaz");
-        });
-    });
+    walk(uri, track, canvas, order, 0);
 }
 
 @interface SGArtworkWatcher : NSObject <SGPlayerStateObserver>

@@ -1,6 +1,25 @@
-// What the hook and the harness share: which key this iOS takes a clip under, and putting one there.
+// What the hook, the harness and the settings share: the order of the sources, which key this iOS
+// takes a clip under, and putting one there.
 #import <MediaPlayer/MediaPlayer.h>
 #import "LockScreenArtwork.h"
+
+NSString *const SGArtworkSourceSpotify = @"spotify";
+NSString *const SGArtworkSourceApple = @"applemusic";
+
+NSArray<NSString *> *SGArtworkOrder(void) {
+    id stored = [NSUserDefaults.standardUserDefaults arrayForKey:SGKeyLockScreenArtworkSources];
+    NSArray *keys = [stored isKindOfClass:NSArray.class] ? stored : @[SGArtworkSourceSpotify, SGArtworkSourceApple];
+    NSMutableArray<NSString *> *order = [NSMutableArray array];
+    for (id key in keys) {
+        BOOL known = [key isEqual:SGArtworkSourceSpotify] || [key isEqual:SGArtworkSourceApple];
+        if (known && ![order containsObject:key]) [order addObject:key];
+    }
+    return order;
+}
+
+void SGArtworkSetOrder(NSArray<NSString *> *order) {
+    [NSUserDefaults.standardUserDefaults setObject:order ?: @[] forKey:SGKeyLockScreenArtworkSources];
+}
 
 BOOL SGAnimatedArtworkAvailable(void) {
     if (@available(iOS 26.0, *)) return MPMediaItemAnimatedArtwork.class != nil;

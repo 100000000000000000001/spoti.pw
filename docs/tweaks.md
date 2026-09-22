@@ -95,14 +95,20 @@ Shared:
                   for it and the next, and the player's card-loading timeout flag is forced to its 5 s maximum while a
                   source is on
     LockScreenLyrics/ the line being sung in the system's now playing
-    LockScreenArtwork/ the track's Canvas as the lock screen's animated artwork, from iOS 26 (Apple takes an
-                  MPMediaItemAnimatedArtwork under one of MPNowPlayingInfoCenter's animated artwork keys, and
-                  the mod puts one there through a second hook on setNowPlayingInfo:, so the lock screen
-                  lyrics' rewrites of the same dictionary carry it). The URL comes off canvas.url in the
-                  played track's metadata, which Spotify's core fills whatever ios-feature-canvas.canvas_enabled
-                  says, and failing that from spotify.canvaz.cache with the account's own token. The clip is
-                  downloaded into Caches, centre cropped once from 9:16 to the shape the key wants and kept
-                  under a 60 MB cap. Checked on the Mac against harness/lockart/
+    LockScreenArtwork/ the track's Canvas or its album's Apple Music cover as the lock screen's animated
+                  artwork, from iOS 26 (Apple takes an MPMediaItemAnimatedArtwork under one of
+                  MPNowPlayingInfoCenter's animated artwork keys, and the mod puts one there through a second
+                  hook on setNowPlayingInfo:, so the lock screen lyrics' rewrites of the same dictionary carry
+                  it). The sources are asked in the user's order (Spotify, then Apple Music until set, on the
+                  shared Settings/SGOrderPage the lyrics sources use too). Spotify's URL comes off canvas.url
+                  in the played track's metadata, which Spotify's core fills whatever
+                  ios-feature-canvas.canvas_enabled says, and failing that from spotify.canvaz.cache with the
+                  account's own token. Apple Music's (SGAppleArtwork.m) comes from the catalog search with
+                  editorialVideo extended, under the web player's token read from music.apple.com's script and
+                  kept until it expires; the HLS stream near 1100 px wide, HEVC first, is byte ranges of one
+                  MP4, which is fetched whole. The clip is downloaded into Caches, centre cropped once to the
+                  shape the key wants (Apple's 3:4 cover needs none) and kept under a 120 MB cap. Checked on
+                  the Mac against harness/lockart/
     Navigation/   the page transition fix (PageTransition.x) and opening a spotify: link (Links.x)
     Player/       the player's open and close announced (PlayerEvents.x), what the player is doing read through
                   one hook for every feature that wants it (PlayerState.x), the lock screen widget's flags, and in the
@@ -251,7 +257,7 @@ The pages show only what the stored look has: a page opened after flipping the s
 what the restart will bring. Then a card of parts. Navbar: the tab editor of the stored look, each with
 its own list of tabs. Player: Gestures, Lyrics (the ordered list of lyrics sources, lyrics for every track,
 naming the source in the redesign, the lock screen, and glass lyrics in the native look; in the redesign also
-which of the lyrics, their pronunciation and their translation is set largest, and the translation's language), Blocked artists (with the count on the row) and Lock screen widget (its controls and, under Artwork, Animated lock screen, the track's Canvas played behind the lock screen's controls, on until switched off and a "Needs iOS 26" row below that), which work with either look;
+which of the lyrics, their pronunciation and their translation is set largest, and the translation's language), Blocked artists (with the count on the row) and Lock screen widget (its controls and, under Artwork, Animated lock screen, the track's Canvas or the album's Apple Music cover played behind the lock screen's controls, on until switched off, with a Sources page for their order, and a "Needs iOS 26" row below that), which work with either look;
 in the native look also Now playing bar (its device button and its flags), Queue & devices, and
 Spotify's own player screen (artwork background, glass header buttons, Disable Canvas and the sheet,
 header, slider and sticky header flags, the cards under the player and the lyrics preview and player

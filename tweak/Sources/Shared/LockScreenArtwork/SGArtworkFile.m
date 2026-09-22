@@ -2,7 +2,7 @@
 #import "Core/SGCore.h"
 #import "SGArtworkFile.h"
 
-static const unsigned long long kCap = 60 * 1024 * 1024;
+static const unsigned long long kCap = 120 * 1024 * 1024;   // an Apple Music cover is about 8 MB
 // A clip this close to the shape asked for is handed over untouched rather than re-encoded.
 static const CGFloat kAspectSlack = 0.02;
 
