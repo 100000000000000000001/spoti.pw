@@ -10,7 +10,7 @@
 // that has lyrics everywhere, and the 200 that comes back has its lines swapped for the chain's as
 // above: a 404 turned into a 200 in the delegate alone never showed a card on 9.1.78, however fast
 // it came, while a real 200 with our lines in it always did. The donor's own lines are never shown:
-// with nothing from the chain the request is failed as Spotify's would have been. The player-track
+// with nothing from the chain the request ends in a 404, as Spotify's would have. The player-track
 // hook below notes what the metadata said, and forces has_lyrics on so the request is made at all.
 //
 // A 404 for a track the metadata has not been seen for. The reply is held where it arrives, its
@@ -289,8 +289,9 @@ static NSHTTPURLResponse *okFor(NSURL *url, NSData *body) {
                                      headerFields:@{@"Content-Type": @"application/protobuf", @"Content-Length": @(body.length).stringValue}];
 }
 
+// Never NSURLErrorCancelled: Spotify drops a cancelled request without telling whoever waits on it.
 static NSError *noLyricsError(void) {
-    return [NSError errorWithDomain:NSURLErrorDomain code:NSURLErrorCancelled
+    return [NSError errorWithDomain:NSURLErrorDomain code:NSURLErrorResourceUnavailable
                            userInfo:@{NSLocalizedDescriptionKey: @"no lyrics for this track from any source"}];
 }
 
@@ -327,6 +328,37 @@ static void onResponse(id delegate, NSURLSession *session, NSURLSessionDataTask 
     objc_setAssociatedObject(task, &kTaskKey, state, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     NSInteger status = statusOf(response);
     SGLog(@"lyrics: Spotify answered %ld for %@%@", (long)status, track, state.donor ? @" through the donor" : @"");
+    if (status == 200 && state.donor) {
+        // Held until the chain answers: with nothing from it the request ends in the 404 Spotify's own
+        // would have, and a 200 already handed on cannot be taken back.
+        @synchronized (state) { state.held = YES; }
+        dispatch_async(dispatch_get_main_queue(), ^{
+            SGLyricsFetch(track, ^(SGLyricsResult *lyrics) {
+                @synchronized (state) {
+                    if (state.gone) return;
+                }
+                if (lyrics.texts.count) {
+                    @synchronized (state) {
+                        state.held = NO;
+                        state.buffer = [NSMutableData data];
+                    }
+                    orig(response, handler);
+                    return;
+                }
+                chosenBody(track, lyrics, nil, YES, NO);
+                SGLog(@"lyrics: no lyrics for %@ from any source, its request ends in a 404 as Spotify's did", track);
+                NSHTTPURLResponse *missing = [[NSHTTPURLResponse alloc] initWithURL:task.currentRequest.URL statusCode:404
+                                                                        HTTPVersion:@"HTTP/2.0" headerFields:@{}];
+                answerResponseOf(task);
+                @synchronized (state) {
+                    state.fake = missing;
+                    state.answered = YES;
+                }
+                orig(missing, handler);
+            });
+        });
+        return;
+    }
     if (status == 200) {
         @synchronized (state) { state.buffer = [NSMutableData data]; }
         orig(response, handler);
