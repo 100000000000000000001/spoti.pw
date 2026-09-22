@@ -366,7 +366,7 @@ static char kCardGlassKey;
     UIButton *later = [UIButton buttonWithConfiguration:config primaryAction:nil];
     [later addTarget:self action:@selector(later) forControlEvents:UIControlEventTouchUpInside];
 
-    UILabel *thanks = [self label:@"Also built on Spicy Lyrics, JamesDSP and EeveeSpotify. Thank you to everyone behind them."
+    UILabel *thanks = [self label:@"Also built on JamesDSP and EeveeSpotify. Thank you to everyone behind them."
                              font:[UIFont systemFontOfSize:11] color:[UIColor colorWithWhite:1 alpha:0.38]];
 
     UIStackView *column = [[UIStackView alloc] initWithArrangedSubviews:@[hero, eyebrow, title, body, donate, later, thanks]];
