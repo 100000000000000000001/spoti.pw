@@ -44,13 +44,13 @@
 // view, hidden while off). Spotify's own off grey read as a disabled button beside the white download
 // (issue #65). A button with no such dot keeps Spotify's colours. nil, the default, reads no dot.
 @property (nonatomic, copy) UIColor *onGlyphColor;
-// The word on Spotify's button instead of a glyph, in a glass capsule as wide as the word asks for: for a
-// text button such as the artist's Follow, whose word is its state ("Follow", "Following") in the app's
-// language. Until Spotify's button has a word the button draws nothing and takes no touches. Set before the
-// first -feedFrom:.
-@property (nonatomic) BOOL showsWord;
-// The width the button wants: SGRActionHeight for a glyph, the word and its padding for a word.
-- (CGFloat)sgr_width;
+// For a button that shows its state only as a word in the app's language (the artist's Follow): YES with
+// whether it is on once the state is known, from wherever the page reads it. The button then draws
+// stateOffSymbol, or stateOnSymbol in the accent colour, and nothing while it answers NO. Set before the
+// first -feedFrom:; call -feedFrom: again when the state changes.
+@property (nonatomic, copy) BOOL (^readState)(BOOL *on);
+@property (nonatomic, copy) NSString *stateOffSymbol;
+@property (nonatomic, copy) NSString *stateOnSymbol;
 // Takes the glyph, its colour and the label from `source`, and follows the glyph as Spotify swaps it
 // (shuffle turning on). Cheap to call again on every pass.
 //
