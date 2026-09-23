@@ -95,9 +95,9 @@ If it made your phone nicer to use, a coffee is a good way to say so.
 
 ## Contributing
 
-Pull requests are welcome. Before one is merged, everyone who wrote a commit in it signs the
-[Contributor License Agreement](CLA.md) by commenting on the pull request; the CLA check says how.
-The agreement gives the project's owner the rights to the contribution.
+Pull requests are welcome. The pull request's description has a box for agreeing to the
+[Contributor License Agreement](CLA.md), which gives the project's owner the rights to the
+contribution; it is ticked once, before the first pull request is merged.
 
 ## Star history
 
