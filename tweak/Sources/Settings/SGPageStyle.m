@@ -144,7 +144,9 @@ UIView *SGSectionHeader(UITableView *table, NSString *title) {
 static const CGFloat kFooterTop = 8, kFooterBottom = 4;
 
 static CGFloat footerTextHeight(UITableView *table, NSString *text) {
-    CGFloat width = MAX(table.bounds.size.width - 32, 100);
+    // An inset grouped table narrows its footers by its side margins, and the label wraps at that width.
+    CGFloat inset = table.style == UITableViewStyleInsetGrouped ? table.layoutMargins.left + table.layoutMargins.right : 0;
+    CGFloat width = MAX(table.bounds.size.width - inset - 32, 100);
     return ceil([text boundingRectWithSize:CGSizeMake(width, CGFLOAT_MAX)
                                    options:NSStringDrawingUsesLineFragmentOrigin
                                 attributes:@{NSFontAttributeName: SGSubtitleFont()}
