@@ -104,6 +104,8 @@ void SGLyricsPostJSON(NSURL *url, NSDictionary<NSString *, NSString *> *headers,
 // Every source's reply goes through this, so a walk that lost a request to the network or a busy
 // server is not kept as "no lyrics". The two above call it themselves.
 void SGLyricsNoteReply(NSURLResponse *response, NSError *error);
+// What it counts as lost: the network failed, or the server answered 429 or 5xx.
+BOOL SGLyricsReplyFailed(NSURLResponse *response, NSError *error);
 
 // SGTTML.m. Apple Music's TTML as timed lines, the voices already turned into alignments and each
 // line's translation and pronunciation added where the head has them; nil when the document holds no

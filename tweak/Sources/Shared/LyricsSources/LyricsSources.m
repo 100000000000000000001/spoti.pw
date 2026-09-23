@@ -37,9 +37,13 @@ static NSString *const kLegacyNetEase = @"spotifyglass.neteaseWordTiming";
 // walk can tell "no source has lyrics" from "a source could not say". Only the first is kept.
 static _Atomic NSUInteger sg_failures;
 
-void SGLyricsNoteReply(NSURLResponse *response, NSError *error) {
+BOOL SGLyricsReplyFailed(NSURLResponse *response, NSError *error) {
     NSInteger status = [response isKindOfClass:NSHTTPURLResponse.class] ? ((NSHTTPURLResponse *)response).statusCode : 0;
-    if (error || status == 429 || status >= 500) atomic_fetch_add(&sg_failures, 1);
+    return error || status == 429 || status >= 500;
+}
+
+void SGLyricsNoteReply(NSURLResponse *response, NSError *error) {
+    if (SGLyricsReplyFailed(response, error)) atomic_fetch_add(&sg_failures, 1);
 }
 
 NSURL *SGLyricsURL(NSString *base, NSDictionary<NSString *, NSString *> *query) {
